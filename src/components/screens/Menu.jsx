@@ -4,10 +4,11 @@ import { ranks, vibe, anims } from '../../utils/math';
 import Swal from 'sweetalert2';
 
 const games = [
-  { id: 'equations', short: 'eq', label: 'כאן בונים בכיף', emoji: '🧩', color: 'purple' },
-  { id: 'balance', short: 'bal', label: 'שומרים על איזון', emoji: '⚖️', color: 'emerald' },
-  { id: 'tank', short: 'tank', label: 'חצי הכוס המלאה', emoji: '🧪', color: 'blue' },
-  { id: 'decimal', short: 'dec', label: 'המשקל הדיגיטלי', emoji: '🔬', color: 'cyan' },
+  { id: 'equations', label: 'כאן בונים בכיף', emoji: '🧩', color: 'purple' },
+  { id: 'balance', label: 'שומרים על איזון', emoji: '⚖️', color: 'emerald' },
+  { id: 'tank', label: 'חצי הכוס המלאה', emoji: '🧪', color: 'blue' },
+  { id: 'decimal', label: 'המשקל הדיגיטלי', emoji: '🔬', color: 'cyan' },
+  { id: 'fractionLab', label: 'מעבדת השברים', emoji: '🍕', color: 'orange' },
 ];
 
 export default function Menu() {
@@ -18,8 +19,9 @@ export default function Menu() {
   const balance = useGameStore((s) => s.balance);
   const tank = useGameStore((s) => s.tank);
   const decimal = useGameStore((s) => s.decimal);
+  const fractionLab = useGameStore((s) => s.fractionLab);
 
-  const gameStates = { equations, balance, tank, decimal };
+  const gameStates = { equations, balance, tank, decimal, fractionLab };
 
   const startGame = (gameId) => {
     vibe(10);
@@ -71,7 +73,7 @@ export default function Menu() {
             <h3 className="font-black">{g.label}</h3>
             <div className="flex items-center gap-2 mt-1">
               <p
-                className="text-[10px] text-slate-500 dark:text-slate-400 font-bold bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full inline-block lvl-badge"
+                className="text-[10px] text-slate-500 dark:text-slate-400 font-bold bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full inline-block lvl-badge whitespace-nowrap"
                 onClick={(e) => handleCheatLevel(e, g.id)}
               >
                 {getBadgeText(g.id)}

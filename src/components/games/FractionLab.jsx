@@ -1,0 +1,245 @@
+import { useState, useEffect, useCallback } from 'react';
+import confetti from 'canvas-confetti';
+import useGameStore from '../../store/useGameStore';
+import Fraction from '../shared/Fraction';
+import FeedbackOverlay from '../shared/FeedbackOverlay';
+import Hearts from '../shared/Hearts';
+import { vibe } from '../../utils/math';
+import Swal from 'sweetalert2';
+
+function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+
+// SVG circle or grid representation of a fraction
+function VisualShape({ n, d }) {
+  const useGrid = d > 8 || (d % 3 === 0 && d > 6);
+  const numShapes = Math.max(1, Math.ceil(n / d));
+
+  return (
+    <div className="flex flex-wrap justify-center gap-3" dir="ltr">
+      {Array.from({ length: numShapes }).map((_, si) => {
+        const filled = Math.min(d, n - si * d);
+        if (useGrid) {
+          return (
+            <div key={si} className="flex gap-1 flex-wrap justify-center max-w-[180px] p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+              {Array.from({ length: d }).map((_, i) => (
+                <div key={i} className={`w-7 h-7 rounded-lg border-2 transition-all ${i < filled ? 'bg-orange-500 border-orange-600' : 'bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600'}`} />
+              ))}
+            </div>
+          );
+        }
+        return (
+          <div key={si} className="relative w-28 h-28 md:w-32 md:h-32 shrink-0">
+            <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90 drop-shadow-md">
+              <circle cx="50" cy="50" r="45" fill="white" className="dark:fill-slate-700" stroke="#94a3b8" strokeWidth="2" />
+              {Array.from({ length: d }).map((_, i) => {
+                const sliceAngle = 360 / d;
+                const start = i * sliceAngle * (Math.PI / 180);
+                const end = (i + 1) * sliceAngle * (Math.PI / 180);
+                const x1 = 50 + 45 * Math.cos(start), y1 = 50 + 45 * Math.sin(start);
+                const x2 = 50 + 45 * Math.cos(end), y2 = 50 + 45 * Math.sin(end);
+                return (
+                  <path
+                    key={i}
+                    d={`M50,50 L${x1},${y1} A45,45 0 ${sliceAngle > 180 ? 1 : 0},1 ${x2},${y2} Z`}
+                    fill={i < filled ? '#f97316' : 'transparent'}
+                    stroke="#94a3b8"
+                    strokeWidth="2"
+                  />
+                );
+              })}
+            </svg>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function generateQuestion(lvl) {
+  const rand = Math.random();
+  let mode = 'visual';
+  if (lvl >= 5) {
+    mode = ['visual', 'simplify', 'decimal'][Math.floor(rand * 3)];
+  } else if (lvl === 4) {
+    mode = rand > 0.4 ? 'decimal' : 'simplify';
+  } else if (lvl === 3) {
+    mode = rand > 0.5 ? 'decimal' : (rand > 0.2 ? 'simplify' : 'visual');
+  } else if (lvl === 2) {
+    mode = rand > 0.5 ? 'simplify' : 'visual';
+  }
+
+  let n, d;
+  if (mode === 'decimal') {
+    const pool = lvl >= 4
+      ? [{ n: 1, d: 8 }, { n: 3, d: 8 }, { n: 5, d: 8 }, { n: 7, d: 8 }]
+      : [{ n: 1, d: 2 }, { n: 1, d: 4 }, { n: 3, d: 4 }, { n: 1, d: 5 }, { n: 2, d: 5 }];
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    n = pick.n; d = pick.d;
+  } else if (mode === 'simplify') {
+    const bases = [2, 3, 4, 5];
+    const bd = bases[Math.floor(Math.random() * bases.length)];
+    const bn = Math.floor(Math.random() * (bd - 1)) + 1;
+    const mult = Math.floor(Math.random() * 3) + 2;
+    n = bn * mult; d = bd * mult;
+  } else {
+    const opts = lvl >= 3 ? [2, 3, 4, 5, 6, 8, 10, 12] : [2, 3, 4, 5, 6];
+    d = opts[Math.floor(Math.random() * opts.length)];
+    n = Math.floor(Math.random() * (d - 1)) + 1;
+  }
+  return { mode, targetN: n, targetD: d, decimalVal: (n / d).toFixed(3) };
+}
+
+const modeLabels = {
+  visual: 'ייצגו את השבר (בצורה מצומצמת)',
+  simplify: 'צמצמו את השבר',
+  decimal: 'המירו לשבר פשוט',
+};
+
+export default function FractionLab() {
+  const gameState = useGameStore((s) => s.fractionLab);
+  const handleWinStore = useGameStore((s) => s.handleWin);
+  const handleGameFail = useGameStore((s) => s.handleGameFail);
+  const setScreen = useGameStore((s) => s.setScreen);
+
+  const noLives = gameState.lvl === 5;
+
+  const [question, setQuestion] = useState(null);
+  const [userN, setUserN] = useState(1);
+  const [userD, setUserD] = useState(2);
+  const [lives, setLives] = useState(3);
+  const [justLost, setJustLost] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [feedback, setFeedback] = useState({ visible: false, isLevelUp: false, pts: 0 });
+
+  const newQuestion = useCallback(() => {
+    setQuestion(generateQuestion(gameState.lvl));
+    setUserN(1);
+    setUserD(2);
+    setErrorMsg('');
+    setJustLost(false);
+    if (!noLives) setLives(3);
+  }, [gameState.lvl, noLives]);
+
+  useEffect(() => { newQuestion(); }, [newQuestion]);
+
+  const checkAnswer = () => {
+    if (!question) return;
+    const targetVal = question.targetN / question.targetD;
+    const userVal = userN / userD;
+
+    if (Math.abs(targetVal - userVal) > 0.0001) {
+      vibe([50, 50, 50]);
+      setErrorMsg('❌ לא מדויק, נסה שוב');
+      if (!noLives) {
+        const next = lives - 1;
+        setLives(next);
+        setJustLost(true);
+        setTimeout(() => setJustLost(false), 600);
+        if (next <= 0) {
+          const result = handleGameFail('fractionLab');
+          if (result === 'locked') {
+            Swal.fire({ title: 'הרמה ננעלה 🔒', html: '<div class="text-right">נעלנו את הרמה כדי שתוכל להתאמן! 🧠</div>', icon: 'warning', confirmButtonText: 'הבנתי', confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } })
+              .then(() => setScreen('menu'));
+          } else {
+            Swal.fire({ title: 'אופס! 💥', text: 'נגמרו הניסיונות, ננסה שאלה חדשה.', icon: 'error', confirmButtonColor: '#ef4444', customClass: { popup: 'rounded-3xl' } })
+              .then(() => newQuestion());
+          }
+        }
+      }
+      return;
+    }
+
+    if (gcd(userN, userD) > 1) {
+      vibe(30);
+      setErrorMsg('⚠️ התשובה נכונה, אך יש לצמצם אותה קודם!');
+      return;
+    }
+
+    vibe([30, 50, 30]);
+    confetti({ particleCount: 60, spread: 60, origin: { y: 0.7 } });
+    const result = handleWinStore('fractionLab');
+    setFeedback({ visible: true, isLevelUp: result.isLevelUp, pts: result.pts });
+  };
+
+  if (!question) return null;
+
+  return (
+    <div className="screen-enter flex flex-col items-center p-3 flex-1">
+      <div className="w-full max-w-md flex flex-col md:flex-row gap-4 items-stretch">
+
+        {/* Task card */}
+        <div className="flex-1 bg-white dark:bg-slate-800 rounded-[2rem] p-5 shadow-lg border-2 border-orange-100 dark:border-slate-700 flex flex-col items-center gap-4">
+          <div className="w-full flex flex-wrap justify-between items-center gap-2">
+            <span className="text-[11px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-full">
+              {modeLabels[question.mode]}
+            </span>
+            {noLives
+              ? <span className="text-[11px] font-bold text-amber-500 bg-amber-50 dark:bg-amber-900/30 px-3 py-1 rounded-full">ללא הגבלה ♾️</span>
+              : <Hearts lives={lives} maxLives={3} justLost={justLost} />
+            }
+          </div>
+
+          <div className="flex-1 flex items-center justify-center min-h-[150px] w-full">
+            {question.mode === 'visual' && <VisualShape n={question.targetN} d={question.targetD} />}
+            {question.mode === 'simplify' && (
+              <div dir="ltr">
+                <Fraction numerator={question.targetN} denominator={question.targetD} className="text-5xl" />
+              </div>
+            )}
+            {question.mode === 'decimal' && (
+              <div className="text-5xl md:text-6xl font-black text-slate-700 dark:text-slate-200" dir="ltr">
+                {question.decimalVal}
+              </div>
+            )}
+          </div>
+
+          {errorMsg && (
+            <div className="w-full text-center text-sm font-bold bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-4 py-2 rounded-xl border border-red-200 dark:border-red-800">
+              {errorMsg}
+            </div>
+          )}
+        </div>
+
+        {/* Controls card */}
+        <div className="w-full md:w-52 bg-slate-800 text-white rounded-[2rem] p-5 shadow-xl flex flex-col items-center gap-4">
+          <div className="text-slate-400 font-bold text-xs uppercase tracking-widest">המכונה</div>
+
+          {/* Live fraction preview */}
+          <div className="bg-slate-700 rounded-2xl px-8 py-3 flex items-center justify-center min-w-[80px]" dir="ltr">
+            <Fraction numerator={userN} denominator={userD} className="text-3xl text-white" />
+          </div>
+
+          {/* Numerator row */}
+          <div className="w-full flex items-center justify-between gap-2">
+            <button onClick={() => { setUserN((v) => Math.max(1, v - 1)); setErrorMsg(''); }} className="w-11 h-11 rounded-xl bg-slate-700 hover:bg-slate-600 text-2xl font-black active:scale-90 transition-all flex items-center justify-center">−</button>
+            <div className="flex-1 text-center text-4xl font-black" dir="ltr">{userN}</div>
+            <button onClick={() => { setUserN((v) => v + 1); setErrorMsg(''); }} className="w-11 h-11 rounded-xl bg-orange-500 hover:bg-orange-400 text-2xl font-black active:scale-90 transition-all flex items-center justify-center shadow-lg">+</button>
+          </div>
+
+          <div className="w-full h-0.5 bg-slate-600 rounded-full" />
+
+          {/* Denominator row */}
+          <div className="w-full flex items-center justify-between gap-2">
+            <button onClick={() => { setUserD((v) => Math.max(1, v - 1)); setErrorMsg(''); }} className="w-11 h-11 rounded-xl bg-slate-700 hover:bg-slate-600 text-2xl font-black active:scale-90 transition-all flex items-center justify-center">−</button>
+            <div className="flex-1 text-center text-4xl font-black" dir="ltr">{userD}</div>
+            <button onClick={() => { setUserD((v) => v + 1); setErrorMsg(''); }} className="w-11 h-11 rounded-xl bg-blue-500 hover:bg-blue-400 text-2xl font-black active:scale-90 transition-all flex items-center justify-center shadow-lg">+</button>
+          </div>
+
+          <button
+            onClick={checkAnswer}
+            className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-white rounded-2xl font-black text-xl shadow-xl transition-all active:scale-95 mt-1"
+          >
+            בדיקה ✓
+          </button>
+        </div>
+      </div>
+
+      <FeedbackOverlay
+        visible={feedback.visible}
+        isLevelUp={feedback.isLevelUp}
+        pts={feedback.pts}
+        onDone={() => { setFeedback({ visible: false, isLevelUp: false, pts: 0 }); newQuestion(); }}
+      />
+    </div>
+  );
+}

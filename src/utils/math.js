@@ -22,13 +22,13 @@ export function getWeekId() {
 }
 
 export function getGameShort(game) {
-  const map = { equations: 'eq', balance: 'bal', tank: 'tank', decimal: 'dec' };
+  const map = { equations: 'eq', balance: 'bal', tank: 'tank', decimal: 'dec', fractionLab: 'flab' };
   return map[game] || game.substring(0, 3);
 }
 
 export function emptyWeek() {
   return {
     weekId: getWeekId(),
-    days: Array(7).fill(null).map(() => ({ pts: 0, games: { eq: 0, bal: 0, tank: 0, dec: 0 } }))
+    days: Array(7).fill(null).map(() => ({ pts: 0, games: { eq: 0, bal: 0, tank: 0, dec: 0, flab: 0 } }))
   };
 }

@@ -7,6 +7,7 @@ import Equations from './components/games/Equations';
 import Balance from './components/games/Balance';
 import Tank from './components/games/Tank';
 import Decimal from './components/games/Decimal';
+import FractionLab from './components/games/FractionLab';
 
 const screens = {
   menu: Menu,
@@ -15,6 +16,7 @@ const screens = {
   balance: Balance,
   tank: Tank,
   decimal: Decimal,
+  fractionLab: FractionLab,
 };
 
 export default function App() {

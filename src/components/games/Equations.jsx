@@ -4,6 +4,8 @@ import FeedbackOverlay from '../shared/FeedbackOverlay';
 import { vibe, opsDict, opEmojis } from '../../utils/math';
 import Swal from 'sweetalert2';
 
+const ONBOARD_KEY = 'onboard_equations';
+
 // Safe math eval (no eval())
 function safeEval(expr) {
   try {
@@ -93,6 +95,22 @@ export default function Equations() {
   useEffect(() => {
     initGame();
   }, [initGame]);
+
+  // First-time onboarding
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(ONBOARD_KEY)) {
+        Swal.fire({
+          title: 'כאן בונים בכיף 🧩',
+          html: '<div class="text-right text-sm leading-relaxed">גרור את החלקים מהמאגר לתוך הריבועים הריקים.<br><br>🔢 <b>מספרים</b> נכנסים לתאים כחולים<br>➕ <b>פעולות</b> נכנסות לתאים צהובים<br><br>המטרה: כל שורה חייבת לתת את התוצאה המסומנת!</div>',
+          confirmButtonText: 'יאללה נבנה!',
+          confirmButtonColor: '#7c3aed',
+          customClass: { popup: 'rounded-3xl' },
+        });
+        localStorage.setItem(ONBOARD_KEY, '1');
+      }
+    } catch {}
+  }, []);
 
   // Get expected slot type
   const getSlotType = (slotIdx) => {

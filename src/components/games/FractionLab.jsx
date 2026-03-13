@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import useGameStore from '../../store/useGameStore';
 import Fraction from '../shared/Fraction';
@@ -9,24 +9,15 @@ import Swal from 'sweetalert2';
 
 function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
 
-// SVG circle or grid representation of a fraction
-function VisualShape({ n, d }) {
-  const useGrid = d > 8 || (d % 3 === 0 && d > 6);
-  const numShapes = Math.max(1, Math.ceil(n / d));
+const ONBOARD_KEY = 'onboard_fractionLab';
 
+// Circle (pie) visual
+function CircleShape({ n, d }) {
+  const numShapes = Math.max(1, Math.ceil(n / d));
   return (
     <div className="flex flex-wrap justify-center gap-3" dir="ltr">
       {Array.from({ length: numShapes }).map((_, si) => {
         const filled = Math.min(d, n - si * d);
-        if (useGrid) {
-          return (
-            <div key={si} className="flex gap-1 flex-wrap justify-center max-w-[180px] p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
-              {Array.from({ length: d }).map((_, i) => (
-                <div key={i} className={`w-7 h-7 rounded-lg border-2 transition-all ${i < filled ? 'bg-orange-500 border-orange-600' : 'bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600'}`} />
-              ))}
-            </div>
-          );
-        }
         return (
           <div key={si} className="relative w-28 h-28 md:w-32 md:h-32 shrink-0">
             <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90 drop-shadow-md">
@@ -55,7 +46,56 @@ function VisualShape({ n, d }) {
   );
 }
 
-function generateQuestion(lvl) {
+// Horizontal bar / rectangle visual
+function RectShape({ n, d }) {
+  const numShapes = Math.max(1, Math.ceil(n / d));
+  const cellW = Math.min(44, Math.floor(200 / d));
+  return (
+    <div className="flex flex-col gap-3 items-center" dir="ltr">
+      {Array.from({ length: numShapes }).map((_, si) => {
+        const filled = Math.min(d, n - si * d);
+        return (
+          <div key={si} className="flex gap-0.5 p-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+            {Array.from({ length: d }).map((_, i) => (
+              <div
+                key={i}
+                className={`h-14 rounded-sm border-2 transition-all ${i < filled ? 'bg-orange-500 border-orange-600' : 'bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600'}`}
+                style={{ width: `${cellW}px` }}
+              />
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Square grid visual
+function GridShape({ n, d }) {
+  const numShapes = Math.max(1, Math.ceil(n / d));
+  return (
+    <div className="flex flex-wrap justify-center gap-3" dir="ltr">
+      {Array.from({ length: numShapes }).map((_, si) => {
+        const filled = Math.min(d, n - si * d);
+        return (
+          <div key={si} className="flex gap-1 flex-wrap justify-center max-w-[180px] p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+            {Array.from({ length: d }).map((_, i) => (
+              <div key={i} className={`w-7 h-7 rounded-lg border-2 transition-all ${i < filled ? 'bg-orange-500 border-orange-600' : 'bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600'}`} />
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function VisualShape({ n, d, visualMode }) {
+  if (visualMode === 'rect') return <RectShape n={n} d={d} />;
+  if (visualMode === 'grid' || d > 8 || (d % 3 === 0 && d > 6)) return <GridShape n={n} d={d} />;
+  return <CircleShape n={n} d={d} />;
+}
+
+function generateQuestion(lvl, recentKeys) {
   const rand = Math.random();
   let mode = 'visual';
   if (lvl >= 5) {
@@ -69,24 +109,44 @@ function generateQuestion(lvl) {
   }
 
   let n, d;
-  if (mode === 'decimal') {
-    const pool = lvl >= 4
-      ? [{ n: 1, d: 8 }, { n: 3, d: 8 }, { n: 5, d: 8 }, { n: 7, d: 8 }]
-      : [{ n: 1, d: 2 }, { n: 1, d: 4 }, { n: 3, d: 4 }, { n: 1, d: 5 }, { n: 2, d: 5 }];
-    const pick = pool[Math.floor(Math.random() * pool.length)];
-    n = pick.n; d = pick.d;
-  } else if (mode === 'simplify') {
-    const bases = [2, 3, 4, 5];
-    const bd = bases[Math.floor(Math.random() * bases.length)];
-    const bn = Math.floor(Math.random() * (bd - 1)) + 1;
-    const mult = Math.floor(Math.random() * 3) + 2;
-    n = bn * mult; d = bd * mult;
-  } else {
-    const opts = lvl >= 3 ? [2, 3, 4, 5, 6, 8, 10, 12] : [2, 3, 4, 5, 6];
-    d = opts[Math.floor(Math.random() * opts.length)];
-    n = Math.floor(Math.random() * (d - 1)) + 1;
+  let attempts = 0;
+
+  do {
+    if (mode === 'decimal') {
+      const pool = lvl >= 4
+        ? [{ n: 1, d: 8 }, { n: 3, d: 8 }, { n: 5, d: 8 }, { n: 7, d: 8 }]
+        : [{ n: 1, d: 2 }, { n: 1, d: 4 }, { n: 3, d: 4 }, { n: 1, d: 5 }, { n: 2, d: 5 }];
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      n = pick.n; d = pick.d;
+    } else if (mode === 'simplify') {
+      const bases = [2, 3, 4, 5];
+      const bd = bases[Math.floor(Math.random() * bases.length)];
+      const bn = Math.floor(Math.random() * (bd - 1)) + 1;
+      const mult = Math.floor(Math.random() * 3) + 2;
+      n = bn * mult; d = bd * mult;
+    } else {
+      const opts = lvl >= 3 ? [2, 3, 4, 5, 6, 8, 10, 12] : [2, 3, 4, 5, 6];
+      d = opts[Math.floor(Math.random() * opts.length)];
+      n = Math.floor(Math.random() * (d - 1)) + 1;
+    }
+    attempts++;
+  } while (attempts < 10 && recentKeys.includes(`${mode}-${n}/${d}`));
+
+  // Visual mode: pick a varied shape type
+  let visualMode = 'circle';
+  if (mode === 'visual') {
+    const shapeOptions = d <= 6 ? ['circle', 'rect', 'grid'] : d <= 8 ? ['circle', 'grid'] : ['grid'];
+    visualMode = shapeOptions[Math.floor(Math.random() * shapeOptions.length)];
   }
-  return { mode, targetN: n, targetD: d, decimalVal: (n / d).toFixed(3) };
+
+  return {
+    mode,
+    targetN: n,
+    targetD: d,
+    decimalVal: (n / d).toFixed(3),
+    visualMode,
+    key: `${mode}-${n}/${d}`,
+  };
 }
 
 const modeLabels = {
@@ -110,17 +170,62 @@ export default function FractionLab() {
   const [justLost, setJustLost] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [feedback, setFeedback] = useState({ visible: false, isLevelUp: false, pts: 0 });
+  const [consecutiveErrors, setConsecutiveErrors] = useState(0);
+
+  const recentRef = useRef([]);
 
   const newQuestion = useCallback(() => {
-    setQuestion(generateQuestion(gameState.lvl));
+    const q = generateQuestion(gameState.lvl, recentRef.current);
+    recentRef.current = [q.key, ...recentRef.current].slice(0, 3);
+    setQuestion(q);
     setUserN(1);
     setUserD(2);
     setErrorMsg('');
     setJustLost(false);
+    setConsecutiveErrors(0);
     if (!noLives) setLives(3);
   }, [gameState.lvl, noLives]);
 
   useEffect(() => { newQuestion(); }, [newQuestion]);
+
+  // First-time onboarding
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(ONBOARD_KEY)) {
+        Swal.fire({
+          title: 'מעבדת השברים 🍕',
+          html: '<div class="text-right text-sm leading-relaxed">בכל שאלה תצטרך לייצג שבר נכון.<br><br>🍕 <b>ויזואלי</b> — התאם את השבר לציור<br>✂️ <b>צמצום</b> — פשט את השבר<br>🔢 <b>עשרוני</b> — המר מספר עשרוני לשבר<br><br>השתמש בכפתורי + ו- כדי לשנות את המונה והמכנה.</div>',
+          confirmButtonText: 'יאללה למעבדה!',
+          confirmButtonColor: '#f97316',
+          customClass: { popup: 'rounded-3xl' },
+        });
+        localStorage.setItem(ONBOARD_KEY, '1');
+      }
+    } catch {}
+  }, []);
+
+  const showHint = () => {
+    vibe(20);
+    if (!question) return;
+    const { mode, targetN, targetD } = question;
+    let text = '';
+    if (mode === 'visual') {
+      text = 'ספור את מספר החלקים הצבועים ואת סך כל החלקים — זה השבר שלך.';
+    } else if (mode === 'simplify') {
+      const g = gcd(targetN, targetD);
+      text = `המחלק המשותף הגדול ביותר הוא ${g}. חלק גם את המונה וגם את המכנה ב-${g}.`;
+    } else {
+      text = 'המר את העשרוני לשבר. לדוגמה: 0.5 = 1/2, 0.25 = 1/4, 0.125 = 1/8.';
+    }
+    Swal.fire({
+      title: '💡 רמז',
+      text,
+      icon: 'info',
+      confirmButtonText: 'הבנתי, תודה!',
+      confirmButtonColor: '#f59e0b',
+      customClass: { popup: 'rounded-3xl' },
+    });
+  };
 
   const checkAnswer = () => {
     if (!question) return;
@@ -129,6 +234,8 @@ export default function FractionLab() {
 
     if (Math.abs(targetVal - userVal) > 0.0001) {
       vibe([50, 50, 50]);
+      const newErrors = consecutiveErrors + 1;
+      setConsecutiveErrors(newErrors);
       setErrorMsg('❌ לא מדויק, נסה שוב');
       if (!noLives) {
         const next = lives - 1;
@@ -180,7 +287,7 @@ export default function FractionLab() {
           </div>
 
           <div className="flex-1 flex items-center justify-center min-h-[150px] w-full">
-            {question.mode === 'visual' && <VisualShape n={question.targetN} d={question.targetD} />}
+            {question.mode === 'visual' && <VisualShape n={question.targetN} d={question.targetD} visualMode={question.visualMode} />}
             {question.mode === 'simplify' && (
               <div dir="ltr">
                 <Fraction numerator={question.targetN} denominator={question.targetD} className="text-5xl" />
@@ -198,6 +305,15 @@ export default function FractionLab() {
               {errorMsg}
             </div>
           )}
+
+          {consecutiveErrors >= 2 && (
+            <button
+              onClick={showHint}
+              className="w-full text-sm font-bold text-amber-700 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300 px-4 py-2 rounded-xl border border-amber-200 dark:border-amber-800 animate-pulse active:scale-95 transition-transform"
+            >
+              💡 לחץ לרמז — זה עוזר!
+            </button>
+          )}
         </div>
 
         {/* Controls card */}
@@ -211,19 +327,26 @@ export default function FractionLab() {
 
           {/* Numerator row */}
           <div className="w-full flex items-center justify-between gap-2">
-            <button onClick={() => { setUserN((v) => Math.max(1, v - 1)); setErrorMsg(''); }} className="w-11 h-11 rounded-xl bg-slate-700 hover:bg-slate-600 text-2xl font-black active:scale-90 transition-all flex items-center justify-center">−</button>
+            <button onClick={() => { setUserN((v) => Math.max(1, v - 1)); setErrorMsg(''); vibe(10); }} className="w-11 h-11 rounded-xl bg-slate-700 hover:bg-slate-600 text-2xl font-black active:scale-90 transition-all flex items-center justify-center">−</button>
             <div className="flex-1 text-center text-4xl font-black" dir="ltr">{userN}</div>
-            <button onClick={() => { setUserN((v) => v + 1); setErrorMsg(''); }} className="w-11 h-11 rounded-xl bg-orange-500 hover:bg-orange-400 text-2xl font-black active:scale-90 transition-all flex items-center justify-center shadow-lg">+</button>
+            <button onClick={() => { setUserN((v) => v + 1); setErrorMsg(''); vibe(10); }} className="w-11 h-11 rounded-xl bg-orange-500 hover:bg-orange-400 text-2xl font-black active:scale-90 transition-all flex items-center justify-center shadow-lg">+</button>
           </div>
 
           <div className="w-full h-0.5 bg-slate-600 rounded-full" />
 
           {/* Denominator row */}
           <div className="w-full flex items-center justify-between gap-2">
-            <button onClick={() => { setUserD((v) => Math.max(1, v - 1)); setErrorMsg(''); }} className="w-11 h-11 rounded-xl bg-slate-700 hover:bg-slate-600 text-2xl font-black active:scale-90 transition-all flex items-center justify-center">−</button>
+            <button onClick={() => { setUserD((v) => Math.max(1, v - 1)); setErrorMsg(''); vibe(10); }} className="w-11 h-11 rounded-xl bg-slate-700 hover:bg-slate-600 text-2xl font-black active:scale-90 transition-all flex items-center justify-center">−</button>
             <div className="flex-1 text-center text-4xl font-black" dir="ltr">{userD}</div>
-            <button onClick={() => { setUserD((v) => v + 1); setErrorMsg(''); }} className="w-11 h-11 rounded-xl bg-blue-500 hover:bg-blue-400 text-2xl font-black active:scale-90 transition-all flex items-center justify-center shadow-lg">+</button>
+            <button onClick={() => { setUserD((v) => v + 1); setErrorMsg(''); vibe(10); }} className="w-11 h-11 rounded-xl bg-blue-500 hover:bg-blue-400 text-2xl font-black active:scale-90 transition-all flex items-center justify-center shadow-lg">+</button>
           </div>
+
+          <button
+            onClick={showHint}
+            className="w-full py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-xl font-bold text-sm transition-all active:scale-95"
+          >
+            💡 רמז
+          </button>
 
           <button
             onClick={checkAnswer}

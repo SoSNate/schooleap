@@ -7,7 +7,7 @@ const games = [
   { id: 'equations', label: 'כאן בונים בכיף', emoji: '🧩', color: 'purple' },
   { id: 'balance', label: 'שומרים על איזון', emoji: '⚖️', color: 'emerald' },
   { id: 'tank', label: 'חצי הכוס המלאה', emoji: '🧪', color: 'blue' },
-  { id: 'decimal', label: 'המשקל הדיגיטלי', emoji: '🔬', color: 'cyan' },
+  { id: 'decimal', label: 'תפוס את הנקודה', emoji: '🎯', color: 'cyan' },
   { id: 'fractionLab', label: 'מעבדת השברים', emoji: '🍕', color: 'orange' },
 ];
 

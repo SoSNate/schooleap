@@ -6,7 +6,7 @@ const gameOptions = [
   { value: 'equations', label: 'כאן בונים בכיף' },
   { value: 'balance', label: 'שומרים על איזון' },
   { value: 'tank', label: 'חצי הכוס המלאה' },
-  { value: 'decimal', label: 'המשקל הדיגיטלי' },
+  { value: 'decimal', label: 'תפוס את הנקודה' },
   { value: 'fractionLab', label: 'מעבדת השברים' },
 ];
 

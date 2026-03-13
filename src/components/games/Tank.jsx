@@ -1,9 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import useGameStore from '../../store/useGameStore';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
+import Hearts from '../shared/Hearts';
 import Fraction from '../shared/Fraction';
 import { vibe } from '../../utils/math';
 import Swal from 'sweetalert2';
+
+const ONBOARD_KEY = 'onboard_tank';
 
 export default function Tank() {
   const gameState = useGameStore((s) => s.tank);
@@ -19,45 +22,57 @@ export default function Tank() {
   const [totalCapacity, setTotalCapacity] = useState(200);
   const [feedback, setFeedback] = useState({ visible: false, isLevelUp: false, pts: 0 });
   const [errorFlash, setErrorFlash] = useState(false);
+  const [lives, setLives] = useState(3);
+  const [justLost, setJustLost] = useState(false);
+  const [consecutiveErrors, setConsecutiveErrors] = useState(0);
+
+  const recentRef = useRef([]);
 
   const initGame = useCallback(() => {
     const lvl = gameState.lvl;
     let d, n, u, display;
+    let attempts = 0;
+    const recent = recentRef.current;
 
-    if (lvl <= 3) {
-      d = [4, 5, 8, 10][Math.floor(Math.random() * 4)];
-      n = Math.floor(Math.random() * (d - 1)) + 1;
-      u = 50;
-      display = <Fraction numerator={n} denominator={d} />;
-    } else if (lvl === 4) {
-      const combos = [
-        { n1: 1, d1: 4, n2: 1, d2: 4, d: 2, n: 1 },
-        { n1: 1, d1: 2, n2: 1, d2: 4, d: 4, n: 3 },
-      ];
-      const c = combos[Math.floor(Math.random() * combos.length)];
-      d = c.d; n = c.n; u = 100;
-      display = (
-        <div className="flex items-center gap-2 math-font" dir="ltr">
-          <Fraction numerator={c.n1} denominator={c.d1} />
-          <span className="text-xl">+</span>
-          <Fraction numerator={c.n2} denominator={c.d2} />
-        </div>
-      );
-    } else {
-      const combos = [
-        { n1: 3, d1: 4, n2: 1, d2: 2, d: 4, n: 1 },
-        { n1: 1, d1: 2, n2: 1, d2: 4, d: 4, n: 1 },
-      ];
-      const c = combos[Math.floor(Math.random() * combos.length)];
-      d = c.d; n = c.n; u = 100;
-      display = (
-        <div className="flex items-center gap-2 math-font" dir="ltr">
-          <Fraction numerator={c.n1} denominator={c.d1} />
-          <span className="text-xl">-</span>
-          <Fraction numerator={c.n2} denominator={c.d2} />
-        </div>
-      );
-    }
+    do {
+      if (lvl <= 3) {
+        d = [4, 5, 8, 10][Math.floor(Math.random() * 4)];
+        n = Math.floor(Math.random() * (d - 1)) + 1;
+        u = 50;
+        display = <Fraction numerator={n} denominator={d} />;
+      } else if (lvl === 4) {
+        const combos = [
+          { n1: 1, d1: 4, n2: 1, d2: 4, d: 2, n: 1 },
+          { n1: 1, d1: 2, n2: 1, d2: 4, d: 4, n: 3 },
+        ];
+        const c = combos[Math.floor(Math.random() * combos.length)];
+        d = c.d; n = c.n; u = 100;
+        display = (
+          <div className="flex items-center gap-2 math-font" dir="ltr">
+            <Fraction numerator={c.n1} denominator={c.d1} />
+            <span className="text-xl">+</span>
+            <Fraction numerator={c.n2} denominator={c.d2} />
+          </div>
+        );
+      } else {
+        const combos = [
+          { n1: 3, d1: 4, n2: 1, d2: 2, d: 4, n: 1 },
+          { n1: 1, d1: 2, n2: 1, d2: 4, d: 4, n: 1 },
+        ];
+        const c = combos[Math.floor(Math.random() * combos.length)];
+        d = c.d; n = c.n; u = 100;
+        display = (
+          <div className="flex items-center gap-2 math-font" dir="ltr">
+            <Fraction numerator={c.n1} denominator={c.d1} />
+            <span className="text-xl">-</span>
+            <Fraction numerator={c.n2} denominator={c.d2} />
+          </div>
+        );
+      }
+      attempts++;
+    } while (attempts < 10 && recent.some(r => r === `${n}/${d}`));
+
+    recentRef.current = [`${n}/${d}`, ...recent].slice(0, 3);
 
     const ans = u * d;
     setTotalCapacity(ans);
@@ -66,19 +81,46 @@ export default function Tank() {
     setKnownLineBottom((n / d) * 100);
     setSliderMax(Math.round(ans * 1.5));
     setSliderVal(50);
+    setLives(3);
+    setJustLost(false);
+    setConsecutiveErrors(0);
   }, [gameState.lvl]);
 
   useEffect(() => {
     initGame();
   }, [initGame]);
 
+  // First-time onboarding
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(ONBOARD_KEY)) {
+        Swal.fire({
+          title: 'חצי הכוס המלאה 🧪',
+          html: '<div class="text-right text-sm leading-relaxed">יש לך כוס עם נוזל. השתמש בסליידר כדי להתאים את כמות הנוזל לפי השבר הנתון.<br><br>🔴 הקו האדום מסמן את הכמות הידועה.<br>🎯 התאם את כמות הנוזל הכוללת בדיוק!</div>',
+          confirmButtonText: 'יאללה נתחיל!',
+          confirmButtonColor: '#3b82f6',
+          customClass: { popup: 'rounded-3xl' },
+        });
+        localStorage.setItem(ONBOARD_KEY, '1');
+      }
+    } catch {}
+  }, []);
+
   const liquidHeight = Math.min((sliderVal / totalCapacity) * 100, 100);
 
   const showHint = () => {
     vibe(20);
+    const lvl = gameState.lvl;
+    const hints = [
+      'זכור: אם יש לך 50 מ"ל שהם חצי מהכוס, אז הכוס המלאה = 100 מ"ל.',
+      'הכפל את הנתון בהופכי השבר. לדוגמה: 50 מ"ל = 2/4 → כוס מלאה = 50 × (4/2) = 100 מ"ל.',
+      'פתור שלב אחרי שלב: חשב כל שבר בנפרד ואח"כ חבר אותם.',
+      'חשב את הסכום/ההפרש של השברים תחילה, ואז חשב כמה מ"ל זה מייצג.',
+      'בחיסור שברים: מצא מכנה משותף, ואז חשב את הכמות הכוללת.',
+    ];
     Swal.fire({
       title: '💡 רמז',
-      text: 'נסה לצמצם או להרחיב את השבר כדי להבין כמה מים צריכים להיות בדיוק.',
+      text: hints[Math.min(lvl - 1, hints.length - 1)],
       icon: 'info',
       confirmButtonText: 'הבנתי, תודה!',
       confirmButtonColor: '#f59e0b',
@@ -92,28 +134,35 @@ export default function Tank() {
       const result = handleWin('tank');
       setFeedback({ visible: true, isLevelUp: result.isLevelUp, pts: result.pts });
     } else {
+      const newLives = lives - 1;
+      const newErrors = consecutiveErrors + 1;
+      setLives(newLives);
+      setJustLost(true);
       setErrorFlash(true);
-      setTimeout(() => setErrorFlash(false), 400);
+      setConsecutiveErrors(newErrors);
+      setTimeout(() => { setErrorFlash(false); setJustLost(false); }, 600);
       vibe([50, 50, 50]);
 
-      const result = handleGameFail('tank');
-      if (result === 'locked') {
-        Swal.fire({
-          title: 'הרמה ננעלה 🔒',
-          html: '<div class="text-right">נראה שזה קצת מאתגר כרגע.<br>נעלנו את הרמה הזו כדי שתוכל להתאמן עליה בנחת! 🧠</div>',
-          icon: 'warning',
-          confirmButtonText: 'הבנתי',
-          confirmButtonColor: '#4f46e5',
-          customClass: { popup: 'rounded-3xl' },
-        }).then(() => setScreen('menu'));
-      } else {
-        Swal.fire({
-          title: 'אופס! 💥',
-          text: 'נגמרו הניסיונות בשאלה הזו, בוא ננסה שאלה חדשה.',
-          icon: 'error',
-          confirmButtonColor: '#ef4444',
-          customClass: { popup: 'rounded-3xl' },
-        }).then(() => initGame());
+      if (newLives <= 0) {
+        const result = handleGameFail('tank');
+        if (result === 'locked') {
+          Swal.fire({
+            title: 'הרמה ננעלה 🔒',
+            html: '<div class="text-right">נראה שזה קצת מאתגר כרגע.<br>נעלנו את הרמה הזו כדי שתוכל להתאמן עליה בנחת! 🧠</div>',
+            icon: 'warning',
+            confirmButtonText: 'הבנתי',
+            confirmButtonColor: '#4f46e5',
+            customClass: { popup: 'rounded-3xl' },
+          }).then(() => setScreen('menu'));
+        } else {
+          Swal.fire({
+            title: 'אופס! 💥',
+            text: 'נגמרו הניסיונות בשאלה הזו, בוא ננסה שאלה חדשה.',
+            icon: 'error',
+            confirmButtonColor: '#ef4444',
+            customClass: { popup: 'rounded-3xl' },
+          }).then(() => initGame());
+        }
       }
     }
   };
@@ -121,6 +170,12 @@ export default function Tank() {
   return (
     <div className={`screen-enter flex flex-col items-center p-4 flex-1 min-h-[calc(100dvh-80px)] ${errorFlash ? 'error-flash' : ''}`}>
       <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-6 md:p-8 w-full max-w-md shadow-xl flex flex-col gap-6 md:gap-8 border-b-4 border-slate-200 dark:border-slate-700 transition-colors">
+
+        {/* Lives */}
+        <div className="flex justify-center">
+          <Hearts lives={lives} maxLives={3} justLost={justLost} />
+        </div>
+
         <div className="flex items-center gap-8 justify-center">
           {/* Tank visual */}
           <div className="tank-wrap">
@@ -142,6 +197,11 @@ export default function Tank() {
             <div className="text-2xl font-black text-blue-900 dark:text-blue-300 mt-1">
               {fracDisplay}
             </div>
+            {consecutiveErrors >= 2 && (
+              <div className="mt-3 text-xs text-amber-600 dark:text-amber-400 font-bold animate-pulse">
+                💡 לחץ על הרמז!
+              </div>
+            )}
           </div>
         </div>
 
@@ -159,14 +219,14 @@ export default function Tank() {
             max={sliderMax}
             step="10"
             value={sliderVal}
-            onChange={(e) => setSliderVal(parseInt(e.target.value))}
+            onChange={(e) => { setSliderVal(parseInt(e.target.value)); vibe(10); }}
             className="val-track mb-6"
           />
 
           <div className="flex gap-2 mt-6">
             <button
               onClick={showHint}
-              className="w-16 py-4 md:py-5 bg-blue-200 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 rounded-3xl font-black text-xl shadow-sm hover:bg-blue-300 transition-all active:scale-95"
+              className={`w-16 py-4 md:py-5 rounded-3xl font-black text-xl shadow-sm transition-all active:scale-95 ${consecutiveErrors >= 2 ? 'bg-amber-400 text-white animate-pulse' : 'bg-blue-200 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-300'}`}
             >
               💡
             </button>

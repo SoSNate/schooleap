@@ -10,6 +10,7 @@ const gameOptions = [
   { value: 'fractionLab', label: 'מעבדת השברים' },
   { value: 'magicPatterns', label: 'תבניות הקסם' },
   { value: 'grid', label: 'מעבדת השטחים' },
+  { value: 'word', label: 'המעבדה המילולית' },
 ];
 
 const GAME_LEGEND = [
@@ -20,6 +21,7 @@ const GAME_LEGEND = [
   { key: 'flab', color: 'bg-orange-400',  label: 'שברים' },
   { key: 'mpat', color: 'bg-violet-500',  label: 'תבניות' },
   { key: 'grid', color: 'bg-teal-500',    label: 'שטחים' },
+  { key: 'word', color: 'bg-indigo-500',  label: 'מילולי' },
 ];
 
 const dayNames = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
@@ -109,6 +111,7 @@ export default function Settings() {
                   <div className="h-full bg-orange-400" style={{ width: `${((d.games.flab || 0) / maxPts) * 100}%` }} />
                   <div className="h-full bg-violet-500" style={{ width: `${((d.games.mpat || 0) / maxPts) * 100}%` }} />
                   <div className="h-full bg-teal-500"   style={{ width: `${((d.games.grid || 0) / maxPts) * 100}%` }} />
+                  <div className="h-full bg-indigo-500" style={{ width: `${((d.games.word || 0) / maxPts) * 100}%` }} />
                 </div>
                 <div className={`w-10 text-left text-xs font-bold ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>
                   {d.pts}⭐

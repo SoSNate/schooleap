@@ -10,6 +10,7 @@ import Decimal from './components/games/Decimal';
 import FractionLab from './components/games/FractionLab';
 import MagicPatterns from './components/games/MagicPatterns';
 import DecimalAreaLab from './components/games/DecimalAreaLab';
+import WordProblemPuzzle from './components/games/WordProblemPuzzle';
 
 const screens = {
   menu: Menu,
@@ -21,6 +22,7 @@ const screens = {
   fractionLab: FractionLab,
   magicPatterns: MagicPatterns,
   grid: DecimalAreaLab,
+  word: WordProblemPuzzle,
 };
 
 export default function App() {

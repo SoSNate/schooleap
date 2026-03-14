@@ -11,6 +11,7 @@ const games = [
   { id: 'fractionLab', label: 'מעבדת השברים', emoji: '🍕', color: 'orange' },
   { id: 'magicPatterns', label: 'תבניות הקסם', emoji: '🪄', color: 'violet' },
   { id: 'grid', label: 'מעבדת השטחים', emoji: '📐', color: 'teal' },
+  { id: 'word', label: 'המעבדה המילולית', emoji: '🧠', color: 'indigo' },
 ];
 
 export default function Menu() {
@@ -24,8 +25,9 @@ export default function Menu() {
   const fractionLab = useGameStore((s) => s.fractionLab);
   const magicPatterns = useGameStore((s) => s.magicPatterns);
   const grid = useGameStore((s) => s.grid);
+  const word = useGameStore((s) => s.word);
 
-  const gameStates = { equations, balance, tank, decimal, fractionLab, magicPatterns, grid };
+  const gameStates = { equations, balance, tank, decimal, fractionLab, magicPatterns, grid, word };
 
   const startGame = (gameId) => {
     vibe(10);

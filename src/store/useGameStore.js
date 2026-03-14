@@ -19,9 +19,10 @@ const useGameStore = create(
       fractionLab: { stars: 0, lvl: 1, count: 0, fails: 0 },
       magicPatterns: { stars: 0, lvl: 1, count: 0, fails: 0 },
       grid: { stars: 0, lvl: 1, count: 0, fails: 0 },
+      word: { stars: 0, lvl: 1, count: 0, fails: 0 },
 
       // Locks
-      locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0, magicPatterns: 0, grid: 0 },
+      locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0, magicPatterns: 0, grid: 0, word: 0 },
 
       // Weekly stats
       weeklyStats: emptyWeek(),
@@ -135,7 +136,8 @@ const useGameStore = create(
           fractionLab: { stars: 0, lvl: 1, count: 0, fails: 0 },
           magicPatterns: { stars: 0, lvl: 1, count: 0, fails: 0 },
           grid: { stars: 0, lvl: 1, count: 0, fails: 0 },
-          locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0, magicPatterns: 0, grid: 0 },
+          word: { stars: 0, lvl: 1, count: 0, fails: 0 },
+          locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0, magicPatterns: 0, grid: 0, word: 0 },
           weeklyStats: emptyWeek(),
         });
       },
@@ -151,6 +153,7 @@ const useGameStore = create(
         fractionLab: state.fractionLab,
         magicPatterns: state.magicPatterns,
         grid: state.grid,
+        word: state.word,
         locks: state.locks,
         weeklyStats: state.weeklyStats,
         darkMode: state.darkMode,

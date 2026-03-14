@@ -9,6 +9,7 @@ import Tank from './components/games/Tank';
 import Decimal from './components/games/Decimal';
 import FractionLab from './components/games/FractionLab';
 import MagicPatterns from './components/games/MagicPatterns';
+import DecimalAreaLab from './components/games/DecimalAreaLab';
 
 const screens = {
   menu: Menu,
@@ -19,6 +20,7 @@ const screens = {
   decimal: Decimal,
   fractionLab: FractionLab,
   magicPatterns: MagicPatterns,
+  grid: DecimalAreaLab,
 };
 
 export default function App() {

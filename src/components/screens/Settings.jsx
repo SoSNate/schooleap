@@ -9,6 +9,17 @@ const gameOptions = [
   { value: 'decimal', label: 'תפוס את הנקודה' },
   { value: 'fractionLab', label: 'מעבדת השברים' },
   { value: 'magicPatterns', label: 'תבניות הקסם' },
+  { value: 'grid', label: 'מעבדת השטחים' },
+];
+
+const GAME_LEGEND = [
+  { key: 'eq',   color: 'bg-purple-500',  label: 'כאן בונים' },
+  { key: 'bal',  color: 'bg-emerald-500', label: 'איזון' },
+  { key: 'tank', color: 'bg-blue-500',    label: 'חצי הכוס' },
+  { key: 'dec',  color: 'bg-cyan-500',    label: 'נקודה' },
+  { key: 'flab', color: 'bg-orange-400',  label: 'שברים' },
+  { key: 'mpat', color: 'bg-violet-500',  label: 'תבניות' },
+  { key: 'grid', color: 'bg-teal-500',    label: 'שטחים' },
 ];
 
 const dayNames = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
@@ -97,6 +108,7 @@ export default function Settings() {
                   <div className="h-full bg-cyan-500" style={{ width: `${((d.games.dec || 0) / maxPts) * 100}%` }} />
                   <div className="h-full bg-orange-400" style={{ width: `${((d.games.flab || 0) / maxPts) * 100}%` }} />
                   <div className="h-full bg-violet-500" style={{ width: `${((d.games.mpat || 0) / maxPts) * 100}%` }} />
+                  <div className="h-full bg-teal-500"   style={{ width: `${((d.games.grid || 0) / maxPts) * 100}%` }} />
                 </div>
                 <div className={`w-10 text-left text-xs font-bold ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>
                   {d.pts}⭐
@@ -104,6 +116,16 @@ export default function Settings() {
               </div>
             );
           })}
+        </div>
+
+        {/* Color legend */}
+        <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-4 pt-3 border-t border-slate-100 dark:border-slate-700">
+          {GAME_LEGEND.map((g) => (
+            <div key={g.key} className="flex items-center gap-1.5">
+              <div className={`w-3 h-3 rounded-full flex-shrink-0 ${g.color}`} />
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">{g.label}</span>
+            </div>
+          ))}
         </div>
       </div>
 

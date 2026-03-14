@@ -17,9 +17,10 @@ const useGameStore = create(
       tank: { stars: 0, lvl: 1, count: 0, fails: 0 },
       decimal: { stars: 0, lvl: 1, count: 0, fails: 0 },
       fractionLab: { stars: 0, lvl: 1, count: 0, fails: 0 },
+      magicPatterns: { stars: 0, lvl: 1, count: 0, fails: 0 },
 
       // Locks
-      locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0 },
+      locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0, magicPatterns: 0 },
 
       // Weekly stats
       weeklyStats: emptyWeek(),
@@ -131,7 +132,8 @@ const useGameStore = create(
           tank: { stars: 0, lvl: 1, count: 0, fails: 0 },
           decimal: { stars: 0, lvl: 1, count: 0, fails: 0 },
           fractionLab: { stars: 0, lvl: 1, count: 0, fails: 0 },
-          locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0 },
+          magicPatterns: { stars: 0, lvl: 1, count: 0, fails: 0 },
+          locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0, magicPatterns: 0 },
           weeklyStats: emptyWeek(),
         });
       },
@@ -145,6 +147,7 @@ const useGameStore = create(
         tank: state.tank,
         decimal: state.decimal,
         fractionLab: state.fractionLab,
+        magicPatterns: state.magicPatterns,
         locks: state.locks,
         weeklyStats: state.weeklyStats,
         darkMode: state.darkMode,

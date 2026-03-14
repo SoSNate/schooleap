@@ -8,6 +8,7 @@ import Balance from './components/games/Balance';
 import Tank from './components/games/Tank';
 import Decimal from './components/games/Decimal';
 import FractionLab from './components/games/FractionLab';
+import MagicPatterns from './components/games/MagicPatterns';
 
 const screens = {
   menu: Menu,
@@ -17,6 +18,7 @@ const screens = {
   tank: Tank,
   decimal: Decimal,
   fractionLab: FractionLab,
+  magicPatterns: MagicPatterns,
 };
 
 export default function App() {

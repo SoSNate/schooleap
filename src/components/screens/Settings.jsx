@@ -8,6 +8,7 @@ const gameOptions = [
   { value: 'tank', label: 'חצי הכוס המלאה' },
   { value: 'decimal', label: 'תפוס את הנקודה' },
   { value: 'fractionLab', label: 'מעבדת השברים' },
+  { value: 'magicPatterns', label: 'תבניות הקסם' },
 ];
 
 const dayNames = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
@@ -95,6 +96,7 @@ export default function Settings() {
                   <div className="h-full bg-blue-500" style={{ width: `${((d.games.tank || 0) / maxPts) * 100}%` }} />
                   <div className="h-full bg-cyan-500" style={{ width: `${((d.games.dec || 0) / maxPts) * 100}%` }} />
                   <div className="h-full bg-orange-400" style={{ width: `${((d.games.flab || 0) / maxPts) * 100}%` }} />
+                  <div className="h-full bg-violet-500" style={{ width: `${((d.games.mpat || 0) / maxPts) * 100}%` }} />
                 </div>
                 <div className={`w-10 text-left text-xs font-bold ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>
                   {d.pts}⭐

@@ -9,6 +9,7 @@ const games = [
   { id: 'tank', label: 'חצי הכוס המלאה', emoji: '🧪', color: 'blue' },
   { id: 'decimal', label: 'תפוס את הנקודה', emoji: '🎯', color: 'cyan' },
   { id: 'fractionLab', label: 'מעבדת השברים', emoji: '🍕', color: 'orange' },
+  { id: 'magicPatterns', label: 'תבניות הקסם', emoji: '🪄', color: 'violet' },
 ];
 
 export default function Menu() {
@@ -20,8 +21,9 @@ export default function Menu() {
   const tank = useGameStore((s) => s.tank);
   const decimal = useGameStore((s) => s.decimal);
   const fractionLab = useGameStore((s) => s.fractionLab);
+  const magicPatterns = useGameStore((s) => s.magicPatterns);
 
-  const gameStates = { equations, balance, tank, decimal, fractionLab };
+  const gameStates = { equations, balance, tank, decimal, fractionLab, magicPatterns };
 
   const startGame = (gameId) => {
     vibe(10);

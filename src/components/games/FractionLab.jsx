@@ -117,7 +117,7 @@ function generateQuestion(lvl, recentKeys) {
       d = opts[Math.floor(Math.random() * opts.length)];
       n = Math.floor(Math.random() * (d - 1)) + 1;
     } else if (mode === 'equivalent') {
-      // Show a simple fraction; child must find any equivalent
+      // Show a simple fraction; denominator is locked to a multiple — child only changes numerator
       const bases = [{ n: 1, d: 2 }, { n: 1, d: 3 }, { n: 2, d: 3 }, { n: 1, d: 4 }, { n: 3, d: 4 }, { n: 2, d: 5 }];
       const pick = bases[Math.floor(Math.random() * bases.length)];
       n = pick.n; d = pick.d;
@@ -142,10 +142,18 @@ function generateQuestion(lvl, recentKeys) {
     visualMode = shapeOptions[Math.floor(Math.random() * shapeOptions.length)];
   }
 
+  // Equivalent mode: lock denominator to a multiple of d (child only controls numerator)
+  let lockedD = null;
+  if (mode === 'equivalent') {
+    const mults = [2, 3, 4, 5].filter(m => m !== 1 && d * m <= 20);
+    lockedD = d * mults[Math.floor(Math.random() * mults.length)];
+  }
+
   return {
     mode,
     targetN: n,
     targetD: d,
+    lockedD,
     decimalVal: (n / d).toFixed(3),
     visualMode,
     key: `${mode}-${n}/${d}`,
@@ -165,8 +173,6 @@ export default function FractionLab() {
   const handleGameFail = useGameStore((s) => s.handleGameFail);
   const setScreen = useGameStore((s) => s.setScreen);
 
-  const noLives = gameState.lvl === 5;
-
   const [question, setQuestion] = useState(null);
   const [userN, setUserN] = useState(1);
   const [userD, setUserD] = useState(2);
@@ -183,12 +189,12 @@ export default function FractionLab() {
     recentRef.current = [q.key, ...recentRef.current].slice(0, 3);
     setQuestion(q);
     setUserN(1);
-    setUserD(2);
+    setUserD(q.lockedD ?? 2);
     setErrorMsg('');
     setJustLost(false);
     setConsecutiveErrors(0);
-    if (!noLives) setLives(3);
-  }, [gameState.lvl, noLives]);
+    setLives(3);
+  }, [gameState.lvl]);
 
   useEffect(() => { newQuestion(); }, [newQuestion]);
 
@@ -213,13 +219,16 @@ export default function FractionLab() {
     if (!question) return;
     const { mode, targetN, targetD } = question;
     let text = '';
-    if (mode === 'visual') {
+    if (mode === 'visual' || mode === 'improper') {
       text = 'ספור את מספר החלקים הצבועים ואת סך כל החלקים — זה השבר שלך.';
+    } else if (mode === 'equivalent') {
+      const ansN = targetN * (question.lockedD / targetD);
+      text = `שבר שווה ערך נוצר כשמכפילים גם את המונה וגם את המכנה באותו מספר. המכנה כאן הוא ${question.lockedD} — חלק ${question.lockedD} ÷ ${targetD} כדי למצוא בכמה להכפיל את המונה. התשובה: ${ansN}/${question.lockedD}.`;
     } else if (mode === 'simplify') {
       const g = gcd(targetN, targetD);
-      text = `המחלק המשותף הגדול ביותר הוא ${g}. חלק גם את המונה וגם את המכנה ב-${g}.`;
+      text = `צמצום = לחלק גם את המונה וגם את המכנה במחלק משותף. המחלק הגדול כאן הוא ${g}. חלק ב-${g} לקבל את השבר הפשוט.`;
     } else {
-      text = 'המר את העשרוני לשבר. לדוגמה: 0.5 = 1/2, 0.25 = 1/4, 0.125 = 1/8.';
+      text = 'שבר מדומה הוא שבר שהמונה שלו גדול מהמכנה. צייר צורה שלמה נוספת כשחלפת את המכנה.';
     }
     Swal.fire({
       title: '💡 רמז',
@@ -241,7 +250,7 @@ export default function FractionLab() {
       const newErrors = consecutiveErrors + 1;
       setConsecutiveErrors(newErrors);
       setErrorMsg('❌ לא מדויק, נסה שוב');
-      if (!noLives) {
+      {
         const next = lives - 1;
         setLives(next);
         setJustLost(true);
@@ -281,28 +290,29 @@ export default function FractionLab() {
 
         {/* Task card */}
         <div className="flex-1 bg-white dark:bg-slate-800 rounded-[2rem] p-5 shadow-lg border-2 border-orange-100 dark:border-slate-700 flex flex-col items-center gap-4">
-          <div className="w-full flex flex-wrap justify-between items-center gap-2">
+          <div className="w-full flex justify-between items-center gap-2">
             <span className="text-[11px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-full">
               {modeLabels[question.mode]}
             </span>
-            {noLives
-              ? <span className="text-[11px] font-bold text-amber-500 bg-amber-50 dark:bg-amber-900/30 px-3 py-1 rounded-full">ללא הגבלה ♾️</span>
-              : <Hearts lives={lives} maxLives={3} justLost={justLost} />
-            }
+            <div className="flex gap-1 items-center">
+              <Hearts lives={lives} maxLives={3} justLost={justLost} />
+            </div>
           </div>
 
           <div className="flex-1 flex items-center justify-center min-h-[150px] w-full">
             {question.mode === 'visual' && <VisualShape n={question.targetN} d={question.targetD} visualMode={question.visualMode} />}
+            {question.mode === 'equivalent' && (
+              <div className="flex flex-col items-center gap-3" dir="ltr">
+                <div className="text-sm font-bold text-slate-500 dark:text-slate-400 text-center" dir="rtl">בנה שבר השווה ל:</div>
+                <Fraction numerator={question.targetN} denominator={question.targetD} />
+              </div>
+            )}
             {question.mode === 'simplify' && (
               <div dir="ltr">
-                <Fraction numerator={question.targetN} denominator={question.targetD} className="text-5xl" />
+                <Fraction numerator={question.targetN} denominator={question.targetD} />
               </div>
             )}
-            {question.mode === 'decimal' && (
-              <div className="text-5xl md:text-6xl font-black text-slate-700 dark:text-slate-200" dir="ltr">
-                {question.decimalVal}
-              </div>
-            )}
+            {question.mode === 'improper' && <VisualShape n={question.targetN} d={question.targetD} visualMode={question.visualMode} />}
           </div>
 
           {errorMsg && (
@@ -334,11 +344,22 @@ export default function FractionLab() {
 
           <div className="w-full h-0.5 bg-slate-600 rounded-full" />
 
-          {/* Denominator row */}
+          {/* Denominator row — locked in equivalent mode */}
           <div className="w-full flex items-center justify-between gap-2">
-            <button onClick={() => { setUserD((v) => Math.max(1, v - 1)); setErrorMsg(''); vibe(10); }} className="w-11 h-11 rounded-xl bg-slate-700 hover:bg-slate-600 text-2xl font-black active:scale-90 transition-all flex items-center justify-center">−</button>
-            <div className="flex-1 text-center text-4xl font-black" dir="ltr">{userD}</div>
-            <button onClick={() => { setUserD((v) => v + 1); setErrorMsg(''); vibe(10); }} className="w-11 h-11 rounded-xl bg-blue-500 hover:bg-blue-400 text-2xl font-black active:scale-90 transition-all flex items-center justify-center shadow-lg">+</button>
+            <button
+              onClick={() => { setUserD((v) => Math.max(1, v - 1)); setErrorMsg(''); vibe(10); }}
+              disabled={question.mode === 'equivalent'}
+              className="w-11 h-11 rounded-xl bg-slate-700 hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed text-2xl font-black active:scale-90 transition-all flex items-center justify-center"
+            >−</button>
+            <div className="flex-1 text-center text-4xl font-black" dir="ltr">
+              {userD}
+              {question.mode === 'equivalent' && <span className="text-xs text-slate-400 block">🔒</span>}
+            </div>
+            <button
+              onClick={() => { setUserD((v) => v + 1); setErrorMsg(''); vibe(10); }}
+              disabled={question.mode === 'equivalent'}
+              className="w-11 h-11 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:opacity-30 disabled:cursor-not-allowed text-2xl font-black active:scale-90 transition-all flex items-center justify-center shadow-lg"
+            >+</button>
           </div>
 
           <button

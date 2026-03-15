@@ -15,7 +15,14 @@ const ONBOARD_KEY = 'onboard_word';
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 function rnd(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-const NAMES = ['יוסי', 'דנה', 'נועה', 'איתמר', 'שירה', 'רועי', 'יעל', 'דני'];
+const NAMES_M = ['יוסי', 'איתמר', 'רועי', 'דני', 'עומר', 'אריאל'];
+const NAMES_F = ['דנה', 'נועה', 'שירה', 'יעל', 'מיה', 'תמר'];
+const NAMES = [...NAMES_M, ...NAMES_F];
+function pickGendered() {
+  const isMale = Math.random() < 0.5;
+  const pool = isMale ? NAMES_M : NAMES_F;
+  return { name: pool[Math.floor(Math.random() * pool.length)], isMale };
+}
 const ITEMS = ['סוכריות', 'בלונים', 'מדבקות', 'עפרונות', 'כדורים', 'ספרים'];
 
 /* ── Schemas ─────────────────────────────────────────────────────────────── */
@@ -79,7 +86,7 @@ const SCHEMAS = [
     gen(lvl) {
       const groups = rnd(2, 5 + lvl), each = rnd(3, 7 + lvl), total = groups * each;
       return {
-        text: `יש ${total} ממתקים. מחלקים שווה ל-${each} ילדים. כמה כל ילד מקבל?`,
+        text: `יש ${total} ממתקים. מחלקים אותם בשווה בין ${each} ילדים. כמה ממתקים כל ילד מקבל?`,
         tokens: [{ display: String(total), value: total }, { display: String(each), value: each }],
         opHint: 'מחלקים שווה → חילוק (÷)',
         eqParts: [0, ' ÷ ', 1],
@@ -105,8 +112,9 @@ const SCHEMAS = [
     gen(lvl) {
       let start, items, price, answer;
       do { start = rnd(30, 70 + lvl * 10); items = rnd(2, 4); price = rnd(4, 9 + lvl); answer = start - items * price; } while (answer <= 0);
+      const { name, isMale } = pickGendered();
       return {
-        text: `ל${pick(NAMES)} היו ${start} שקלים. הוא קנה ${items} ספרים ב-${price} שקלים כל אחד. כמה נשאר?`,
+        text: `ל${name} היו ${start} שקלים. ${isMale ? 'הוא קנה' : 'היא קנתה'} ${items} ספרים ב-${price} שקלים כל אחד. כמה נשאר?`,
         tokens: [
           { display: String(start), value: start },
           { display: String(items), value: items },
@@ -123,7 +131,7 @@ const SCHEMAS = [
     gen(lvl) {
       const count = rnd(2, 5), price = rnd(5, 12 + lvl), extra = rnd(5, 20 + lvl);
       return {
-        text: `${pick(NAMES)} קנה ${count} ספרים ב-${price} שקלים כל אחד, ועוד תיק ב-${extra} שקלים. כמה שילם בסך הכל?`,
+        text: (() => { const { name, isMale } = pickGendered(); return `${name} ${isMale ? 'קנה' : 'קנתה'} ${count} ספרים ב-${price} שקלים כל אחד, ועוד תיק ב-${extra} שקלים. כמה ${isMale ? 'שילם' : 'שילמה'} בסך הכל?`; })(),
         tokens: [
           { display: String(count), value: count },
           { display: String(price), value: price },
@@ -141,7 +149,7 @@ const SCHEMAS = [
       let n1, n2, n3, answer;
       do { n1 = rnd(40, 100); n2 = rnd(2, 5); n3 = rnd(6, 13 + lvl); answer = n1 - n2 * n3; } while (answer <= 0);
       return {
-        text: `${pick(NAMES)} חסך ${n1} שקלים. הוא מוציא ${n3} שקלים בכל שבוע, במשך ${n2} שבועות. כמה נשאר?`,
+        text: (() => { const { name, isMale } = pickGendered(); return `${name} ${isMale ? 'חסך' : 'חסכה'} ${n1} שקלים. ${isMale ? 'הוא מוציא' : 'היא מוציאה'} ${n3} שקלים בכל שבוע, במשך ${n2} שבועות. כמה נשאר?`; })(),
         tokens: [
           { display: String(n1), value: n1 },
           { display: String(n2), value: n2 },
@@ -186,7 +194,7 @@ const SCHEMAS = [
     gen(lvl) {
       const cost = rnd(5, 12 + lvl * 2), paid = cost + rnd(1, 10 + lvl), item = pick(ITEMS);
       return {
-        text: `${pick(NAMES)} שילם ${paid} שקלים עבור ${item} שעולה ${cost} שקלים. כמה עודף יקבל?`,
+        text: (() => { const { name, isMale } = pickGendered(); return `${name} ${isMale ? 'שילם' : 'שילמה'} ${paid} שקלים עבור ${item} שעולה ${cost} שקלים. כמה עודף ${isMale ? 'יקבל' : 'תקבל'}?`; })(),
         tokens: [{ display: String(paid), value: paid }, { display: String(cost), value: cost }],
         opHint: 'עודף → חיסור (−)',
         eqParts: [0, ' − ', 1],
@@ -212,7 +220,7 @@ const SCHEMAS = [
     gen(lvl) {
       const goal = rnd(15, 35 + lvl * 5), has = rnd(3, goal - 5);
       return {
-        text: `${pick(NAMES)} רוצה לקנות ${pick(ITEMS)} שעולה ${goal} שקלים. יש לו ${has} שקלים. כמה חסר לו?`,
+        text: (() => { const { name, isMale } = pickGendered(); return `${name} רוצה לקנות ${pick(ITEMS)} שעולה ${goal} שקלים. יש ${isMale ? 'לו' : 'לה'} ${has} שקלים. כמה חסר ${isMale ? 'לו' : 'לה'}?`; })(),
         tokens: [{ display: String(goal), value: goal }, { display: String(has), value: has }],
         opHint: 'חסר → חיסור (−)',
         eqParts: [0, ' − ', 1],
@@ -268,7 +276,7 @@ const SCHEMAS = [
       let save1, save2, cost, answer;
       do { save1 = rnd(20, 50 + lvl * 10); save2 = rnd(15, 40 + lvl * 8); cost = rnd(10, save1 + save2 - 5); answer = save1 + save2 - cost; } while (answer <= 0);
       return {
-        text: `${pick(NAMES)} חסך ${save1} שקלים בחודש הראשון ו-${save2} שקלים בחודש השני. קנה ${pick(ITEMS)} ב-${cost} שקלים. כמה נשאר?`,
+        text: (() => { const { name, isMale } = pickGendered(); return `${name} ${isMale ? 'חסך' : 'חסכה'} ${save1} שקלים בחודש הראשון ו-${save2} שקלים בחודש השני. ${isMale ? 'קנה' : 'קנתה'} ${pick(ITEMS)} ב-${cost} שקלים. כמה נשאר?`; })(),
         tokens: [
           { display: String(save1), value: save1 },
           { display: String(save2), value: save2 },

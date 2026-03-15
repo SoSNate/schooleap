@@ -65,30 +65,45 @@ export default function Equations() {
       poolItems.push({ id: nextId(), val: String(Math.floor(Math.random() * 15) + 1), type: 'num' });
       if (lvl > 1) poolItems.push({ id: nextId(), val: ops[Math.floor(Math.random() * ops.length)], type: 'op' });
     } else {
-      // Level 5: single master equation with 9 slots (positive target guaranteed)
-      let ops, n, target;
-      let attempts5 = 0;
-      do {
-        ops = ['+', '-', '*', '/'].sort(() => 0.5 - Math.random());
-        // Ensure '/' is not at last position to avoid negative results from mixed precedence
-        if (ops[3] === '/') { const si = Math.floor(Math.random() * 3); [ops[3], ops[si]] = [ops[si], ops[3]]; }
-        n = [0, 0, 0, 0, 0];
-        const divIdx = ops.indexOf('/');
-        n[divIdx + 1] = Math.floor(Math.random() * 4) + 2;
-        n[divIdx] = n[divIdx + 1] * (Math.floor(Math.random() * 4) + 1);
-        for (let i = 0; i < 5; i++) if (n[i] === 0) n[i] = Math.floor(Math.random() * 8) + 2;
-        target = safeEval(`${n[0]}${ops[0]}${n[1]}${ops[1]}${n[2]}${ops[2]}${n[3]}${ops[3]}${n[4]}`);
-        attempts5++;
-      } while ((target <= 0 || !Number.isFinite(target)) && attempts5 < 30);
+      // Level 5: 4 rows × 5 slots (num op num op num = target), tests order of operations
+      // Each row uses 2 DIFFERENT operators from the set {+,-,×,÷}; patterns test × before +/-
+      const rnd5 = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+      const opCombos = [['+', '*'], ['*', '+'], ['-', '*'], ['*', '-']].sort(() => 0.5 - Math.random());
 
-      // 9 slots: num op num op num op num op num
-      newRows.push({ target, slots: Array(9).fill(null) });
+      for (let i = 0; i < 4; i++) {
+        const [op1, op2] = opCombos[i];
+        let a, b, c, target;
+        let att = 0;
+        do {
+          if (op1 === '-' && op2 === '*') {
+            // a - b×c: ensure a > b×c for positive result
+            b = rnd5(2, 4); c = rnd5(2, 4);
+            a = b * c + rnd5(1, 8);
+          } else if (op1 === '*' && op2 === '-') {
+            // a×b - c: ensure a×b > c
+            a = rnd5(2, 6); b = rnd5(2, 5);
+            c = rnd5(2, a * b - 1);
+          } else {
+            a = rnd5(2, 9); b = rnd5(2, 6); c = rnd5(2, 9);
+          }
+          target = safeEval(`${a}${op1}${b}${op2}${c}`);
+          att++;
+        } while ((target <= 0 || !Number.isFinite(target)) && att < 20);
 
-      // Pool items: n0 op0 n1 op1 n2 op2 n3 op3 n4
-      for (let i = 0; i < 5; i++) {
-        poolItems.push({ id: nextId(), val: String(n[i]), type: 'num' });
-        if (i < 4) poolItems.push({ id: nextId(), val: ops[i], type: 'op' });
+        newRows.push({ target, slots: Array(5).fill(null) });
+        poolItems.push(
+          { id: nextId(), val: String(a), type: 'num' },
+          { id: nextId(), val: op1, type: 'op' },
+          { id: nextId(), val: String(b), type: 'num' },
+          { id: nextId(), val: op2, type: 'op' },
+          { id: nextId(), val: String(c), type: 'num' },
+        );
       }
+      // 2 number distractors
+      poolItems.push(
+        { id: nextId(), val: String(rnd5(2, 12)), type: 'num' },
+        { id: nextId(), val: String(rnd5(2, 12)), type: 'num' },
+      );
     }
 
     // Shuffle pool

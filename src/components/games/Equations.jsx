@@ -21,8 +21,6 @@ function safeEval(expr) {
 export default function Equations() {
   const gameState = useGameStore((s) => s.equations);
   const handleWinStore = useGameStore((s) => s.handleWin);
-  const handleGameFail = useGameStore((s) => s.handleGameFail);
-  const setScreen = useGameStore((s) => s.setScreen);
 
   const [rows, setRows] = useState([]); // { target, slots: [{val,type}|null, ...] }
   const [pool, setPool] = useState([]); // { id, val, type }
@@ -67,15 +65,22 @@ export default function Equations() {
       poolItems.push({ id: nextId(), val: String(Math.floor(Math.random() * 15) + 1), type: 'num' });
       if (lvl > 1) poolItems.push({ id: nextId(), val: ops[Math.floor(Math.random() * ops.length)], type: 'op' });
     } else {
-      // Level 5: single master equation with 9 slots
-      const ops = ['+', '-', '*', '/'].sort(() => 0.5 - Math.random());
-      const n = [0, 0, 0, 0, 0];
-      const divIdx = ops.indexOf('/');
-      n[divIdx + 1] = Math.floor(Math.random() * 4) + 2;
-      n[divIdx] = n[divIdx + 1] * (Math.floor(Math.random() * 4) + 1);
-      for (let i = 0; i < 5; i++) if (n[i] === 0) n[i] = Math.floor(Math.random() * 8) + 2;
+      // Level 5: single master equation with 9 slots (positive target guaranteed)
+      let ops, n, target;
+      let attempts5 = 0;
+      do {
+        ops = ['+', '-', '*', '/'].sort(() => 0.5 - Math.random());
+        // Ensure '/' is not at last position to avoid negative results from mixed precedence
+        if (ops[3] === '/') { const si = Math.floor(Math.random() * 3); [ops[3], ops[si]] = [ops[si], ops[3]]; }
+        n = [0, 0, 0, 0, 0];
+        const divIdx = ops.indexOf('/');
+        n[divIdx + 1] = Math.floor(Math.random() * 4) + 2;
+        n[divIdx] = n[divIdx + 1] * (Math.floor(Math.random() * 4) + 1);
+        for (let i = 0; i < 5; i++) if (n[i] === 0) n[i] = Math.floor(Math.random() * 8) + 2;
+        target = safeEval(`${n[0]}${ops[0]}${n[1]}${ops[1]}${n[2]}${ops[2]}${n[3]}${ops[3]}${n[4]}`);
+        attempts5++;
+      } while ((target <= 0 || !Number.isFinite(target)) && attempts5 < 30);
 
-      const target = safeEval(`${n[0]}${ops[0]}${n[1]}${ops[1]}${n[2]}${ops[2]}${n[3]}${ops[3]}${n[4]}`);
       // 9 slots: num op num op num op num op num
       newRows.push({ target, slots: Array(9).fill(null) });
 
@@ -265,26 +270,6 @@ export default function Equations() {
       setErrorFlash(true);
       setTimeout(() => setErrorFlash(false), 400);
       vibe([50, 50, 50]);
-
-      const result = handleGameFail('equations');
-      if (result === 'locked') {
-        Swal.fire({
-          title: 'הרמה ננעלה 🔒',
-          html: '<div class="text-right">נראה שזה קצת מאתגר כרגע.<br>נעלנו את הרמה הזו כדי שתוכל להתאמן עליה בנחת! 🧠</div>',
-          icon: 'warning',
-          confirmButtonText: 'הבנתי',
-          confirmButtonColor: '#4f46e5',
-          customClass: { popup: 'rounded-3xl' },
-        }).then(() => setScreen('menu'));
-      } else {
-        Swal.fire({
-          title: 'אופס! 💥',
-          text: 'נגמרו הניסיונות בשאלה הזו, בוא ננסה שאלה חדשה.',
-          icon: 'error',
-          confirmButtonColor: '#ef4444',
-          customClass: { popup: 'rounded-3xl' },
-        }).then(() => initGame());
-      }
     }
   };
 

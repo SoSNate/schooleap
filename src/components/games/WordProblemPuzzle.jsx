@@ -166,9 +166,153 @@ const SCHEMAS = [
       };
     },
   },
+  // ── New schemas (levels 1-5, 2 extra each) ───────────────────────────────
+  {
+    id: 11, diff: 1,
+    gen(lvl) {
+      const n1 = rnd(3, 10 + lvl * 2), n2 = rnd(2, 8 + lvl), item = pick(ITEMS);
+      const name1 = pick(NAMES), name2 = pick(NAMES.filter(n => n !== name1));
+      return {
+        text: `ל${name1} יש ${n1} ${item}. ל${name2} יש ${n2} ${item} יותר. כמה ${item} יש ל${name2}?`,
+        tokens: [{ display: String(n1), value: n1 }, { display: String(n2), value: n2 }],
+        opHint: 'יותר → חיבור (+)',
+        eqParts: [0, ' + ', 1],
+        answer: n1 + n2,
+      };
+    },
+  },
+  {
+    id: 12, diff: 1,
+    gen(lvl) {
+      const cost = rnd(5, 12 + lvl * 2), paid = cost + rnd(1, 10 + lvl), item = pick(ITEMS);
+      return {
+        text: `${pick(NAMES)} שילם ${paid} שקלים עבור ${item} שעולה ${cost} שקלים. כמה עודף יקבל?`,
+        tokens: [{ display: String(paid), value: paid }, { display: String(cost), value: cost }],
+        opHint: 'עודף → חיסור (−)',
+        eqParts: [0, ' − ', 1],
+        answer: paid - cost,
+      };
+    },
+  },
+  {
+    id: 13, diff: 2,
+    gen(lvl) {
+      const perBag = rnd(3, 6 + lvl), bags = rnd(2, 5 + lvl), total = perBag * bags;
+      return {
+        text: `יש ${total} ${pick(ITEMS)}. מחלקים ${perBag} לכל שקית. כמה שקיות צריך?`,
+        tokens: [{ display: String(total), value: total }, { display: String(perBag), value: perBag }],
+        opHint: 'מחלקים שווה → חילוק (÷)',
+        eqParts: [0, ' ÷ ', 1],
+        answer: bags,
+      };
+    },
+  },
+  {
+    id: 14, diff: 2,
+    gen(lvl) {
+      const goal = rnd(15, 35 + lvl * 5), has = rnd(3, goal - 5);
+      return {
+        text: `${pick(NAMES)} רוצה לקנות ${pick(ITEMS)} שעולה ${goal} שקלים. יש לו ${has} שקלים. כמה חסר לו?`,
+        tokens: [{ display: String(goal), value: goal }, { display: String(has), value: has }],
+        opHint: 'חסר → חיסור (−)',
+        eqParts: [0, ' − ', 1],
+        answer: goal - has,
+      };
+    },
+  },
+  {
+    id: 15, diff: 3,
+    gen(lvl) {
+      const n1 = rnd(5, 12 + lvl), n2 = rnd(4, 10 + lvl), n3 = rnd(3, 8 + lvl);
+      return {
+        text: `בבוקר הגיעו ${n1} תלמידים לכיתה. בצהריים הגיעו עוד ${n2}. אחר כך הגיעו עוד ${n3}. כמה תלמידים יש בכיתה?`,
+        tokens: [{ display: String(n1), value: n1 }, { display: String(n2), value: n2 }, { display: String(n3), value: n3 }],
+        opHint: 'הגיעו → חיבור (+)',
+        eqParts: [0, ' + ', 1, ' + ', 2],
+        answer: n1 + n2 + n3,
+      };
+    },
+  },
+  {
+    id: 16, diff: 3,
+    gen(lvl) {
+      const groups = rnd(2, 5 + lvl), k = rnd(3, 8 + lvl), total = groups * k;
+      return {
+        text: `${total} תלמידים מתחלקים ל-${groups} קבוצות שוות. כמה תלמידים בכל קבוצה?`,
+        tokens: [{ display: String(total), value: total }, { display: String(groups), value: groups }],
+        opHint: 'קבוצות שוות → חילוק (÷)',
+        eqParts: [0, ' ÷ ', 1],
+        answer: k,
+      };
+    },
+  },
+  {
+    id: 17, diff: 4,
+    gen(lvl) {
+      const pct = pick([10, 20, 25, 50]);
+      const unit = pick([4, 5, 8, 10, 20]);
+      const total = unit * (100 / pct); // ensures integer result
+      const result = total * pct / 100;
+      return {
+        text: `בכיתה יש ${total} תלמידים. ${pct}% מהם בנות. כמה בנות יש?`,
+        tokens: [{ display: String(total), value: total }, { display: String(pct), value: pct }],
+        opHint: `${pct}% = × ${pct} ÷ 100`,
+        eqParts: [0, ` × ${pct} ÷ 100`],
+        answer: result,
+      };
+    },
+  },
+  {
+    id: 18, diff: 4,
+    gen(lvl) {
+      let save1, save2, cost, answer;
+      do { save1 = rnd(20, 50 + lvl * 10); save2 = rnd(15, 40 + lvl * 8); cost = rnd(10, save1 + save2 - 5); answer = save1 + save2 - cost; } while (answer <= 0);
+      return {
+        text: `${pick(NAMES)} חסך ${save1} שקלים בחודש הראשון ו-${save2} שקלים בחודש השני. קנה ${pick(ITEMS)} ב-${cost} שקלים. כמה נשאר?`,
+        tokens: [
+          { display: String(save1), value: save1 },
+          { display: String(save2), value: save2 },
+          { display: String(cost), value: cost },
+        ],
+        opHint: 'חסך + חסך → קנה → נשאר',
+        eqParts: ['(', 0, ' + ', 1, ') − ', 2],
+        answer,
+      };
+    },
+  },
+  {
+    id: 19, diff: 5,
+    gen(lvl) {
+      const ratios = [[1, 2], [1, 3], [2, 3], [1, 4], [3, 4]];
+      const [r1, r2] = pick(ratios);
+      const boys = rnd(1, 6) * r1; // divisible by r1
+      const girls = boys * r2 / r1;
+      return {
+        text: `יחס בנים לבנות הוא ${r1}:${r2}. יש ${boys} בנים בכיתה. כמה בנות יש?`,
+        tokens: [{ display: String(boys), value: boys }, { display: String(r2), value: r2 }, { display: String(r1), value: r1 }],
+        opHint: `יחס ${r1}:${r2} → × ${r2} ÷ ${r1}`,
+        eqParts: [0, ` × ${r2} ÷ ${r1}`],
+        answer: girls,
+      };
+    },
+  },
+  {
+    id: 20, diff: 5,
+    gen(lvl) {
+      const speed = pick([40, 50, 60, 80, 90, 100]);
+      const hours = rnd(2, 5 + lvl);
+      return {
+        text: `אוטובוס נוסע ${speed} קמ"ש. הוא נסע במשך ${hours} שעות. כמה קילומטרים נסע?`,
+        tokens: [{ display: String(speed), value: speed }, { display: String(hours), value: hours }],
+        opHint: 'מהירות × זמן → מרחק (×)',
+        eqParts: [0, ' × ', 1],
+        answer: speed * hours,
+      };
+    },
+  },
 ];
 
-const LEVEL_SCHEMAS = { 1: [1, 2], 2: [3, 4], 3: [5, 6], 4: [7, 8], 5: [9, 10] };
+const LEVEL_SCHEMAS = { 1: [1, 2, 11, 12], 2: [3, 4, 13, 14], 3: [5, 6, 15, 16], 4: [7, 8, 17, 18], 5: [9, 10, 19, 20] };
 
 /* ── generateQuestion ────────────────────────────────────────────────────── */
 export function generateQuestion(lvl, recent = [], config = DEFAULT_CONFIG) {

@@ -96,45 +96,48 @@ function VisualShape({ n, d, visualMode }) {
 }
 
 function generateQuestion(lvl, recentKeys) {
-  const rand = Math.random();
-  let mode = 'visual';
-  if (lvl >= 5) {
-    mode = ['visual', 'simplify', 'decimal'][Math.floor(rand * 3)];
-  } else if (lvl === 4) {
-    mode = rand > 0.4 ? 'decimal' : 'simplify';
-  } else if (lvl === 3) {
-    mode = rand > 0.5 ? 'decimal' : (rand > 0.2 ? 'simplify' : 'visual');
-  } else if (lvl === 2) {
-    mode = rand > 0.5 ? 'simplify' : 'visual';
-  }
+  // Level → mode mapping per spec:
+  // L1: visual only, d ∈ [2,3,4,5], n < d
+  // L2: visual only, d ∈ [6,7,8,9,10], n < d
+  // L3: equivalent fractions
+  // L4: simplify only
+  // L5: improper fractions (n > d)
+  let mode;
+  if (lvl <= 2) mode = 'visual';
+  else if (lvl === 3) mode = 'equivalent';
+  else if (lvl === 4) mode = 'simplify';
+  else mode = 'improper';
 
   let n, d;
   let attempts = 0;
 
   do {
-    if (mode === 'decimal') {
-      const pool = lvl >= 4
-        ? [{ n: 1, d: 8 }, { n: 3, d: 8 }, { n: 5, d: 8 }, { n: 7, d: 8 }]
-        : [{ n: 1, d: 2 }, { n: 1, d: 4 }, { n: 3, d: 4 }, { n: 1, d: 5 }, { n: 2, d: 5 }];
-      const pick = pool[Math.floor(Math.random() * pool.length)];
-      n = pick.n; d = pick.d;
-    } else if (mode === 'simplify') {
-      const bases = [2, 3, 4, 5];
-      const bd = bases[Math.floor(Math.random() * bases.length)];
-      const bn = Math.floor(Math.random() * (bd - 1)) + 1;
-      const mult = Math.floor(Math.random() * 3) + 2;
-      n = bn * mult; d = bd * mult;
-    } else {
-      const opts = lvl >= 3 ? [2, 3, 4, 5, 6, 8, 10, 12] : [2, 3, 4, 5, 6];
+    if (mode === 'visual') {
+      const opts = lvl === 1 ? [2, 3, 4, 5] : [6, 7, 8, 9, 10];
       d = opts[Math.floor(Math.random() * opts.length)];
       n = Math.floor(Math.random() * (d - 1)) + 1;
+    } else if (mode === 'equivalent') {
+      // Show a simple fraction; child must find any equivalent
+      const bases = [{ n: 1, d: 2 }, { n: 1, d: 3 }, { n: 2, d: 3 }, { n: 1, d: 4 }, { n: 3, d: 4 }, { n: 2, d: 5 }];
+      const pick = bases[Math.floor(Math.random() * bases.length)];
+      n = pick.n; d = pick.d;
+    } else if (mode === 'simplify') {
+      const bases = [{ n: 1, d: 2 }, { n: 1, d: 3 }, { n: 2, d: 3 }, { n: 2, d: 5 }, { n: 3, d: 4 }];
+      const pick = bases[Math.floor(Math.random() * bases.length)];
+      const mult = Math.floor(Math.random() * 4) + 2; // ×2 to ×5
+      n = pick.n * mult; d = pick.d * mult;
+    } else {
+      // improper: n > d
+      const denoms = [2, 3, 4, 5];
+      d = denoms[Math.floor(Math.random() * denoms.length)];
+      n = d + Math.floor(Math.random() * d) + 1; // d+1 to 2d
     }
     attempts++;
   } while (attempts < 10 && recentKeys.includes(`${mode}-${n}/${d}`));
 
-  // Visual mode: pick a varied shape type
+  // Visual mode shape
   let visualMode = 'circle';
-  if (mode === 'visual') {
+  if (mode === 'visual' || mode === 'improper') {
     const shapeOptions = d <= 6 ? ['circle', 'rect', 'grid'] : d <= 8 ? ['circle', 'grid'] : ['grid'];
     visualMode = shapeOptions[Math.floor(Math.random() * shapeOptions.length)];
   }
@@ -150,9 +153,10 @@ function generateQuestion(lvl, recentKeys) {
 }
 
 const modeLabels = {
-  visual: 'ייצגו את השבר (בצורה מצומצמת)',
+  visual: 'ייצגו את השבר',
+  equivalent: 'צרו שבר שווה ערך',
   simplify: 'צמצמו את השבר',
-  decimal: 'המירו לשבר פשוט',
+  improper: 'ייצגו את השבר (גדול משלם)',
 };
 
 export default function FractionLab() {
@@ -256,7 +260,8 @@ export default function FractionLab() {
       return;
     }
 
-    if (gcd(userN, userD) > 1) {
+    // Require reduced form for simplify mode; for equivalent, accept any equivalent
+    if (question.mode !== 'equivalent' && gcd(userN, userD) > 1) {
       vibe(30);
       setErrorMsg('⚠️ התשובה נכונה, אך יש לצמצם אותה קודם!');
       return;
@@ -319,11 +324,6 @@ export default function FractionLab() {
         {/* Controls card */}
         <div className="w-full md:w-52 bg-slate-800 text-white rounded-[2rem] p-5 shadow-xl flex flex-col items-center gap-4">
           <div className="text-slate-400 font-bold text-xs uppercase tracking-widest">המכונה</div>
-
-          {/* Live fraction preview */}
-          <div className="bg-slate-700 rounded-2xl px-8 py-3 flex items-center justify-center min-w-[80px]" dir="ltr">
-            <Fraction numerator={userN} denominator={userD} className="text-3xl text-white" />
-          </div>
 
           {/* Numerator row */}
           <div className="w-full flex items-center justify-between gap-2">

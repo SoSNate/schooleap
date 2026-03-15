@@ -23,21 +23,23 @@ const RECT_STYLES = [
 ];
 
 // ── Level generator ────────────────────────────────────────────────────────────
-function generateLevel(lvl) {
+function generateLevel(lvl, recentTargets = []) {
   const cfgs = {
     1: { pieces: 2, unique: false, showAxis: true,
-         targets: [1.0, 1.5, 2.0] },
+         targets: [0.5, 1.0, 1.5, 2.0, 2.5, 3.0] },
     2: { pieces: 3, unique: false, showAxis: true,
-         targets: [2.0, 2.5, 3.0] },
+         targets: [1.5, 2.0, 2.5, 3.0, 3.5, 4.0] },
     3: { pieces: 3, unique: true,  showAxis: true,
-         targets: [1.5, 2.25, 3.0] },
+         targets: [1.0, 1.5, 2.0, 2.25, 2.5, 3.0] },
     4: { pieces: 3, unique: true,  showAxis: false,
-         targets: [1.5, 2.25, 3.0] },
+         targets: [1.5, 1.75, 2.0, 2.25, 2.5, 3.0] },
     5: { pieces: 4, unique: true,  showAxis: false,
-         targets: [2.5, 3.0, 3.5] },
+         targets: [2.0, 2.5, 2.75, 3.0, 3.5, 4.0] },
   };
   const cfg = cfgs[Math.min(5, Math.max(1, lvl))] || cfgs[1];
-  const target = cfg.targets[Math.floor(Math.random() * cfg.targets.length)];
+  const available = cfg.targets.filter((t) => !recentTargets.includes(t));
+  const pool = available.length > 0 ? available : cfg.targets;
+  const target = pool[Math.floor(Math.random() * pool.length)];
   return { target, pieces: cfg.pieces, unique: cfg.unique, showAxis: cfg.showAxis };
 }
 
@@ -73,10 +75,13 @@ export default function DecimalAreaLab() {
   const [feedback,     setFeedback]     = useState({ visible: false, isLevelUp: false, pts: 0 });
 
   const gridRef = useRef(null);
+  const recentTargetsRef = useRef([]);
 
   // ── Init level ──────────────────────────────────────────────────────────────
   const newLevel = useCallback(() => {
-    setLevelData(generateLevel(gameState.lvl));
+    const ld = generateLevel(gameState.lvl, recentTargetsRef.current);
+    recentTargetsRef.current = [ld.target, ...recentTargetsRef.current].slice(0, 2);
+    setLevelData(ld);
     setPlaced([]);
     setDrawing(null);
     setIsDrawing(false);

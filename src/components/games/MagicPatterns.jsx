@@ -297,8 +297,6 @@ function renderLhsPart(part, i) {
 export default function MagicPatterns() {
   const gameState    = useGameStore((s) => s.magicPatterns);
   const handleWin    = useGameStore((s) => s.handleWin);
-  const handleGameFail = useGameStore((s) => s.handleGameFail);
-  const setScreen    = useGameStore((s) => s.setScreen);
 
   const [question,     setQuestion]     = useState(null);
   const [bankCards,    setBankCards]    = useState([]);
@@ -307,8 +305,6 @@ export default function MagicPatterns() {
   const [selectedCard, setSelectedCard] = useState(null); // card.id for tap-to-place
   const [errorSlot,    setErrorSlot]    = useState(null);
   const [errorFlash,   setErrorFlash]   = useState(false);
-  const [lives,        setLives]        = useState(3);
-  const [justLost,     setJustLost]     = useState(false);
   const [scaffoldStage, setScaffoldStage] = useState(0);  // 0=full 1=partial 2=none
   const [disabled,     setDisabled]     = useState(false);
   const [feedback,     setFeedback]     = useState({ visible: false, isLevelUp: false, pts: 0 });
@@ -316,8 +312,6 @@ export default function MagicPatterns() {
   const recentRef    = useRef([]);
   const dragRef      = useRef(null);
   const tryPlaceRef  = useRef(null);
-
-  const isUnlimited = gameState.lvl === 5;
 
   // ── New question ────────────────────────────────────────────────────────────
   const newQuestion = useCallback(() => {
@@ -330,8 +324,6 @@ export default function MagicPatterns() {
     setSelectedCard(null);
     setErrorSlot(null);
     setErrorFlash(false);
-    setLives(3);
-    setJustLost(false);
     setDisabled(false);
   }, [gameState.lvl]);
 
@@ -385,50 +377,20 @@ export default function MagicPatterns() {
         }, 300);
       }
     } else {
-      // ❌ Wrong placement
+      // ❌ Wrong placement — no lives, just error flash + scaffold step back
       vibe([50, 50, 50]);
       setErrorSlot(slotId);
       setSelectedCard(null);
       setErrorFlash(true);
-      setJustLost(true);
       // Scaffold goes back one step — never replace the question
       setScaffoldStage((s) => Math.max(0, s - 1));
-
-      const newLives = lives - 1;
-      setLives(newLives);
 
       setTimeout(() => {
         setErrorSlot(null);
         setErrorFlash(false);
-        setJustLost(false);
       }, 600);
-
-      if (newLives <= 0 && !isUnlimited) {
-        setDisabled(true);
-        setTimeout(() => {
-          const result = handleGameFail('magicPatterns');
-          if (result === 'locked') {
-            Swal.fire({
-              title: 'הרמה ננעלה 🔒',
-              html: '<div class="text-right">קצת קשה עכשיו — נעלנו את הרמה כדי שתוכל להתאמן בנחת! 🧠</div>',
-              icon: 'warning',
-              confirmButtonText: 'הבנתי',
-              confirmButtonColor: '#4f46e5',
-              customClass: { popup: 'rounded-3xl' },
-            }).then(() => setScreen('menu'));
-          } else {
-            Swal.fire({
-              title: 'אופס! 💥',
-              text: 'נגמרו הניסיונות — שאלה חדשה!',
-              icon: 'error',
-              confirmButtonColor: '#ef4444',
-              customClass: { popup: 'rounded-3xl' },
-            }).then(() => newQuestion());
-          }
-        }, 700);
-      }
     }
-  }, [disabled, question, filledSlots, lives, isUnlimited, handleWin, handleGameFail, setScreen, newQuestion]);
+  }, [disabled, question, filledSlots, handleWin, newQuestion]);
 
   // Keep ref current so pointer handlers always call the latest tryPlace
   useEffect(() => { tryPlaceRef.current = tryPlace; });
@@ -514,11 +476,11 @@ export default function MagicPatterns() {
       <div className="flex-1 flex flex-col items-center p-4 gap-4 overflow-y-auto">
         <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] w-full max-w-md shadow-xl flex flex-col items-center gap-5 p-6 border-b-4 border-slate-200 dark:border-slate-700 transition-colors">
 
-          {/* Lives */}
-          <div className="flex gap-2 justify-center w-full h-8">
-            {isUnlimited
-              ? <Hearts unlimitedText="ללא הגבלת ניסיונות" />
-              : <Hearts lives={lives} maxLives={3} justLost={justLost} />}
+          {/* Scaffold stage indicator */}
+          <div className="flex gap-2 justify-center w-full h-8 items-center">
+            <span className="text-xs font-bold text-slate-400">
+              {scaffoldStage === 0 ? '🔵 מלא עזרים' : scaffoldStage === 1 ? '🟡 עזרים חלקיים' : '🔴 ללא עזרים'}
+            </span>
           </div>
 
           {/* ── Legend (scaffold stage 0 only) ── */}

@@ -59,7 +59,7 @@ const RotaryKnob = ({ value, onChange }) => {
 
   return (
     <div className="flex items-center gap-4">
-      <div className="relative w-28 h-28 md:w-32 md:h-32 flex items-center justify-center shrink-0">
+      <div className="relative w-32 h-32 md:w-36 md:h-36 flex items-center justify-center shrink-0">
         {Array.from({ length: 36 }).map((_, i) => (
           <div key={i} className="absolute w-full h-full pointer-events-none" style={{ transform: `rotate(${i * 10}deg)` }}>
             <div className={`mx-auto w-0.5 rounded-full ${i % 9 === 0 ? 'h-3 bg-slate-400 dark:bg-slate-400' : 'h-1.5 bg-slate-300 dark:bg-slate-600'}`} />
@@ -67,7 +67,7 @@ const RotaryKnob = ({ value, onChange }) => {
         ))}
         <div
           ref={knobRef}
-          className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-slate-100 dark:bg-slate-700 shadow-[inset_0_4px_8px_rgba(0,0,0,0.1),0_8px_16px_rgba(0,0,0,0.2)] border-4 border-slate-200 dark:border-slate-600 flex items-center justify-center cursor-pointer relative touch-none z-10"
+          className="w-24 h-24 md:w-28 md:h-28 rounded-full bg-slate-100 dark:bg-slate-700 shadow-[inset_0_4px_8px_rgba(0,0,0,0.1),0_8px_16px_rgba(0,0,0,0.2)] border-4 border-slate-200 dark:border-slate-600 flex items-center justify-center cursor-pointer relative touch-none z-10"
           onMouseDown={handleStart}
           onTouchStart={handleStart}
           style={{ transform: `rotate(${rotation}deg)` }}
@@ -79,11 +79,11 @@ const RotaryKnob = ({ value, onChange }) => {
       <div className="flex flex-col gap-2">
         <button
           onClick={() => { onChange(Math.min(9999, value + 1)); vibe(10); }}
-          className="w-11 h-11 bg-cyan-500 hover:bg-cyan-400 rounded-full flex items-center justify-center text-xl font-black text-white shadow-md active:scale-90 transition-transform"
+          className="w-14 h-14 bg-cyan-500 hover:bg-cyan-400 rounded-full flex items-center justify-center text-2xl font-black text-white shadow-md active:scale-90 transition-transform"
         >+</button>
         <button
           onClick={() => { onChange(Math.max(0, value - 1)); vibe(10); }}
-          className="w-11 h-11 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center text-xl font-black text-slate-600 dark:text-slate-300 shadow-sm active:scale-90 transition-transform"
+          className="w-14 h-14 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center text-2xl font-black text-slate-600 dark:text-slate-300 shadow-sm active:scale-90 transition-transform"
         >−</button>
       </div>
     </div>
@@ -289,9 +289,12 @@ export default function Decimal() {
     setPosition((prev) => {
       const [min, max] = rangeRef.current;
       const next = Math.round((prev + delta * s) * 10000) / 10000;
-      return Math.max(min - 0.5, Math.min(max + 0.5, next));
+      const clamped = Math.max(min - 0.5, Math.min(max + 0.5, next));
+      // Haptic on integer crossing
+      if (Math.floor(prev) !== Math.floor(clamped)) vibe([20, 10, 20]);
+      else vibe(10);
+      return clamped;
     });
-    vibe(10);
   }, [zoom]);
 
   const handleThrottleChange = (val) => {
@@ -321,7 +324,7 @@ export default function Decimal() {
   };
 
   const checkAnswer = () => {
-    if (Math.abs(position - targetRef.current) < (step * 0.6)) {
+    if (Math.abs(position - targetRef.current) < (step * 0.75)) {
       vibe([30, 50, 30]);
       const result = handleWinStore('decimal');
       setFeedback({ visible: true, isLevelUp: result.isLevelUp, pts: result.pts });

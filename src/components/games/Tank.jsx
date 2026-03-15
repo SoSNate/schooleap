@@ -6,6 +6,8 @@ import Fraction from '../shared/Fraction';
 import { vibe } from '../../utils/math';
 import Swal from 'sweetalert2';
 
+function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+
 const ONBOARD_KEY = 'onboard_tank';
 
 export default function Tank() {
@@ -34,38 +36,56 @@ export default function Tank() {
     let attempts = 0;
     const recent = recentRef.current;
 
+    // Base units per denominator: friendly 3-digit totals
+    const DENOM_BASES = { 2: 100, 3: 111, 4: 100, 5: 100, 6: 111, 8: 100, 10: 100 };
+
     do {
       if (lvl <= 3) {
-        d = [4, 5, 8, 10][Math.floor(Math.random() * 4)];
+        d = [2, 3, 4, 5, 6, 8, 10][Math.floor(Math.random() * 7)];
         n = Math.floor(Math.random() * (d - 1)) + 1;
-        u = 50;
+        u = DENOM_BASES[d];
         display = <Fraction numerator={n} denominator={d} />;
       } else if (lvl === 4) {
-        const combos = [
-          { n1: 1, d1: 4, n2: 1, d2: 4, d: 2, n: 1 },
-          { n1: 1, d1: 2, n2: 1, d2: 4, d: 4, n: 3 },
-        ];
-        const c = combos[Math.floor(Math.random() * combos.length)];
-        d = c.d; n = c.n; u = 100;
+        // Procedural: two fractions with same base denominator that add to < 1
+        const baseD = [4, 6, 8][Math.floor(Math.random() * 3)];
+        let n1, n2;
+        let inner = 0;
+        do {
+          n1 = Math.floor(Math.random() * (baseD - 1)) + 1;
+          n2 = Math.floor(Math.random() * (baseD - 1)) + 1;
+          inner++;
+        } while ((n1 + n2 >= baseD || n1 === n2) && inner < 20);
+        // Reduce fractions for display
+        const g1 = gcd(n1, baseD), g2 = gcd(n2, baseD);
+        const sumN = n1 + n2;
+        const gSum = gcd(sumN, baseD);
+        d = baseD / gSum; n = sumN / gSum; u = 100;
         display = (
           <div className="flex items-center gap-2 math-font" dir="ltr">
-            <Fraction numerator={c.n1} denominator={c.d1} />
+            <Fraction numerator={n1 / g1} denominator={baseD / g1} />
             <span className="text-xl">+</span>
-            <Fraction numerator={c.n2} denominator={c.d2} />
+            <Fraction numerator={n2 / g2} denominator={baseD / g2} />
           </div>
         );
       } else {
-        const combos = [
-          { n1: 3, d1: 4, n2: 1, d2: 2, d: 4, n: 1 },
-          { n1: 1, d1: 2, n2: 1, d2: 4, d: 4, n: 1 },
-        ];
-        const c = combos[Math.floor(Math.random() * combos.length)];
-        d = c.d; n = c.n; u = 100;
+        // Procedural: two fractions with same base denominator, n1 > n2
+        const baseD = [4, 6, 8][Math.floor(Math.random() * 3)];
+        let n1, n2;
+        let inner = 0;
+        do {
+          n1 = Math.floor(Math.random() * (baseD - 1)) + 2;
+          n2 = Math.floor(Math.random() * (n1 - 1)) + 1;
+          inner++;
+        } while (n1 === n2 && inner < 20);
+        const g1 = gcd(n1, baseD), g2 = gcd(n2, baseD);
+        const diffN = n1 - n2;
+        const gDiff = gcd(diffN, baseD);
+        d = baseD / gDiff; n = diffN / gDiff; u = 100;
         display = (
           <div className="flex items-center gap-2 math-font" dir="ltr">
-            <Fraction numerator={c.n1} denominator={c.d1} />
+            <Fraction numerator={n1 / g1} denominator={baseD / g1} />
             <span className="text-xl">-</span>
-            <Fraction numerator={c.n2} denominator={c.d2} />
+            <Fraction numerator={n2 / g2} denominator={baseD / g2} />
           </div>
         );
       }

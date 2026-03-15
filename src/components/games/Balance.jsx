@@ -37,7 +37,7 @@ export default function Balance() {
     setRulesHtml('');
     setConsecutiveErrors(0);
 
-    const x = Math.floor(Math.random() * 10) + 2;
+    const x = Math.floor(Math.random() * 11) + 3; // 3–13 for more variety
     ansRef.current = x;
 
     if (lvl === 1) {
@@ -54,7 +54,6 @@ export default function Balance() {
       lFnRef.current = (v) => v - b;
       rFnRef.current = () => x;
     } else if (lvl === 3) {
-      // Only even values so (20 - a) / 2 is always an integer answer
       const evenPool = [2, 4, 6, 8, 10, 12];
       const a = evenPool[Math.floor(Math.random() * evenPool.length)];
       setLeftText(`🟦 + ${a}`);
@@ -63,18 +62,39 @@ export default function Balance() {
       lFnRef.current = (v) => v + a;
       rFnRef.current = (v) => 20 - v;
     } else if (lvl === 4) {
-      setLeftText(`(🟦 - 2) × (🟦 + 4)`);
-      const t = (x - 2) * (x + 4);
-      setRightText(`${t}`);
-      lFnRef.current = (v) => (v - 2) * (v + 4);
-      rFnRef.current = () => t;
+      // Two formula shapes for variety
+      const shape4 = Math.random() < 0.5 ? 'a' : 'b';
+      if (shape4 === 'a') {
+        setLeftText(`(🟦 - 2) × (🟦 + 4)`);
+        const t = (x - 2) * (x + 4);
+        setRightText(`${t}`);
+        lFnRef.current = (v) => (v - 2) * (v + 4);
+        rFnRef.current = () => t;
+      } else {
+        setLeftText(`(🟦 + 1) × (🟦 - 1)`);
+        const t = (x + 1) * (x - 1);
+        setRightText(`${t}`);
+        lFnRef.current = (v) => (v + 1) * (v - 1);
+        rFnRef.current = () => t;
+      }
     } else {
-      setRulesHtml('🔴 = 🟦 + 2');
-      setLeftText(`🔴 × 🟦`);
-      const t = (x + 2) * x;
-      setRightText(`${t}`);
-      lFnRef.current = (v) => (v + 2) * v;
-      rFnRef.current = () => t;
+      // Two formula shapes for level 5
+      const shape5 = Math.random() < 0.5 ? 'a' : 'b';
+      if (shape5 === 'a') {
+        setRulesHtml('🔴 = 🟦 + 2');
+        setLeftText(`🔴 × 🟦`);
+        const t = (x + 2) * x;
+        setRightText(`${t}`);
+        lFnRef.current = (v) => (v + 2) * v;
+        rFnRef.current = () => t;
+      } else {
+        setRulesHtml('🔴 = 🟦 + 3');
+        setLeftText(`🔴 × (🟦 - 1)`);
+        const t = (x + 3) * (x - 1);
+        setRightText(`${t}`);
+        lFnRef.current = (v) => (v + 3) * (v - 1);
+        rFnRef.current = () => t;
+      }
     }
   }, [gameState.lvl]);
 
@@ -166,19 +186,13 @@ export default function Balance() {
     }
   };
 
-  const isUnlimited = gameState.lvl === 5;
-
   return (
     <div className={`screen-enter flex flex-col items-center p-4 flex-1 min-h-[calc(100dvh-80px)] ${errorFlash ? 'error-flash' : ''}`}>
       <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-6 w-full max-w-md shadow-xl flex flex-col items-center gap-6 border-b-4 border-slate-200 dark:border-slate-700 transition-colors">
 
         {/* Lives */}
         <div className="flex gap-2 justify-center w-full h-8 mb-2">
-          {isUnlimited ? (
-            <Hearts unlimitedText="ללא הגבלת ניסיונות" />
-          ) : (
-            <Hearts lives={lives} maxLives={3} justLost={justLost} />
-          )}
+          <Hearts lives={lives} maxLives={3} justLost={justLost} />
         </div>
 
         {/* Rules (level 5) */}

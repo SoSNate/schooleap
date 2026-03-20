@@ -20,7 +20,7 @@ export default function Balance() {
   const [leftText, setLeftText] = useState('?');
   const [rightText, setRightText] = useState('?');
   const [rulesHtml, setRulesHtml] = useState('');
-  const [feedback, setFeedback] = useState({ visible: false, isLevelUp: false, pts: 0 });
+  const [feedback, setFeedback] = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
   const [errorFlash, setErrorFlash] = useState(false);
   const [consecutiveErrors, setConsecutiveErrors] = useState(0);
 
@@ -151,7 +151,7 @@ export default function Balance() {
     if (Math.abs(l - r) < 0.1) {
       vibe([30, 50, 30]);
       const result = handleWin('balance');
-      setFeedback({ visible: true, isLevelUp: result.isLevelUp, pts: result.pts });
+      setFeedback({ visible: true, isLevelUp: result.isLevelUp, unlocked: result.unlocked, pts: result.pts });
     } else {
       const newLives = lives - 1;
       const newErrors = consecutiveErrors + 1;
@@ -163,32 +163,15 @@ export default function Balance() {
       vibe([50, 50, 50]);
 
       if (newLives <= 0) {
-        const result = handleGameFail('balance');
-        if (result === 'locked') {
-          Swal.fire({
-            title: 'הרמה ננעלה 🔒',
-            html: '<div class="text-right">נראה שזה קצת מאתגר כרגע.<br>נעלנו את הרמה הזו כדי שתוכל להתאמן עליה בנחת! 🧠</div>',
-            icon: 'warning',
-            confirmButtonText: 'הבנתי',
-            confirmButtonColor: '#4f46e5',
-            customClass: { popup: 'rounded-3xl' },
-          }).then(() => setScreen('menu'));
-        } else {
-          Swal.fire({
-            title: 'אופס! 💥',
-            text: 'נגמרו הניסיונות בשאלה הזו, בוא ננסה שאלה חדשה.',
-            icon: 'error',
-            confirmButtonColor: '#ef4444',
-            customClass: { popup: 'rounded-3xl' },
-          }).then(() => initGame());
-        }
+        handleGameFail('balance');
+        setScreen('menu');
       }
     }
   };
 
   return (
     <div className={`screen-enter flex flex-col items-center p-4 flex-1 min-h-[calc(100dvh-80px)] ${errorFlash ? 'error-flash' : ''}`}>
-      <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-6 w-full max-w-md shadow-xl flex flex-col items-center gap-6 border-b-4 border-slate-200 dark:border-slate-700 transition-colors">
+      <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-6 w-full max-w-md shadow-xl flex flex-col items-center gap-6 border-2 border-green-200 dark:border-green-800/40 border-b-4 border-b-green-400 dark:border-b-green-700 transition-colors">
 
         {/* Lives */}
         <div className="flex gap-2 justify-center w-full h-8 mb-2">
@@ -208,12 +191,12 @@ export default function Balance() {
         <div className="scale-container">
           <div className="scale-beam" style={{ transform: `rotate(${beamAngle}deg)` }}>
             <div className="pan-wrap" style={{ transform: `rotate(${-beamAngle}deg)` }}>
-              <div className="pan bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 math-font">
+              <div className="pan bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 math-font" dir="ltr">
                 {leftText}
               </div>
             </div>
             <div className="pan-wrap" style={{ transform: `rotate(${-beamAngle}deg)` }}>
-              <div className="pan bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 math-font">
+              <div className="pan bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 math-font" dir="ltr">
                 {rightText}
               </div>
             </div>
@@ -226,7 +209,7 @@ export default function Balance() {
           <div className="flex justify-center items-center gap-4 mb-6" dir="ltr">
             <span className="text-4xl md:text-5xl drop-shadow-sm">🟦</span>
             <span className="text-2xl font-bold text-slate-300 dark:text-slate-600">=</span>
-            <span className="text-5xl md:text-6xl font-black text-emerald-500 min-w-[80px]">
+            <span className="text-5xl md:text-6xl font-black text-green-500 min-w-[80px]">
               {sliderVal}
             </span>
           </div>
@@ -251,13 +234,13 @@ export default function Balance() {
           <div className="flex gap-2">
             <button
               onClick={showHint}
-              className={`w-16 py-4 md:py-5 rounded-3xl font-black text-xl shadow-sm transition-all active:scale-95 ${consecutiveErrors >= 2 ? 'bg-amber-400 text-white animate-pulse' : 'bg-emerald-200 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 hover:bg-emerald-300'}`}
+              className={`w-16 py-4 md:py-5 rounded-3xl font-black text-xl shadow-sm transition-all active:scale-95 ${consecutiveErrors >= 2 ? 'bg-amber-400 text-white animate-pulse' : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800 hover:bg-green-200'}`}
             >
               💡
             </button>
             <button
               onClick={checkAnswer}
-              className="flex-1 py-4 md:py-5 bg-emerald-600 dark:bg-emerald-500 text-white rounded-3xl font-black text-xl md:text-2xl shadow-xl hover:bg-emerald-700 transition-all active:scale-95"
+              className="flex-1 py-4 md:py-5 bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white rounded-3xl font-black text-xl md:text-2xl shadow-xl transition-all active:scale-95"
             >
               שקול ובדוק! ⚖️
             </button>
@@ -268,9 +251,10 @@ export default function Balance() {
       <FeedbackOverlay
         visible={feedback.visible}
         isLevelUp={feedback.isLevelUp}
+        unlocked={feedback.unlocked}
         pts={feedback.pts}
         onDone={() => {
-          setFeedback({ visible: false, isLevelUp: false, pts: 0 });
+          setFeedback({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
           initGame();
         }}
       />

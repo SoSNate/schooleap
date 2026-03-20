@@ -4,7 +4,7 @@ import confetti from 'canvas-confetti';
 import { anims } from '../../utils/math';
 import useGameStore from '../../store/useGameStore';
 
-export default function FeedbackOverlay({ visible, isLevelUp, pts, onDone }) {
+export default function FeedbackOverlay({ visible, isLevelUp, unlocked, pts, onDone }) {
   const finishAnimation = useGameStore((s) => s.finishAnimation);
 
   useEffect(() => {
@@ -15,7 +15,7 @@ export default function FeedbackOverlay({ visible, isLevelUp, pts, onDone }) {
       if (onDone) onDone();
     }, 2000);
     return () => clearTimeout(timer);
-  }, [visible]);
+  }, [visible, finishAnimation, onDone]);
 
   if (!visible) return null;
 
@@ -29,7 +29,7 @@ export default function FeedbackOverlay({ visible, isLevelUp, pts, onDone }) {
         />
       </div>
       <h2 className={`text-3xl md:text-4xl font-black mt-2 text-center ${isLevelUp ? 'text-amber-500' : 'text-emerald-500'}`}>
-        {isLevelUp ? `עלית דרגה! 🏆 (+${pts})` : `נכון מאוד! ✨ (+${pts})`}
+        {unlocked ? `שוחרר! הרמה נפתחה 🔓 (+${pts})` : isLevelUp ? `עלית דרגה! 🏆 (+${pts})` : `נכון מאוד! ✨ (+${pts})`}
       </h2>
     </div>
   );

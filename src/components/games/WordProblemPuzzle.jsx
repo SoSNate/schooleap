@@ -371,7 +371,7 @@ function parseTextSpans(text, tokens) {
 
 /* ── Numpad ──────────────────────────────────────────────────────────────── */
 function Numpad({ onInput, onDelete }) {
-  const keys = [7, 8, 9, 4, 5, 6, 1, 2, 3, null, 0, '⌫'];
+  const keys = [1, 2, 3, 4, 5, 6, 7, 8, 9, null, 0, '⌫'];
   return (
     <div className="grid grid-cols-3 gap-2.5 w-full max-w-[260px]">
       {keys.map((k, idx) => (
@@ -381,8 +381,8 @@ function Numpad({ onInput, onDelete }) {
           disabled={k === null}
           className={`h-14 rounded-xl font-black text-xl shadow-md active:scale-90 transition-all
             ${k === null ? 'opacity-0 pointer-events-none' :
-              k === '⌫' ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400' :
-              'bg-white dark:bg-slate-700 text-indigo-900 dark:text-indigo-100 border-b-4 border-indigo-100 dark:border-slate-600'}`}
+              k === '⌫' ? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400' :
+              'bg-white dark:bg-slate-700 text-red-900 dark:text-red-100 border-b-4 border-red-100 dark:border-slate-600'}`}
         >
           {k}
         </button>
@@ -409,7 +409,7 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
   const [disabled,   setDisabled]   = useState(false);
   const [errorMsg,   setErrorMsg]   = useState('');
   const [consErrors, setConsErrors] = useState(0);
-  const [feedback,   setFeedback]   = useState({ visible: false, isLevelUp: false, pts: 0 });
+  const [feedback,   setFeedback]   = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
 
   const recentRef = useRef([]);
 
@@ -437,7 +437,7 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
     try {
       if (!localStorage.getItem(ONBOARD_KEY)) {
         Swal.fire({
-          title: 'המעבדה המילולית 🧠',
+          title: 'שאלות מילוליות 🧠',
           html: `<div class="text-right text-sm leading-relaxed">
             <b>שלב 1 — אסוף:</b> לחץ על המספרים בסיפור.<br><br>
             <b>שלב 2 — סדר:</b> הנח אותם בסלוטים של המשוואה.<br><br>
@@ -503,7 +503,7 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
       setConsErrors(0);
       telemetry('win', { schemaId: question.schemaId, lvl: gameState.lvl });
       const result = handleWin('word');
-      setFeedback({ visible: true, isLevelUp: result.isLevelUp, pts: result.pts });
+      setFeedback({ visible: true, isLevelUp: result.isLevelUp, unlocked: result.unlocked, pts: result.pts });
     } else {
       vibe([50, 50, 50]);
       setConsErrors(c => c + 1);
@@ -517,21 +517,8 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
         if (next <= 0) {
           setDisabled(true);
           setTimeout(() => {
-            const r = handleGameFail('word');
-            if (r === 'locked') {
-              Swal.fire({
-                title: 'הרמה ננעלה 🔒',
-                html: '<div class="text-right">קצת קשה כרגע — נעלנו את הרמה לתרגול! 🧠</div>',
-                icon: 'warning', confirmButtonText: 'הבנתי', confirmButtonColor: '#4f46e5',
-                customClass: { popup: 'rounded-3xl' },
-              }).then(() => setScreen('menu'));
-            } else {
-              Swal.fire({
-                title: 'אופס! 💥', text: 'נגמרו הניסיונות — שאלה חדשה!',
-                icon: 'error', confirmButtonColor: '#ef4444',
-                customClass: { popup: 'rounded-3xl' },
-              }).then(() => newQuestion());
-            }
+            handleGameFail('word');
+            setScreen('menu');
           }, 600);
         }
         return next;
@@ -551,9 +538,9 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
       <div className="flex-1 flex flex-col items-center p-4 gap-4 overflow-y-auto">
 
         {/* Header */}
-        <div className="bg-white dark:bg-slate-800 rounded-[2rem] w-full max-w-md px-5 py-4 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-800 rounded-[2rem] w-full max-w-md px-5 py-4 shadow-sm border-2 border-red-200 dark:border-red-800/40 border-b-4 border-b-red-800 dark:border-b-red-900 flex items-center justify-between">
           <div>
-            <p className="text-xs font-black text-indigo-600 dark:text-indigo-400 mb-0.5">{stepLabel}</p>
+            <p className="text-xs font-black text-red-800 dark:text-red-300 mb-0.5">{stepLabel}</p>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 font-bold">{question.opHint}</p>
           </div>
           <Hearts lives={lives} maxLives={config.livesPerRound} justLost={justLost} />
@@ -573,8 +560,8 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
                     onClick={() => handleTokenTap(span.tokenIdx)}
                     className={`mx-0.5 px-2 py-0.5 rounded-lg font-black text-lg transition-all active:scale-90
                       ${done
-                        ? 'bg-indigo-200 dark:bg-indigo-800/60 text-indigo-400 line-through opacity-50'
-                        : 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-200 border-b-2 border-indigo-300 dark:border-indigo-700 shadow-sm'
+                        ? 'bg-red-200 dark:bg-red-800/60 text-red-400 line-through opacity-50'
+                        : 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 border-b-2 border-red-300 dark:border-red-700 shadow-sm'
                       }`}
                   >
                     {span.content}
@@ -585,7 +572,7 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
             {/* Progress dots */}
             <div className="mt-5 flex gap-1.5 justify-center">
               {question.tokens.map((_, i) => (
-                <div key={i} className={`h-2 w-2 rounded-full transition-all ${collected.has(i) ? 'bg-indigo-500 scale-125' : 'bg-slate-200 dark:bg-slate-700'}`} />
+                <div key={i} className={`h-2 w-2 rounded-full transition-all ${collected.has(i) ? 'bg-red-800 scale-125' : 'bg-slate-200 dark:bg-slate-700'}`} />
               ))}
             </div>
           </div>
@@ -596,21 +583,21 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
           <div className="w-full max-w-md flex flex-col gap-4">
 
             {/* Story recap */}
-            <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl px-4 py-3 border border-indigo-100 dark:border-indigo-800">
-              <p className="text-sm text-indigo-700 dark:text-indigo-300 leading-relaxed">{question.text}</p>
+            <div className="bg-red-50 dark:bg-red-900/20 rounded-2xl px-4 py-3 border border-red-100 dark:border-red-800">
+              <p className="text-sm text-red-700 dark:text-red-300 leading-relaxed">{question.text}</p>
             </div>
 
             {/* Token tray (arrange only) */}
             {step === 'arrange' && (
-              <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border-2 border-dashed border-indigo-200 dark:border-indigo-700 flex flex-wrap gap-2 justify-center min-h-[60px]">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border-2 border-dashed border-red-200 dark:border-red-700 flex flex-wrap gap-2 justify-center min-h-[60px]">
                 {trayTokens.map(t => (
                   <button
                     key={t.idx}
                     onClick={() => handleTrayTap(t.idx)}
                     className={`px-4 py-2 rounded-xl font-black text-xl transition-all active:scale-90
                       ${selToken === t.idx
-                        ? 'bg-indigo-600 text-white shadow-lg scale-105 ring-2 ring-indigo-400'
-                        : 'bg-white dark:bg-slate-700 text-indigo-900 dark:text-indigo-100 border-b-4 border-indigo-200 dark:border-slate-600 shadow-md'
+                        ? 'bg-red-800 text-white shadow-lg scale-105 ring-2 ring-red-600'
+                        : 'bg-white dark:bg-slate-700 text-red-900 dark:text-red-100 border-b-4 border-red-200 dark:border-slate-600 shadow-md'
                       }`}
                   >
                     {t.display}
@@ -640,7 +627,7 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
                       disabled={step === 'solve'}
                       className={`min-w-[52px] h-14 rounded-xl flex items-center justify-center text-xl transition-all active:scale-90
                         ${filled
-                          ? 'bg-indigo-600 dark:bg-indigo-700 text-white shadow-md'
+                          ? 'bg-red-800 dark:bg-red-900 text-white shadow-md'
                           : highlighted
                             ? 'bg-amber-100 dark:bg-amber-900/30 border-2 border-dashed border-amber-400 text-amber-500 animate-pulse'
                             : 'bg-slate-100 dark:bg-slate-700 text-slate-400 border-2 border-dashed border-slate-300 dark:border-slate-600'
@@ -664,7 +651,7 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
               {/* Solve controls */}
               {step === 'solve' && (
                 <div className="w-full flex flex-col items-center gap-3">
-                  {errorMsg && <p className="text-rose-500 dark:text-rose-400 font-bold text-sm">{errorMsg}</p>}
+                  {errorMsg && <p className="text-red-500 dark:text-red-400 font-bold text-sm">{errorMsg}</p>}
                   {consErrors >= 2 && !errorMsg && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-900/20 px-3 py-1.5 rounded-full">
                       💡 רמז: התשובה היא {question.answer}
@@ -677,7 +664,7 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
                   <button
                     onClick={handleCheck}
                     disabled={!userAnswer || disabled}
-                    className="w-full max-w-[260px] py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-[0_5px_0_#3730a3] active:translate-y-[5px] active:shadow-none transition-all disabled:opacity-40 text-lg"
+                    className="w-full max-w-[260px] py-4 bg-red-800 hover:bg-red-900 dark:bg-red-800 dark:hover:bg-red-900 text-white font-black rounded-2xl shadow-[0_5px_0_#7f1d1d] active:translate-y-[5px] active:shadow-none transition-all disabled:opacity-40 text-lg"
                   >
                     בדיקה ✓
                   </button>
@@ -691,9 +678,10 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
       <FeedbackOverlay
         visible={feedback.visible}
         isLevelUp={feedback.isLevelUp}
+        unlocked={feedback.unlocked}
         pts={feedback.pts}
         onDone={() => {
-          setFeedback({ visible: false, isLevelUp: false, pts: 0 });
+          setFeedback({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
           newQuestion();
         }}
       />

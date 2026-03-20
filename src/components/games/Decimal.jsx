@@ -1,17 +1,27 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import useGameStore from '../../store/useGameStore';
 import Hearts from '../shared/Hearts';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
-import Fraction from '../shared/Fraction';
 import { vibe } from '../../utils/math';
 import Swal from 'sweetalert2';
 
 const ONBOARD_KEY = 'onboard_decimal';
 
-// RotaryKnob — drag or +/- to move cursor
-const RotaryKnob = ({ value, onChange }) => {
+// צעדים: index → גודל צעד → זום
+const stepOptions  = [1, 0.1, 0.01, 0.001];
+
+// Fraction — שבר אקדמי (מונה מעל מכנה)
+const Fraction = ({ n, d }) => (
+  <div className="inline-flex flex-col items-center justify-center leading-none text-center" dir="ltr">
+    <span className="border-b-[1.5px] border-current px-0.5 pb-[1px] block">{n}</span>
+    <span className="pt-[1px] block">{d}</span>
+  </div>
+);
+
+// RotaryKnob — בוחר גודל הצעד (stepIndex 0‑3)
+const RotaryKnob = ({ stepIndex, onChange }) => {
   const knobRef = useRef(null);
-  const drag = useRef({ active: false, startAngle: 0, startValue: 0 });
+  const drag = useRef({ active: false, startAngle: 0, startIndex: 0 });
 
   const getAngle = (e) => {
     if (!knobRef.current) return 0;
@@ -24,7 +34,7 @@ const RotaryKnob = ({ value, onChange }) => {
   };
 
   const handleStart = (e) => {
-    drag.current = { active: true, startAngle: getAngle(e), startValue: value };
+    drag.current = { active: true, startAngle: getAngle(e), startIndex: stepIndex };
   };
 
   useEffect(() => {
@@ -34,12 +44,15 @@ const RotaryKnob = ({ value, onChange }) => {
       let delta = getAngle(e) - drag.current.startAngle;
       if (delta > 180) delta -= 360;
       if (delta < -180) delta += 360;
-      const steps = Math.trunc(delta / 10);
+      const steps = Math.trunc(delta / 45); // 45° per step
       if (Math.abs(steps) >= 1) {
-        const next = Math.max(0, Math.min(9999, drag.current.startValue + steps));
-        onChange(next);
+        const next = Math.max(0, Math.min(3, drag.current.startIndex + steps));
+        if (next !== stepIndex) {
+          onChange(next);
+          vibe(10);
+        }
         drag.current.startAngle = getAngle(e);
-        drag.current.startValue = next;
+        drag.current.startIndex = next;
       }
     };
     const onEnd = () => { drag.current.active = false; };
@@ -53,114 +66,172 @@ const RotaryKnob = ({ value, onChange }) => {
       window.removeEventListener('touchmove', onMove);
       window.removeEventListener('touchend', onEnd);
     };
-  }, [onChange]);
+  }, [onChange, stepIndex]);
 
-  const rotation = (value * 10) % 360;
+  const rotation = stepIndex * 90; // 0°, 90°, 180°, 270°
+
+  const dialRadius = 85; // הוגדל כדי לרווח את התוויות
+
+  const labelDefs = [
+    { idx: 0, content: <span className="text-sm font-black">×1</span>, style: { top: '-2.5rem', left: '50%', transform: 'translateX(-50%)' } },
+    { idx: 1, content: <div className="flex items-center gap-1 text-sm font-black"><span>×</span><Fraction n={1} d={10} /></div>, style: { top: '50%', right: '-5rem', transform: 'translateY(-50%)' } },
+    { idx: 2, content: <div className="flex items-center gap-1 text-sm font-black"><span>×</span><Fraction n={1} d={100} /></div>, style: { bottom: '-1.5rem', left: '50%', transform: 'translateX(-50%)' } },
+    { idx: 3, content: <div className="flex items-center gap-1 text-sm font-black"><span>×</span><Fraction n={1} d={1000} /></div>, style: { top: '50%', left: '-5.2rem', transform: 'translateY(-50%)' } },
+  ];
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="relative w-32 h-32 md:w-36 md:h-36 flex items-center justify-center shrink-0">
+    <div className="flex flex-col items-center gap-1">
+      {/* מעגל חיצוני עם תוויות טקסט */}
+      <div className="relative flex items-center justify-center w-full h-48 mt-4">
+
+        {/* תוויות ניתנות ללחיצה — ללא עיגול */}
+        {labelDefs.map(({ idx, content, style }) => (
+          <button
+            key={idx}
+            onClick={() => { onChange(idx); vibe(10); }}
+            className={`absolute font-black text-sm leading-none transition-all active:scale-90 ${
+              stepIndex === idx
+                ? 'text-yellow-500'
+                : 'text-slate-400 dark:text-slate-500'
+            }`}
+            style={{ position: 'absolute', ...style }}
+            dir="ltr"
+          >
+            {content}
+          </button>
+        ))}
+
+        {/* שנתות קישוט */}
         {Array.from({ length: 36 }).map((_, i) => (
-          <div key={i} className="absolute w-full h-full pointer-events-none" style={{ transform: `rotate(${i * 10}deg)` }}>
-            <div className={`mx-auto w-0.5 rounded-full ${i % 9 === 0 ? 'h-3 bg-slate-400 dark:bg-slate-400' : 'h-1.5 bg-slate-300 dark:bg-slate-600'}`} />
+          <div key={i} className="absolute pointer-events-none" style={{ width: '100%', height: '100%', transform: `rotate(${i * 10}deg)` }}>
+            <div className={`mx-auto w-0.5 rounded-full ${i % 9 === 0 ? 'h-2.5 bg-slate-300 dark:bg-slate-600' : 'h-1.5 bg-slate-200 dark:bg-slate-700'}`} />
           </div>
         ))}
+
+        {/* הרולר עצמו */}
         <div
           ref={knobRef}
-          className="w-24 h-24 md:w-28 md:h-28 rounded-full bg-slate-100 dark:bg-slate-700 shadow-[inset_0_4px_8px_rgba(0,0,0,0.1),0_8px_16px_rgba(0,0,0,0.2)] border-4 border-slate-200 dark:border-slate-600 flex items-center justify-center cursor-pointer relative touch-none z-10"
+          className="rounded-full bg-slate-100 dark:bg-slate-700 shadow-[inset_0_4px_8px_rgba(0,0,0,0.1),0_8px_16px_rgba(0,0,0,0.2)] border-4 border-slate-200 dark:border-slate-600 flex items-center justify-center cursor-pointer relative touch-none z-10"
           onMouseDown={handleStart}
           onTouchStart={handleStart}
-          style={{ transform: `rotate(${rotation}deg)` }}
+          style={{ width: '7rem', height: '7rem', transform: `rotate(${rotation}deg)`, transition: 'transform 0.2s ease-out' }}
         >
-          <div className="absolute top-2 w-3 h-3 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
-          <div className="w-10 h-10 rounded-full border-2 border-slate-200 dark:border-slate-500 opacity-50" />
+          <div className="absolute top-2 w-3 h-3 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.8)]" />
+          <div className="w-8 h-8 rounded-full border-2 border-slate-200 dark:border-slate-500 opacity-50" />
         </div>
       </div>
-      <div className="flex flex-col gap-2">
-        <button
-          onClick={() => { onChange(Math.min(9999, value + 1)); vibe(10); }}
-          className="w-14 h-14 bg-cyan-500 hover:bg-cyan-400 rounded-full flex items-center justify-center text-2xl font-black text-white shadow-md active:scale-90 transition-transform"
-        >+</button>
-        <button
-          onClick={() => { onChange(Math.max(0, value - 1)); vibe(10); }}
-          className="w-14 h-14 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center text-2xl font-black text-slate-600 dark:text-slate-300 shadow-sm active:scale-90 transition-transform"
-        >−</button>
-      </div>
+
     </div>
   );
 };
 
-// Horizontal number line
-function NumberLine({ position, range, zoom }) {
-  const [rangeMin, rangeMax] = range;
-  const rangeSize = rangeMax - rangeMin;
-  if (rangeSize <= 0) return null;
-
-  const toPercent = (v) => Math.min(100, Math.max(0, ((v - rangeMin) / rangeSize) * 100));
-
-  const intTicks = [];
-  for (let i = Math.ceil(rangeMin); i <= Math.floor(rangeMax); i++) {
-    intTicks.push(i);
-  }
-
-  const cursorPct = toPercent(position);
-  const displayVal = position.toFixed(Math.max(1, zoom));
-
+// PositionSlider — מזיז את הסמן באופן רציף, מסונכרן עם ה-step עם ידית גרירה מותאמת
+const PositionSlider = ({ value, onChange, step, range }) => {
+  const [rMin, rMax] = range;
+  const pct = ((value - rMin) / (rMax - rMin)) * 100;
+  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
   return (
-    <div className="relative w-full select-none" style={{ height: '88px' }}>
-      {/* Track line */}
-      <div className="absolute left-4 right-4 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full" style={{ top: '42%' }} />
-
-      {/* Left arrow */}
-      <div className="absolute left-0 w-0 h-0 pointer-events-none"
-        style={{ top: 'calc(42% - 5px)', borderTop: '6px solid transparent', borderBottom: '6px solid transparent', borderRight: '10px solid #94a3b8' }} />
-      {/* Right arrow */}
-      <div className="absolute right-0 w-0 h-0 pointer-events-none"
-        style={{ top: 'calc(42% - 5px)', borderTop: '6px solid transparent', borderBottom: '6px solid transparent', borderLeft: '10px solid #94a3b8' }} />
-
-      {/* Integer tick marks */}
-      {intTicks.map((n) => {
-        const pct = toPercent(n);
-        const isZero = n === 0;
-        return (
-          <div key={n} className="absolute flex flex-col items-center"
-            style={{ left: `calc(${pct}% - 1px + 1rem)`, top: '25%', transform: 'translateX(-50%)' }}>
-            <div className={`w-0.5 rounded-full ${isZero ? 'h-6 bg-slate-500 dark:bg-slate-400' : 'h-4 bg-slate-300 dark:bg-slate-600'}`} />
-            <span className={`text-[10px] font-bold mt-0.5 ${isZero ? 'text-slate-600 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'}`}>
-              {n}
-            </span>
-          </div>
-        );
-      })}
-
-      {/* Cursor */}
-      <div
-        className="absolute flex flex-col items-center pointer-events-none"
-        style={{
-          left: `calc(${cursorPct}% + 1rem)`,
-          top: '4px',
-          transform: 'translateX(-50%)',
-          transition: 'left 0.06s ease-out',
-        }}
-      >
-        {/* Arrow pointing down */}
-        <div className="w-0 h-0"
-          style={{ borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: '10px solid #06b6d4' }} />
-        <div className="w-0.5 h-9 bg-cyan-500 dark:bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.7)]" />
+    <div className="w-full flex flex-col gap-1 mt-2">
+      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+        ← הזזת סמן →
       </div>
-
-      {/* Current value label */}
-      <div
-        className="absolute font-black text-[11px] text-cyan-600 dark:text-cyan-300 bg-cyan-50 dark:bg-cyan-900/40 px-1.5 py-0.5 rounded-md border border-cyan-200 dark:border-cyan-800 pointer-events-none whitespace-nowrap"
+      <input
+        type="range"
+        min={rMin}
+        max={rMax}
+        step={0.0001}
+        value={value}
+        onChange={(e) => {
+          const raw = parseFloat(e.target.value);
+          const snapped = Math.round(raw / step) * step;
+          onChange(parseFloat(snapped.toFixed(4)));
+        }}
+        className="w-full h-3 rounded-full appearance-none cursor-pointer outline-none shadow-inner
+          [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-7 [&::-webkit-slider-thumb]:h-7 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-[4px] [&::-webkit-slider-thumb]:border-yellow-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md
+          [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-7 [&::-moz-range-thumb]:h-7 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-[4px] [&::-moz-range-thumb]:border-yellow-500 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow-md"
         style={{
-          left: `calc(${cursorPct}% + 1rem)`,
-          bottom: '2px',
-          transform: 'translateX(-50%)',
-          transition: 'left 0.06s ease-out',
+          background: `linear-gradient(to right, #eab308 0%, #eab308 ${pct}%, ${isDark ? '#334155' : '#cbd5e1'} ${pct}%, ${isDark ? '#334155' : '#cbd5e1'} 100%)`
         }}
         dir="ltr"
+      />
+    </div>
+  );
+};
+
+// Horizontal number line — smooth sliding with useMemo + CSS transition
+function NumberLine({ position, fullRange, zoomLevel, cursorColor, stepIndex }) {
+  const [fullMin, fullMax] = fullRange;
+  const visibleSpan = 2 / Math.pow(10, zoomLevel);
+  const tickInterval = visibleSpan / 10;
+  const minDecimals = Math.max(0, Math.ceil(-Math.log10(tickInterval + 1e-12)));
+  const displayDecimals = Math.max(stepIndex || 0, minDecimals);
+
+  // שנתות קבועות — מחושבות מחדש רק כשzoom/range משתנה, לא בכל גרירה
+  const ticks = useMemo(() => {
+    const result = [];
+    const start = Math.floor((fullMin - visibleSpan) / tickInterval) * tickInterval;
+    const end = Math.ceil((fullMax + visibleSpan) / tickInterval) * tickInterval;
+    const total = Math.round((end - start) / tickInterval) + 1;
+    for (let i = 0; i < total; i++) {
+      result.push(Number((start + i * tickInterval).toFixed(minDecimals)));
+    }
+    return result;
+  }, [fullMin, fullMax, tickInterval, minDecimals, visibleSpan]);
+
+  // טווח מורחב שמכסה את ה-container
+  const extMin = fullMin - visibleSpan;
+  const extMax = fullMax + visibleSpan;
+  const extSpan = extMax - extMin;
+  const containerWidthPct = extSpan / visibleSpan * 100;
+
+  // נוסחה: position תמיד תחת הסמן (50% מהאב)
+  const slidePercent = (0.5 - (position - extMin) / extSpan) * 100;
+
+  const color = cursorColor || '#eab308';
+
+  return (
+    <div className="relative w-full h-24 select-none" style={{ overflow: 'visible' }}>
+
+      {/* קו רקע — נמתח לרוחב כל המסך */}
+      <div className="absolute top-1/2 h-1 bg-slate-300 dark:bg-slate-600 z-0"
+        style={{ width: '100vw', left: '50%', transform: 'translateX(-50%) translateY(-50%)' }} />
+
+      {/* container גולל — CSS transition מספק את תחושת הגלילה */}
+      <div className="absolute top-0 bottom-0 z-10"
+        style={{
+          left: '50%',
+          transform: `translateX(calc(-50% + ${slidePercent}%))`,
+          width: `${containerWidthPct}%`,
+          transition: 'transform 80ms ease-out',
+          willChange: 'transform',
+        }}
       >
-        {displayVal}
+        {ticks.map((n) => {
+          const isInteger = Math.abs(n - Math.round(n)) < 1e-9;
+          const inBounds = n >= fullMin && n <= fullMax;
+          const leftPct = (n - extMin) / extSpan * 100;
+          return (
+            <div
+              key={n.toFixed(minDecimals)}
+              className="absolute flex flex-col items-center"
+              style={{ left: `${leftPct}%`, top: '50%', transform: 'translate(-50%, -50%)', opacity: inBounds ? 1 : 0.25 }}
+            >
+              <div className={`rounded-full ${isInteger ? 'w-1 h-6 bg-slate-600 dark:bg-slate-400' : 'w-0.5 h-3 bg-slate-400 dark:bg-slate-500'}`} />
+              <span dir="ltr" className={`absolute top-full mt-1.5 font-bold whitespace-nowrap ${isInteger ? 'text-xs text-slate-800 dark:text-slate-200' : 'text-[10px] text-slate-500'}`}>
+                {n.toFixed(displayDecimals)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* חיצים סטטיים — מגדירי מסגרת */}
+      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0 h-0 border-y-4 border-y-transparent border-r-[6px] border-r-slate-400 z-20" />
+      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-0 h-0 border-y-4 border-y-transparent border-l-[6px] border-l-slate-400 z-20" />
+
+      {/* סמן קבוע במרכז */}
+      <div className="absolute pointer-events-none z-30" style={{ left: '50%', top: '4px', transform: 'translateX(-50%)' }}>
+        <div className="w-0 h-0" style={{ borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: `8px solid ${color}`, transition: 'border-top-color 0.3s' }} />
       </div>
     </div>
   );
@@ -168,52 +239,48 @@ function NumberLine({ position, range, zoom }) {
 
 // Level sets: { v=target value, n/d=fraction to display, w=whole part, neg=negative, range=[min,max], z=maxZoom }
 const levelSets = [
-  // Level 1: halves and quarters on positive axis
+  // רמה 1: חצאים וחמישיות — z=1 (דיוק 0.1)
   [
-    { v: 0.5, n: 1, d: 2, w: 0, range: [-0.5, 2.5], z: 1 },
+    { v: 0.5,  n: 1, d: 2, w: 0, range: [-0.5, 2.5], z: 1 },
+    { v: 1.5,  n: 1, d: 2, w: 1, range: [0,   3],    z: 1 },
+    { v: 0.2,  n: 1, d: 5, w: 0, range: [-0.5, 2],   z: 1 },
+    { v: 0.6,  n: 3, d: 5, w: 0, range: [-0.5, 2],   z: 1 },
+    { v: 1.2,  n: 1, d: 5, w: 1, range: [0,   2.5],  z: 1 },
+  ],
+  // רמה 2: רבעים + מספרים מעורבים — z=2 (דיוק 0.01)
+  [
     { v: 0.25, n: 1, d: 4, w: 0, range: [-0.5, 2.5], z: 2 },
     { v: 0.75, n: 3, d: 4, w: 0, range: [-0.5, 2.5], z: 2 },
-    { v: 1.5, n: 1, d: 2, w: 1, range: [0, 3], z: 1 },
-    { v: 1.75, n: 3, d: 4, w: 1, range: [0, 3], z: 2 },
+    { v: 1.25, n: 1, d: 4, w: 1, range: [0,   3],    z: 2 },
+    { v: 1.75, n: 3, d: 4, w: 1, range: [0,   3],    z: 2 },
+    { v: 0.4,  n: 2, d: 5, w: 0, range: [-0.5, 2],   z: 1 },
   ],
-  // Level 2: fifths and tenths
+  // רמה 3: עשיריות + שליליים קלים — z=1
   [
-    { v: 0.2, n: 1, d: 5, w: 0, range: [-0.5, 2], z: 1 },
-    { v: 0.4, n: 2, d: 5, w: 0, range: [-0.5, 2], z: 1 },
-    { v: 0.6, n: 3, d: 5, w: 0, range: [-0.5, 2], z: 1 },
-    { v: 1.2, n: 1, d: 5, w: 1, range: [0, 2.5], z: 1 },
-    { v: 0.1, n: 1, d: 10, w: 0, range: [-0.5, 2], z: 1 },
-    { v: 0.3, n: 3, d: 10, w: 0, range: [-0.5, 2], z: 1 },
+    { v: 0.1,  n: 1, d: 10, w: 0, range: [-0.5, 2],   z: 1 },
+    { v: 0.3,  n: 3, d: 10, w: 0, range: [-0.5, 2],   z: 1 },
+    { v: 0.7,  n: 7, d: 10, w: 0, range: [-0.5, 2],   z: 1 },
+    { v: -0.5, n: 1, d: 2,  w: 0, neg: true, range: [-2,   1.5], z: 1 },
+    { v: -0.2, n: 1, d: 5,  w: 0, neg: true, range: [-1.5, 1.5], z: 1 },
   ],
-  // Level 3: mixed numbers, hundredths
+  // רמה 4: חמישיות/עשיריות שליליות + מאיות — z=2 (ללא שלישים)
   [
-    { v: 1.25, n: 1, d: 4, w: 1, range: [0, 3], z: 2 },
-    { v: 2.25, n: 1, d: 4, w: 2, range: [0, 4], z: 2 },
-    { v: 0.05, n: 1, d: 20, w: 0, range: [-0.5, 1.5], z: 2 },
-    { v: 0.15, n: 3, d: 20, w: 0, range: [-0.5, 1.5], z: 2 },
-    { v: 0.8, n: 4, d: 5, w: 0, range: [-0.5, 2], z: 1 },
+    { v: 0.05,  n: 1, d: 20, w: 0, range: [-0.5, 1.5], z: 2 },
+    { v: 0.15,  n: 3, d: 20, w: 0, range: [-0.5, 1.5], z: 2 },
+    { v: -0.8,  n: 4, d: 5,  w: 0, neg: true, range: [-2,   0.5], z: 2 },
+    { v: -0.6,  n: 3, d: 5,  w: 0, neg: true, range: [-1.5, 1.5], z: 2 },
+    { v: -0.15, n: 3, d: 20, w: 0, neg: true, range: [-1.5, 1.5], z: 2 },
+    { v: -0.75, n: 3, d: 4,  w: 0, neg: true, range: [-1.5, 1.5], z: 2 },
   ],
-  // Level 4: eighths + intro negatives
+  // רמה 5: שמיניות + שליליים מורכבים — z=3 (דיוק 0.001)
   [
-    { v: 0.125, n: 1, d: 8, w: 0, range: [-0.5, 1.5], z: 3 },
-    { v: 0.375, n: 3, d: 8, w: 0, range: [-0.5, 1.5], z: 3 },
-    { v: 0.625, n: 5, d: 8, w: 0, range: [-0.5, 1.5], z: 3 },
-    { v: 0.875, n: 7, d: 8, w: 0, range: [-0.5, 1.5], z: 3 },
-    { v: -0.5, n: 1, d: 2, w: 0, neg: true, range: [-1.5, 1.5], z: 1 },
-    { v: -0.25, n: 1, d: 4, w: 0, neg: true, range: [-1.5, 1.5], z: 2 },
-  ],
-  // Level 5: complex + more negatives
-  [
-    { v: 1.875, n: 7, d: 8, w: 1, range: [0, 3], z: 3 },
+    { v: 0.125,  n: 1, d: 8, w: 0, range: [-0.5, 1.5], z: 3 },
+    { v: 0.375,  n: 3, d: 8, w: 0, range: [-0.5, 1.5], z: 3 },
+    { v: 0.625,  n: 5, d: 8, w: 0, range: [-0.5, 1.5], z: 3 },
+    { v: 1.875,  n: 7, d: 8, w: 1, range: [0,   3],    z: 3 },
     { v: -0.375, n: 3, d: 8, w: 0, neg: true, range: [-1.5, 1.5], z: 3 },
-    { v: -0.75, n: 3, d: 4, w: 0, neg: true, range: [-1.5, 1.5], z: 2 },
-    { v: 2.375, n: 3, d: 8, w: 2, range: [0, 4], z: 3 },
-    { v: -0.125, n: 1, d: 8, w: 0, neg: true, range: [-1.5, 1.5], z: 3 },
   ],
 ];
-
-// Throttle labels: LEFT=fine(1/1000), RIGHT=coarse(x1)
-const throttleLabels = ['1/1000', '1/100', '1/10', 'x1'];
 
 export default function Decimal() {
   const gameState = useGameStore((s) => s.decimal);
@@ -223,24 +290,21 @@ export default function Decimal() {
 
   const [lives, setLives] = useState(5);
   const [justLost, setJustLost] = useState(false);
-  // throttlePos: 3=RIGHT=coarse(x1, zoom=0), 0=LEFT=fine(1/1000, zoom=3)
-  const [throttlePos, setThrottlePos] = useState(3);
+  const [stepIndex, setStepIndex] = useState(0); // 0=×1 … 3=×1/1000
   const [maxZoom, setMaxZoom] = useState(1);
   const [position, setPosition] = useState(0);
-  const [knobVal, setKnobVal] = useState(5000);
   const [targetFrac, setTargetFrac] = useState(null);
-  const [feedback, setFeedback] = useState({ visible: false, isLevelUp: false, pts: 0 });
+  const [feedback, setFeedback] = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
   const [errorFlash, setErrorFlash] = useState(false);
   const [consecutiveErrors, setConsecutiveErrors] = useState(0);
 
   const targetRef = useRef(0);
   const rangeRef = useRef([-0.5, 2.5]);
-  const knobBaseRef = useRef(5000);
   const recentRef = useRef([]);
 
-  // throttlePos 3 → zoom 0 (coarse, x1); throttlePos 0 → zoom=maxZoom (fine)
-  const zoom = Math.min(maxZoom, 3 - throttlePos);
-  const step = 1 / Math.pow(10, zoom);
+  const zoom = Math.min(maxZoom, stepIndex);
+  const step = stepOptions[stepIndex];
+  const lvl = gameState.lvl;
 
   const initGame = useCallback(() => {
     const pool = levelSets[(gameState.lvl - 1)] || levelSets[0];
@@ -256,10 +320,10 @@ export default function Decimal() {
     setMaxZoom(f.z);
     setLives(5);
     setJustLost(false);
-    setThrottlePos(3);
-    setPosition(0);
-    setKnobVal(5000);
-    knobBaseRef.current = 5000;
+    setStepIndex(0);
+    const [rMin, rMax] = f.range;
+    const startPos = Math.round(((rMin + rMax) / 2) * 10) / 10;
+    setPosition(startPos);
     setConsecutiveErrors(0);
   }, [gameState.lvl]);
 
@@ -271,9 +335,9 @@ export default function Decimal() {
       if (!localStorage.getItem(ONBOARD_KEY)) {
         Swal.fire({
           title: 'תפוס את הנקודה 🎯',
-          html: '<div class="text-right text-sm leading-relaxed">יש לך ציר מספרים. עליך למקם את הסמן (החץ) בדיוק על הערך של השבר המוצג.<br><br>🎛️ <b>חוגה</b> — הזז את הסמן שמאלה/ימינה<br>📊 <b>מצערת</b> — שנה את גודל הצעד<br>&nbsp;&nbsp;&nbsp;ימין = צעד גדול (x1) | שמאל = צעד קטן (1/1000)</div>',
+          html: '<div class="text-right text-sm leading-relaxed">יש לך ציר מספרים. עליך למקם את הסמן (החץ) בדיוק על הערך של השבר המוצג.<br><br>🎛️ <b>חוגה</b> — בחר גודל צעד (דיוק)<br>↔️ <b>סליידר</b> — הזז את הסמן על הציר</div>',
           confirmButtonText: 'יאללה נתפוס!',
-          confirmButtonColor: '#06b6d4',
+          confirmButtonColor: '#eab308',
           customClass: { popup: 'rounded-3xl' },
         });
         localStorage.setItem(ONBOARD_KEY, '1');
@@ -281,33 +345,17 @@ export default function Decimal() {
     } catch {}
   }, []);
 
-  const handleKnobChange = useCallback((newVal) => {
-    const delta = newVal - knobBaseRef.current;
-    knobBaseRef.current = newVal;
-    setKnobVal(newVal);
-    const s = 1 / Math.pow(10, zoom);
-    setPosition((prev) => {
-      const [min, max] = rangeRef.current;
-      const next = Math.round((prev + delta * s) * 10000) / 10000;
-      const clamped = Math.max(min - 0.5, Math.min(max + 0.5, next));
-      // Haptic on integer crossing
-      if (Math.floor(prev) !== Math.floor(clamped)) vibe([20, 10, 20]);
-      else vibe(10);
-      return clamped;
-    });
-  }, [zoom]);
-
-  const handleThrottleChange = (val) => {
-    const v = parseInt(val);
-    setThrottlePos(v);
-    vibe(10);
-  };
+  const handlePositionChange = useCallback((newPos) => {
+    const [min, max] = rangeRef.current;
+    const clamped = Math.max(min - 0.5, Math.min(max + 0.5, newPos));
+    if (Math.floor(newPos) !== Math.floor(clamped)) vibe([20, 10, 20]);
+    setPosition(clamped);
+  }, []);
 
   const showHint = () => {
     vibe(20);
-    const lvl = gameState.lvl;
     const hints = [
-      'נסה קודם עם צעד גדול (x1) להגיע לאזור הנכון, ואז עבור לצעד קטן יותר.',
+      'נסה קודם עם צעד גדול (×1) להגיע לאזור הנכון, ואז עבור לצעד קטן יותר.',
       'שברים שימושיים: 1/2=0.5, 1/4=0.25, 3/4=0.75, 1/5=0.2.',
       'מספר מעורב כמו 1¼ = 1.25. התחל מ-1 ואז הוסף 0.25.',
       'שמינית = 0.125. כפול ב-3 תקבל 3/8 = 0.375.',
@@ -318,16 +366,17 @@ export default function Decimal() {
       text: hints[Math.min(lvl - 1, hints.length - 1)],
       icon: 'info',
       confirmButtonText: 'הבנתי, תודה!',
-      confirmButtonColor: '#f59e0b',
+      confirmButtonColor: '#eab308',
       customClass: { popup: 'rounded-3xl' },
     });
   };
 
   const checkAnswer = () => {
-    if (Math.abs(position - targetRef.current) < (step * 0.75)) {
+    const snappedPos = parseFloat((Math.round(position / step) * step).toFixed(4));
+    if (Math.abs(snappedPos - targetRef.current) < step * 0.6) {
       vibe([30, 50, 30]);
       const result = handleWinStore('decimal');
-      setFeedback({ visible: true, isLevelUp: result.isLevelUp, pts: result.pts });
+      setFeedback({ visible: true, isLevelUp: result.isLevelUp, unlocked: result.unlocked, pts: result.pts });
     } else {
       vibe([50, 50, 50]);
       setErrorFlash(true);
@@ -339,116 +388,140 @@ export default function Decimal() {
       setConsecutiveErrors(newErrors);
       setTimeout(() => setJustLost(false), 600);
       if (newLives <= 0) {
-        const result = handleGameFail('decimal');
-        if (result === 'locked') {
-          Swal.fire({ title: 'הרמה ננעלה 🔒', html: '<div class="text-right">נעלנו את הרמה כדי שתוכל להתאמן! 🧠</div>', icon: 'warning', confirmButtonText: 'הבנתי', confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } })
-            .then(() => setScreen('menu'));
-        } else {
-          Swal.fire({ title: 'אופס! 💥', text: 'נגמרו הניסיונות, בואו ננסה שאלה חדשה.', icon: 'error', confirmButtonColor: '#ef4444', customClass: { popup: 'rounded-3xl' } })
-            .then(() => initGame());
-        }
+        handleGameFail('decimal');
+        setScreen('menu');
       }
     }
   };
 
+  // Hot/cold cursor color — רק ברמות 1–2
+  const proximity = Math.abs(position - targetRef.current);
+  const cursorColor = lvl > 2
+    ? '#eab308'
+    : proximity < step * 3
+      ? '#22c55e'
+      : proximity < step * 10
+        ? '#f97316'
+        : '#ef4444';
+
   return (
-    <div className={`screen-enter flex flex-col items-center p-3 md:p-4 flex-1 ${errorFlash ? 'error-flash' : ''}`}>
-      <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-4 md:p-6 w-full max-w-md shadow-xl flex flex-col items-center gap-4 border-b-4 border-slate-200 dark:border-slate-700 transition-colors">
+    <div className={`screen-enter flex flex-col items-center p-3 md:p-4 flex-1 overflow-x-hidden w-full ${errorFlash ? 'error-flash' : ''}`}>
+      <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-4 md:p-5 w-full max-w-md shadow-xl flex flex-col items-center gap-4 border border-yellow-200 dark:border-yellow-800/40 border-b-4 border-b-yellow-400 dark:border-b-yellow-700 transition-colors">
 
         {/* Top bar */}
         <div className="w-full flex justify-between items-center">
-          <span className="text-sm font-black text-cyan-600 dark:text-cyan-400">תפוס את הנקודה 🎯</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-black text-yellow-600 dark:text-yellow-400">תפוס את הנקודה 🎯</span>
+          </div>
           <Hearts lives={lives} maxLives={5} justLost={justLost} />
         </div>
 
         {/* Target fraction */}
         <div className="w-full bg-slate-50 dark:bg-slate-900 rounded-2xl p-4 flex flex-col items-center gap-1 border border-slate-200 dark:border-slate-700">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">מקם על ציר המספרים</span>
-          <div className="mt-1 flex items-center gap-1" dir="ltr">
+          <div className="mt-2 flex items-center gap-3" dir="ltr">
             {targetFrac?.neg && (
-              <span className="text-4xl font-black text-rose-500">−</span>
+              <span className="font-black text-rose-500" style={{ fontSize: '3.5rem', lineHeight: 1 }}>−</span>
             )}
             {targetFrac && (
-              <Fraction
-                numerator={targetFrac.n}
-                denominator={targetFrac.d}
-                whole={targetFrac.w || 0}
-                className="text-4xl text-slate-800 dark:text-slate-100"
-              />
+              <div className="flex items-center gap-2">
+                {targetFrac.w > 0 && (
+                  <span className="font-black text-slate-900 dark:text-white" style={{ fontSize: '3.5rem', lineHeight: 1 }}>
+                    {targetFrac.w}
+                  </span>
+                )}
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontWeight: 900, lineHeight: 1.1 }}
+                  className="text-slate-900 dark:text-white"
+                  dir="ltr"
+                >
+                  <span style={{ fontSize: '2.5rem', borderBottom: '3px solid currentColor', padding: '0 0.4rem', display: 'block' }}>
+                    {targetFrac.n}
+                  </span>
+                  <span style={{ fontSize: '2.5rem', padding: '0 0.4rem', display: 'block' }}>
+                    {targetFrac.d}
+                  </span>
+                </div>
+              </div>
             )}
           </div>
         </div>
 
-        {/* Number line */}
-        <div className="w-full bg-slate-100 dark:bg-slate-900 rounded-2xl py-3 px-1 shadow-inner border border-slate-200 dark:border-slate-700">
-          <NumberLine position={position} range={rangeRef.current} zoom={zoom} />
-        </div>
+        {/* מסגרת הכיוון הסטטית — overflow:visible מאפשר לציר לפרוץ */}
+        <div className="w-full bg-slate-50 dark:bg-slate-900 rounded-3xl p-4 md:p-6 flex flex-col items-center gap-6 shadow-inner my-4 relative z-10" style={{ overflow: 'visible' }}>
 
-        {/* Controls */}
-        <div className="w-full flex flex-col gap-4">
+          {/* גבול יחיד — מעל הציר */}
+          <div className="absolute inset-0 rounded-3xl border-2 border-slate-200 dark:border-slate-700 pointer-events-none z-20" />
 
-          {/* Throttle — step size: RIGHT=coarse(x1), LEFT=fine(1/1000) */}
-          <div className="flex flex-col gap-2">
-            <div className="text-xs font-black text-slate-400 uppercase tracking-widest text-center">גודל צעד</div>
-            <div className="flex justify-between px-4 text-[10px] font-black text-slate-400" dir="ltr">
-              {throttleLabels.map((lbl, i) => (
-                <span
-                  key={i}
-                  className={`transition-all ${throttlePos === i ? 'text-cyan-500 scale-110' : ''} ${(3 - i) > maxZoom ? 'opacity-30' : ''}`}
-                >
-                  {lbl}
-                </span>
-              ))}
-            </div>
-            <div className="relative w-full h-12 flex items-center bg-slate-100 dark:bg-slate-800 rounded-full shadow-inner border-2 border-slate-200 dark:border-slate-700 px-4">
-              <div className="absolute inset-0 flex justify-between items-center px-4 pointer-events-none">
-                {[0, 1, 2, 3].map((i) => <div key={i} className="w-1 h-4 bg-slate-300 dark:bg-slate-600 rounded-full" />)}
-              </div>
-              <input
-                type="range" min="0" max="3" step="1" value={throttlePos}
-                onChange={(e) => handleThrottleChange(e.target.value)}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20 touch-none"
-              />
-              {/* Throttle handle */}
-              <div
-                className="absolute h-16 w-7 bg-gradient-to-b from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700 rounded-t-xl rounded-b-md shadow-md border border-slate-400 dark:border-slate-500 pointer-events-none z-10 flex flex-col items-center justify-start pt-1 gap-0.5"
-                style={{ left: `calc(${throttlePos / 3} * (100% - 2.5rem) + 0.75rem)`, top: '-10px', transition: 'left 0.15s ease-out' }}
-              >
-                <div className="w-4 h-0.5 bg-slate-500/60 rounded-full" />
-                <div className="w-4 h-0.5 bg-slate-500/60 rounded-full" />
-                <div className="w-4 h-0.5 bg-slate-500/60 rounded-full" />
-                <div className="mt-auto mb-1.5 w-2 h-2 rounded-full bg-cyan-500 shadow-[0_0_5px_#06b6d4]" />
-              </div>
-            </div>
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center w-full">אזור הכיוון</div>
+
+          {/* משיכת הציר החוצה לפריצת הפדינג */}
+          <div className="relative h-[110px] w-[120vw] -mx-[10vw] select-none z-0" style={{ overflow: 'visible' }}>
+            <NumberLine position={position} fullRange={rangeRef.current} zoomLevel={zoom} cursorColor={cursorColor} stepIndex={stepIndex} />
           </div>
 
-          {/* RotaryKnob — move cursor */}
-          <div className="flex flex-col items-center gap-2">
-            <div className="text-xs font-black text-slate-400 uppercase tracking-widest">
-              הזזת סמן (צעד: {step >= 1 ? step : step.toFixed(zoom)})
+          <div className="w-full px-2">
+            <PositionSlider value={position} onChange={handlePositionChange} step={step} range={rangeRef.current} />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onPointerDown={(e) => {
+                const move = (dir) => setPosition((prev) => {
+                  const [min, max] = rangeRef.current;
+                  const next = parseFloat((Math.round(prev / step) * step + dir * step).toFixed(4));
+                  return Math.max(min - 0.5, Math.min(max + 0.5, next));
+                });
+                move(+1); vibe(8);
+                e.currentTarget._iv = setInterval(() => move(+1), 120);
+              }}
+              onPointerUp={(e) => clearInterval(e.currentTarget._iv)}
+              onPointerLeave={(e) => clearInterval(e.currentTarget._iv)}
+              className="w-11 h-11 rounded-xl text-2xl font-black flex items-center justify-center active:scale-90 transition-transform select-none touch-none"
+              style={{ color: cursorColor, background: cursorColor + '22', border: `1.5px solid ${cursorColor}66` }}
+            >+</button>
+            <div
+              className="font-black text-2xl px-6 py-2 rounded-xl border-[1.5px] transition-colors duration-300 bg-white dark:bg-slate-800 min-w-[7rem] text-center"
+              style={{ color: cursorColor, borderColor: cursorColor + '66' }}
+              dir="ltr"
+            >
+              {(Math.round(position / step) * step).toFixed(stepIndex)}
             </div>
-            <RotaryKnob value={knobVal} onChange={handleKnobChange} />
+            <button
+              onPointerDown={(e) => {
+                const move = (dir) => setPosition((prev) => {
+                  const [min, max] = rangeRef.current;
+                  const next = parseFloat((Math.round(prev / step) * step + dir * step).toFixed(4));
+                  return Math.max(min - 0.5, Math.min(max + 0.5, next));
+                });
+                move(-1); vibe(8);
+                e.currentTarget._iv = setInterval(() => move(-1), 120);
+              }}
+              onPointerUp={(e) => clearInterval(e.currentTarget._iv)}
+              onPointerLeave={(e) => clearInterval(e.currentTarget._iv)}
+              className="w-11 h-11 rounded-xl text-2xl font-black flex items-center justify-center active:scale-90 transition-transform select-none touch-none"
+              style={{ color: cursorColor, background: cursorColor + '22', border: `1.5px solid ${cursorColor}66` }}
+            >−</button>
           </div>
         </div>
 
-        {consecutiveErrors >= 2 && (
-          <button
-            onClick={showHint}
-            className="w-full text-sm font-bold text-amber-700 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300 px-4 py-2 rounded-xl border border-amber-200 dark:border-amber-800 animate-pulse active:scale-95 transition-transform"
-          >
-            💡 לחץ לרמז — זה עוזר!
-          </button>
-        )}
+        {/* RotaryKnob — בוחר גודל צעד */}
+        <div className="w-full flex flex-col items-center gap-6 pb-14 mt-2">
+          <div className="text-xs font-black text-slate-400 uppercase tracking-widest">🔍 דיוק הצעד</div>
+          <RotaryKnob stepIndex={stepIndex} onChange={(idx) => setStepIndex(Math.min(idx, maxZoom))} maxZoom={maxZoom} />
+        </div>
 
         {/* Action buttons */}
         <div className="w-full flex gap-2 pb-1">
-          <button
-            onClick={showHint}
-            className="w-16 py-4 bg-cyan-200 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300 rounded-3xl font-black text-xl shadow-sm hover:bg-cyan-300 transition-all active:scale-95"
-          >💡</button>
+          {lvl <= 2 && (
+            <button
+              onClick={showHint}
+              className={`w-16 py-4 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800 rounded-3xl font-black text-xl shadow-sm hover:bg-yellow-200 transition-all active:scale-95 ${consecutiveErrors >= 2 ? 'animate-pulse' : ''}`}
+            >💡</button>
+          )}
           <button
             onClick={checkAnswer}
-            className="flex-1 py-4 bg-cyan-500 hover:bg-cyan-600 text-white rounded-3xl font-black text-xl shadow-xl transition-all active:scale-95"
+            className={`${lvl <= 2 ? 'flex-1' : 'w-full'} py-4 bg-yellow-500 hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-700 text-white rounded-3xl font-black text-xl shadow-xl transition-all active:scale-95`}
           >תפוס! 🎯</button>
         </div>
       </div>
@@ -456,8 +529,9 @@ export default function Decimal() {
       <FeedbackOverlay
         visible={feedback.visible}
         isLevelUp={feedback.isLevelUp}
+        unlocked={feedback.unlocked}
         pts={feedback.pts}
-        onDone={() => { setFeedback({ visible: false, isLevelUp: false, pts: 0 }); initGame(); }}
+        onDone={() => { setFeedback({ visible: false, isLevelUp: false, unlocked: false, pts: 0 }); initGame(); }}
       />
     </div>
   );

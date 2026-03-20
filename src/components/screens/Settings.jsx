@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import useGameStore from '../../store/useGameStore';
+import { GAME_COLORS } from '../../utils/math';
 import Swal from 'sweetalert2';
 
 const gameOptions = [
@@ -14,17 +15,32 @@ const gameOptions = [
 ];
 
 const GAME_LEGEND = [
-  { key: 'eq',   color: 'bg-purple-500',  label: 'כאן בונים' },
-  { key: 'bal',  color: 'bg-emerald-500', label: 'איזון' },
-  { key: 'tank', color: 'bg-blue-500',    label: 'חצי הכוס' },
-  { key: 'dec',  color: 'bg-cyan-500',    label: 'נקודה' },
-  { key: 'flab', color: 'bg-orange-400',  label: 'שברים' },
-  { key: 'mpat', color: 'bg-violet-500',  label: 'תבניות' },
-  { key: 'grid', color: 'bg-teal-500',    label: 'שטחים' },
-  { key: 'word', color: 'bg-indigo-500',  label: 'מילולי' },
+  { key: 'eq',   color: GAME_COLORS.equations.bar,     label: 'כאן בונים' },
+  { key: 'bal',  color: GAME_COLORS.balance.bar,       label: 'איזון' },
+  { key: 'tank', color: GAME_COLORS.tank.bar,          label: 'חצי הכוס' },
+  { key: 'dec',  color: GAME_COLORS.decimal.bar,       label: 'נקודה' },
+  { key: 'flab', color: GAME_COLORS.fractionLab.bar,   label: 'שברים' },
+  { key: 'mpat', color: GAME_COLORS.magicPatterns.bar, label: 'תבניות' },
+  { key: 'grid', color: GAME_COLORS.grid.bar,          label: 'שטחים' },
+  { key: 'word', color: GAME_COLORS.word.bar,          label: 'מילולי' },
 ];
 
 const dayNames = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
+
+// Helper: get className for a game bar segment (maps short key to full class name)
+const getGameBarClass = (shortKey) => {
+  const map = {
+    eq: GAME_COLORS.equations.bar,
+    bal: GAME_COLORS.balance.bar,
+    tank: GAME_COLORS.tank.bar,
+    dec: GAME_COLORS.decimal.bar,
+    flab: GAME_COLORS.fractionLab.bar,
+    mpat: GAME_COLORS.magicPatterns.bar,
+    grid: GAME_COLORS.grid.bar,
+    word: GAME_COLORS.word.bar,
+  };
+  return map[shortKey] || 'bg-slate-300';
+};
 
 export default function Settings() {
   const weeklyStats = useGameStore((s) => s.weeklyStats);
@@ -104,14 +120,14 @@ export default function Settings() {
                   {dayNames[i]}'
                 </div>
                 <div className="flex-1 h-4 bg-slate-100 dark:bg-slate-700/50 rounded-full overflow-hidden flex shadow-inner">
-                  <div className="h-full bg-purple-500" style={{ width: `${((d.games.eq || 0) / maxPts) * 100}%` }} />
-                  <div className="h-full bg-emerald-500" style={{ width: `${((d.games.bal || 0) / maxPts) * 100}%` }} />
-                  <div className="h-full bg-blue-500" style={{ width: `${((d.games.tank || 0) / maxPts) * 100}%` }} />
-                  <div className="h-full bg-cyan-500" style={{ width: `${((d.games.dec || 0) / maxPts) * 100}%` }} />
-                  <div className="h-full bg-orange-400" style={{ width: `${((d.games.flab || 0) / maxPts) * 100}%` }} />
-                  <div className="h-full bg-violet-500" style={{ width: `${((d.games.mpat || 0) / maxPts) * 100}%` }} />
-                  <div className="h-full bg-teal-500"   style={{ width: `${((d.games.grid || 0) / maxPts) * 100}%` }} />
-                  <div className="h-full bg-indigo-500" style={{ width: `${((d.games.word || 0) / maxPts) * 100}%` }} />
+                  <div className={`h-full ${getGameBarClass('eq')}`} style={{ width: `${((d.games.eq || 0) / maxPts) * 100}%` }} />
+                  <div className={`h-full ${getGameBarClass('bal')}`} style={{ width: `${((d.games.bal || 0) / maxPts) * 100}%` }} />
+                  <div className={`h-full ${getGameBarClass('tank')}`} style={{ width: `${((d.games.tank || 0) / maxPts) * 100}%` }} />
+                  <div className={`h-full ${getGameBarClass('dec')}`} style={{ width: `${((d.games.dec || 0) / maxPts) * 100}%` }} />
+                  <div className={`h-full ${getGameBarClass('flab')}`} style={{ width: `${((d.games.flab || 0) / maxPts) * 100}%` }} />
+                  <div className={`h-full ${getGameBarClass('mpat')}`} style={{ width: `${((d.games.mpat || 0) / maxPts) * 100}%` }} />
+                  <div className={`h-full ${getGameBarClass('grid')}`} style={{ width: `${((d.games.grid || 0) / maxPts) * 100}%` }} />
+                  <div className={`h-full ${getGameBarClass('word')}`} style={{ width: `${((d.games.word || 0) / maxPts) * 100}%` }} />
                 </div>
                 <div className={`w-10 text-left text-xs font-bold ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>
                   {d.pts}⭐

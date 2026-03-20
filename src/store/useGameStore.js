@@ -12,14 +12,14 @@ const useGameStore = create(
       currentScreen: 'menu',
 
       // Per-game state
-      equations: { stars: 0, lvl: 1, count: 0, fails: 0 },
-      balance: { stars: 0, lvl: 1, count: 0, fails: 0 },
-      tank: { stars: 0, lvl: 1, count: 0, fails: 0 },
-      decimal: { stars: 0, lvl: 1, count: 0, fails: 0 },
-      fractionLab: { stars: 0, lvl: 1, count: 0, fails: 0 },
-      magicPatterns: { stars: 0, lvl: 1, count: 0, fails: 0 },
-      grid: { stars: 0, lvl: 1, count: 0, fails: 0 },
-      word: { stars: 0, lvl: 1, count: 0, fails: 0 },
+      equations: { stars: 0, lvl: 1, count: 0, fails: 0, consecutiveWins: 0 },
+      balance: { stars: 0, lvl: 1, count: 0, fails: 0, consecutiveWins: 0 },
+      tank: { stars: 0, lvl: 1, count: 0, fails: 0, consecutiveWins: 0 },
+      decimal: { stars: 0, lvl: 1, count: 0, fails: 0, consecutiveWins: 0 },
+      fractionLab: { stars: 0, lvl: 1, count: 0, fails: 0, consecutiveWins: 0 },
+      magicPatterns: { stars: 0, lvl: 1, count: 0, fails: 0, consecutiveWins: 0 },
+      grid: { stars: 0, lvl: 1, count: 0, fails: 0, consecutiveWins: 0 },
+      word: { stars: 0, lvl: 1, count: 0, fails: 0, consecutiveWins: 0 },
 
       // Locks
       locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0, magicPatterns: 0, grid: 0, word: 0 },
@@ -49,26 +49,21 @@ const useGameStore = create(
 
       handleWin: (game) => {
         const s = get();
-        if (s.isAnimating) return { isLevelUp: false, pts: 0 };
+        if (s.isAnimating) return { isLevelUp: false, unlocked: false, pts: 0 };
 
         const pts = s[game].lvl + 1;
         const newStars = s[game].stars + pts;
         const newTotalStars = s.totalStars + pts;
-        let newCount = s[game].count + 1;
+        let newCount = s[game].count;
         let newLvl = s[game].lvl;
         let isLevelUp = false;
-
-        if (s.locks[game] === 0 && newCount >= 3 && newLvl < 5) {
-          newLvl++;
-          newCount = 0;
-          isLevelUp = true;
-        }
+        let unlocked = false;
+        let newConsecutiveWins = s[game].consecutiveWins;
 
         // Update weekly stats
         const today = new Date().getDay();
         const shortGame = getGameShort(game);
         const newWeekly = { ...s.weeklyStats };
-        // Check if week changed
         if (newWeekly.weekId !== getWeekId()) {
           Object.assign(newWeekly, emptyWeek());
         }
@@ -80,32 +75,61 @@ const useGameStore = create(
           };
         });
 
-        set({
-          isAnimating: true,
-          totalStars: newTotalStars,
-          [game]: { ...s[game], stars: newStars, lvl: newLvl, count: newCount, fails: 0 },
-          weeklyStats: newWeekly,
-        });
+        if (s.locks[game] > 0) {
+          // Locked mode: count consecutive wins toward unlock
+          newConsecutiveWins++;
+          if (newConsecutiveWins >= 5) {
+            unlocked = true;
+            const candidateLvl = Math.min(newLvl + 1, 5);
+            isLevelUp = candidateLvl > newLvl;
+            newLvl = candidateLvl;
+            newCount = 0;
+            newConsecutiveWins = 0;
+            set({
+              isAnimating: true,
+              totalStars: newTotalStars,
+              locks: { ...s.locks, [game]: 0 },
+              [game]: { ...s[game], stars: newStars, lvl: newLvl, count: newCount, fails: 0, consecutiveWins: 0 },
+              weeklyStats: newWeekly,
+            });
+          } else {
+            set({
+              isAnimating: true,
+              totalStars: newTotalStars,
+              [game]: { ...s[game], stars: newStars, consecutiveWins: newConsecutiveWins },
+              weeklyStats: newWeekly,
+            });
+          }
+        } else {
+          // Normal mode: count wins toward level up
+          // Fast-track for Equations L3 and L4 (1 win = level up)
+          const threshold = (game === 'equations' && newLvl >= 3) ? 1 : 3;
+          newCount = s[game].count + 1;
+          if (newCount >= threshold && newLvl < 5) {
+            newLvl++;
+            newCount = 0;
+            isLevelUp = true;
+          }
+          set({
+            isAnimating: true,
+            totalStars: newTotalStars,
+            [game]: { ...s[game], stars: newStars, lvl: newLvl, count: newCount, fails: 0, consecutiveWins: 0 },
+            weeklyStats: newWeekly,
+          });
+        }
 
-        return { isLevelUp, pts };
+        return { isLevelUp, unlocked, pts };
       },
 
       finishAnimation: () => set({ isAnimating: false }),
 
       handleGameFail: (game) => {
         const s = get();
-        const newFails = (s[game].fails || 0) + 1;
-
-        if (newFails >= 3) {
-          set({
-            locks: { ...s.locks, [game]: s[game].lvl },
-            [game]: { ...s[game], fails: 0 }
-          });
-          return 'locked';
-        }
-
-        set({ [game]: { ...s[game], fails: newFails } });
-        return 'retry';
+        set({
+          locks: { ...s.locks, [game]: s[game].lvl },
+          [game]: { ...s[game], fails: 0, count: 0, consecutiveWins: 0 }
+        });
+        return 'locked';
       },
 
       cheatLevel: (game) => {
@@ -113,7 +137,7 @@ const useGameStore = create(
         if (s.locks[game] > 0) return false;
         const newLvl = (s[game].lvl % 5) + 1;
         set({
-          [game]: { ...s[game], lvl: newLvl, count: 0, fails: 0 }
+          [game]: { ...s[game], lvl: newLvl, count: 0, fails: 0, consecutiveWins: 0 }
         });
         return true;
       },
@@ -127,16 +151,17 @@ const useGameStore = create(
       })),
 
       resetProgress: () => {
+        const fresh = { stars: 0, lvl: 1, count: 0, fails: 0, consecutiveWins: 0 };
         set({
           totalStars: 0,
-          equations: { stars: 0, lvl: 1, count: 0, fails: 0 },
-          balance: { stars: 0, lvl: 1, count: 0, fails: 0 },
-          tank: { stars: 0, lvl: 1, count: 0, fails: 0 },
-          decimal: { stars: 0, lvl: 1, count: 0, fails: 0 },
-          fractionLab: { stars: 0, lvl: 1, count: 0, fails: 0 },
-          magicPatterns: { stars: 0, lvl: 1, count: 0, fails: 0 },
-          grid: { stars: 0, lvl: 1, count: 0, fails: 0 },
-          word: { stars: 0, lvl: 1, count: 0, fails: 0 },
+          equations: { ...fresh },
+          balance: { ...fresh },
+          tank: { ...fresh },
+          decimal: { ...fresh },
+          fractionLab: { ...fresh },
+          magicPatterns: { ...fresh },
+          grid: { ...fresh },
+          word: { ...fresh },
           locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0, magicPatterns: 0, grid: 0, word: 0 },
           weeklyStats: emptyWeek(),
         });

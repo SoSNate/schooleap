@@ -22,9 +22,9 @@ export default function Tank() {
   const [fracDisplay, setFracDisplay] = useState(null);
   const [knownLineBottom, setKnownLineBottom] = useState(0);
   const [totalCapacity, setTotalCapacity] = useState(200);
-  const [feedback, setFeedback] = useState({ visible: false, isLevelUp: false, pts: 0 });
+  const [feedback, setFeedback] = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
   const [errorFlash, setErrorFlash] = useState(false);
-  const [lives, setLives] = useState(3);
+  const [lives, setLives] = useState(5);
   const [justLost, setJustLost] = useState(false);
   const [consecutiveErrors, setConsecutiveErrors] = useState(0);
 
@@ -36,8 +36,8 @@ export default function Tank() {
     let attempts = 0;
     const recent = recentRef.current;
 
-    // Base units per denominator: friendly 3-digit totals
-    const DENOM_BASES = { 2: 100, 3: 111, 4: 100, 5: 100, 6: 111, 8: 100, 10: 100 };
+    // Base units per denominator: must be divisible by step=10 so totalCapacity (u×d) is always reachable
+    const DENOM_BASES = { 2: 100, 3: 90, 4: 100, 5: 100, 6: 90, 8: 100, 10: 100 };
 
     do {
       if (lvl <= 3) {
@@ -100,8 +100,8 @@ export default function Tank() {
     setFracDisplay(display);
     setKnownLineBottom((n / d) * 100);
     setSliderMax(Math.round(ans * 1.5));
-    setSliderVal(50);
-    setLives(3);
+    setSliderVal(10);
+    setLives(5);
     setJustLost(false);
     setConsecutiveErrors(0);
   }, [gameState.lvl]);
@@ -116,7 +116,7 @@ export default function Tank() {
       if (!localStorage.getItem(ONBOARD_KEY)) {
         Swal.fire({
           title: 'חצי הכוס המלאה 🧪',
-          html: '<div class="text-right text-sm leading-relaxed">יש לך כוס עם נוזל. השתמש בסליידר כדי להתאים את כמות הנוזל לפי השבר הנתון.<br><br>🔴 הקו האדום מסמן את הכמות הידועה.<br>🎯 התאם את כמות הנוזל הכוללת בדיוק!</div>',
+          html: '<div class="text-right text-sm leading-relaxed">יש לך כוס ובה כמות נוזל ידועה. עליך לגלות מה הנפח <b>הכולל</b> של הכוס.<br><br>🔴 הקו האדום = הכמות הידועה בכוס<br>📐 השבר מראה איזה חלק מהכוס מלא<br>🎯 הזז את הסליידר עד שתמצא את הנפח הכולל הנכון!</div>',
           confirmButtonText: 'יאללה נתחיל!',
           confirmButtonColor: '#3b82f6',
           customClass: { popup: 'rounded-3xl' },
@@ -152,7 +152,7 @@ export default function Tank() {
     if (Math.abs(parseInt(sliderVal) - totalCapacity) < 5) {
       vibe([30, 50, 30]);
       const result = handleWin('tank');
-      setFeedback({ visible: true, isLevelUp: result.isLevelUp, pts: result.pts });
+      setFeedback({ visible: true, isLevelUp: result.isLevelUp, unlocked: result.unlocked, pts: result.pts });
     } else {
       const newLives = lives - 1;
       const newErrors = consecutiveErrors + 1;
@@ -164,36 +164,19 @@ export default function Tank() {
       vibe([50, 50, 50]);
 
       if (newLives <= 0) {
-        const result = handleGameFail('tank');
-        if (result === 'locked') {
-          Swal.fire({
-            title: 'הרמה ננעלה 🔒',
-            html: '<div class="text-right">נראה שזה קצת מאתגר כרגע.<br>נעלנו את הרמה הזו כדי שתוכל להתאמן עליה בנחת! 🧠</div>',
-            icon: 'warning',
-            confirmButtonText: 'הבנתי',
-            confirmButtonColor: '#4f46e5',
-            customClass: { popup: 'rounded-3xl' },
-          }).then(() => setScreen('menu'));
-        } else {
-          Swal.fire({
-            title: 'אופס! 💥',
-            text: 'נגמרו הניסיונות בשאלה הזו, בוא ננסה שאלה חדשה.',
-            icon: 'error',
-            confirmButtonColor: '#ef4444',
-            customClass: { popup: 'rounded-3xl' },
-          }).then(() => initGame());
-        }
+        handleGameFail('tank');
+        setScreen('menu');
       }
     }
   };
 
   return (
     <div className={`screen-enter flex flex-col items-center p-4 flex-1 min-h-[calc(100dvh-80px)] ${errorFlash ? 'error-flash' : ''}`}>
-      <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-6 md:p-8 w-full max-w-md shadow-xl flex flex-col gap-6 md:gap-8 border-b-4 border-slate-200 dark:border-slate-700 transition-colors">
+      <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-6 md:p-8 w-full max-w-md shadow-xl flex flex-col gap-6 md:gap-8 border-2 border-blue-200 dark:border-blue-800/40 border-b-4 border-b-blue-400 dark:border-b-blue-700 transition-colors">
 
         {/* Lives */}
         <div className="flex justify-center">
-          <Hearts lives={lives} maxLives={3} justLost={justLost} />
+          <Hearts lives={lives} maxLives={5} justLost={justLost} />
         </div>
 
         <div className="flex items-center gap-8 justify-center">
@@ -263,9 +246,10 @@ export default function Tank() {
       <FeedbackOverlay
         visible={feedback.visible}
         isLevelUp={feedback.isLevelUp}
+        unlocked={feedback.unlocked}
         pts={feedback.pts}
         onDone={() => {
-          setFeedback({ visible: false, isLevelUp: false, pts: 0 });
+          setFeedback({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
           initGame();
         }}
       />

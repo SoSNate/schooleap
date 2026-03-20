@@ -2,6 +2,18 @@ export const opsDict = { "+": "ועוד", "-": "פחות", "*": "כפול", "/":
 export const opEmojis = { "+": "➕", "-": "➖", "*": "✖️", "/": "➗" };
 export const ranks = ["", "טירון 🥉", "סמל 🥈", "קצין 🥇", "אלוף 🎖️", "רמטכ\"ל 👑"];
 
+// Unified color palette for all games (Menu cards and Settings chart)
+export const GAME_COLORS = {
+  equations:     { token: 'purple',  bar: 'bg-purple-500' },
+  balance:       { token: 'emerald', bar: 'bg-emerald-500' },
+  tank:          { token: 'blue',    bar: 'bg-blue-500' },
+  decimal:       { token: 'yellow',  bar: 'bg-yellow-500' },
+  fractionLab:   { token: 'orange',  bar: 'bg-orange-500' },
+  magicPatterns: { token: 'rose',    bar: 'bg-rose-500' },
+  grid:          { token: 'teal',    bar: 'bg-teal-500' },
+  word:          { token: 'red',     bar: 'bg-red-800' },
+};
+
 export const anims = {
   success: "https://lottie.host/21a44f7a-fb9f-4e6e-8ed5-647aa8455b43/jGVlPat0sl.lottie",
   levelUp: "https://lottie.host/73bc4bc3-cc86-4dd0-8df2-f8766be51655/8v2NthxfBU.lottie",
@@ -14,11 +26,12 @@ export function vibe(ms = 15) {
 }
 
 export function getWeekId() {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
-  const week1 = new Date(date.getFullYear(), 0, 4);
-  return date.getFullYear() + "-" + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+  // Return week identifier based on Sunday start (not ISO Monday)
+  const d = new Date();
+  const sunday = new Date(d);
+  sunday.setDate(d.getDate() - d.getDay()); // go back to Sunday
+  sunday.setHours(0, 0, 0, 0);
+  return sunday.toISOString().slice(0, 10); // YYYY-MM-DD format
 }
 
 export function getGameShort(game) {

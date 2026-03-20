@@ -36,7 +36,7 @@ export default function App() {
   const ScreenComponent = screens[currentScreen] || Menu;
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors duration-300 flex flex-col min-h-[100dvh]">
+    <div className="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors duration-300 flex flex-col min-h-[100dvh]">
       <Header />
       <main className="flex-1 flex flex-col overflow-y-auto">
         <ScreenComponent key={currentScreen} />

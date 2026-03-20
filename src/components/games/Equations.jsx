@@ -6,15 +6,46 @@ import Swal from 'sweetalert2';
 
 const ONBOARD_KEY = 'onboard_equations';
 
-// Safe math eval (no eval())
+// Safe math evaluator using Shunting-yard algorithm (no Function() or eval())
+const safeEvaluate = (expr) => {
+  const tokens = expr.replace(/\s+/g, '').match(/(\d+\.\d+|\d+|[+\-*/()])/g);
+  if (!tokens) return 0;
+  const precedence = { '+': 1, '-': 1, '*': 2, '/': 2 };
+  const applyOp = (op, b, a) => {
+    switch (op) {
+      case '+': return a + b;
+      case '-': return a - b;
+      case '*': return a * b;
+      case '/': return a / b;
+      default: return 0;
+    }
+  };
+  const values = [];
+  const ops = [];
+  for (const token of tokens) {
+    if (!isNaN(token)) values.push(parseFloat(token));
+    else if (token === '(') ops.push(token);
+    else if (token === ')') {
+      while (ops.length && ops[ops.length - 1] !== '(')
+        values.push(applyOp(ops.pop(), values.pop(), values.pop()));
+      ops.pop();
+    } else {
+      while (ops.length && ops[ops.length - 1] !== '(' &&
+             precedence[ops[ops.length - 1]] >= precedence[token])
+        values.push(applyOp(ops.pop(), values.pop(), values.pop()));
+      ops.push(token);
+    }
+  }
+  while (ops.length) values.push(applyOp(ops.pop(), values.pop(), values.pop()));
+  return values[0] || 0;
+};
+
+// Wrapper for compatibility
 function safeEval(expr) {
   try {
-    // Parse simple expressions: num op num (or chained for lvl5)
-    // Replace × with * for safety
     const sanitized = expr.replace(/×/g, '*').replace(/÷/g, '/');
-    // Only allow digits, operators, dots, spaces
     if (!/^[\d+\-*/. ()]+$/.test(sanitized)) return NaN;
-    return Function('"use strict"; return (' + sanitized + ')')();
+    return safeEvaluate(sanitized);
   } catch { return NaN; }
 }
 
@@ -24,7 +55,7 @@ export default function Equations() {
 
   const [rows, setRows] = useState([]); // { target, slots: [{val,type}|null, ...] }
   const [pool, setPool] = useState([]); // { id, val, type }
-  const [feedback, setFeedback] = useState({ visible: false, isLevelUp: false, pts: 0 });
+  const [feedback, setFeedback] = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
   const [errorFlash, setErrorFlash] = useState(false);
   const [isLvl5, setIsLvl5] = useState(false);
 
@@ -106,8 +137,11 @@ export default function Equations() {
       );
     }
 
-    // Shuffle pool
-    poolItems.sort(() => 0.5 - Math.random());
+    // Shuffle pool (Fisher-Yates)
+    for (let i = poolItems.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [poolItems[i], poolItems[j]] = [poolItems[j], poolItems[i]];
+    }
     setRows(newRows);
     setPool(poolItems);
   }, [gameState.lvl]);
@@ -280,7 +314,7 @@ export default function Equations() {
     if (ok) {
       vibe([30, 50, 30]);
       const result = handleWinStore('equations');
-      setFeedback({ visible: true, isLevelUp: result.isLevelUp, pts: result.pts });
+      setFeedback({ visible: true, isLevelUp: result.isLevelUp, unlocked: result.unlocked, pts: result.pts });
     } else {
       setErrorFlash(true);
       setTimeout(() => setErrorFlash(false), 400);
@@ -290,9 +324,12 @@ export default function Equations() {
 
   const showHint = () => {
     vibe(20);
+    const text = isLvl5
+      ? 'זכור סדר פעולות: כפל וחילוק מתבצעים לפני חיבור וחיסור! לדוגמה: 2 + 3 × 4 = 2 + 12 = 14 (ולא 20). סדר קודם את הכפל/חילוק.'
+      : 'נסה קודם לסדר את סימני הפעולה (חיבור/חיסור) ורק אז את המספרים.';
     Swal.fire({
       title: '💡 רמז',
-      text: 'נסה קודם לסדר את סימני הפעולה (חיבור/חיסור) ורק אז את המספרים.',
+      text,
       icon: 'info',
       confirmButtonText: 'הבנתי, תודה!',
       confirmButtonColor: '#f59e0b',
@@ -325,7 +362,7 @@ export default function Equations() {
       {/* Equation rows */}
       <div className="w-full max-w-lg flex flex-col gap-3">
         {rows.map((row, ri) => (
-          <div key={ri} className={`equation-row bg-white dark:bg-slate-700/50 ${isLvl5 ? 'lvl5-row flex-wrap justify-center' : ''}`}>
+          <div key={ri} className={`equation-row bg-white dark:bg-slate-700/50 border border-purple-200 dark:border-purple-800/30 ${isLvl5 ? 'lvl5-row flex-wrap justify-center' : ''}`}>
             {row.slots.map((slot, si) => (
               <div
                 key={si}
@@ -346,7 +383,7 @@ export default function Equations() {
       </div>
 
       {/* Pool */}
-      <div className="flex flex-wrap justify-center content-start gap-2 min-h-[100px] bg-slate-100 dark:bg-slate-800 p-4 rounded-[2rem] shadow-inner w-full max-w-lg border-2 border-slate-200 dark:border-slate-700 relative z-20">
+      <div className="flex flex-wrap justify-center content-start gap-2 min-h-[120px] bg-slate-100 dark:bg-slate-800 p-4 rounded-[2rem] shadow-inner w-full max-w-lg border-2 border-purple-300 dark:border-purple-800/50 relative z-20">
         {pool.map((item) => renderItem(item))}
       </div>
 
@@ -369,9 +406,10 @@ export default function Equations() {
       <FeedbackOverlay
         visible={feedback.visible}
         isLevelUp={feedback.isLevelUp}
+        unlocked={feedback.unlocked}
         pts={feedback.pts}
         onDone={() => {
-          setFeedback({ visible: false, isLevelUp: false, pts: 0 });
+          setFeedback({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
           initGame();
         }}
       />

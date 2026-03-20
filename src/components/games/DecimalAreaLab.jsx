@@ -72,7 +72,7 @@ export default function DecimalAreaLab() {
   const [lives,        setLives]        = useState(3);
   const [justLost,     setJustLost]     = useState(false);
   const [disabled,     setDisabled]     = useState(false);
-  const [feedback,     setFeedback]     = useState({ visible: false, isLevelUp: false, pts: 0 });
+  const [feedback,     setFeedback]     = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
 
   const gridRef = useRef(null);
   const recentTargetsRef = useRef([]);
@@ -174,25 +174,8 @@ export default function DecimalAreaLab() {
       if (next <= 0) {
         setDisabled(true);
         setTimeout(() => {
-          const result = handleGameFail('grid');
-          if (result === 'locked') {
-            Swal.fire({
-              title: 'הרמה ננעלה 🔒',
-              html: '<div class="text-right">קצת קשה כרגע — נעלנו את הרמה הזו לתרגול נוח! 🧠</div>',
-              icon: 'warning',
-              confirmButtonText: 'הבנתי',
-              confirmButtonColor: '#4f46e5',
-              customClass: { popup: 'rounded-3xl' },
-            }).then(() => setScreen('menu'));
-          } else {
-            Swal.fire({
-              title: 'אופס! 💥',
-              text: 'נגמרו הניסיונות — שאלה חדשה!',
-              icon: 'error',
-              confirmButtonColor: '#ef4444',
-              customClass: { popup: 'rounded-3xl' },
-            }).then(() => newLevel());
-          }
+          handleGameFail('grid');
+          setScreen('menu');
         }, 700);
       }
       return next;
@@ -225,7 +208,7 @@ export default function DecimalAreaLab() {
     vibe([30, 50, 30]);
     setDisabled(true);
     const result = handleWin('grid');
-    setFeedback({ visible: true, isLevelUp: result.isLevelUp, pts: result.pts });
+    setFeedback({ visible: true, isLevelUp: result.isLevelUp, unlocked: result.unlocked, pts: result.pts });
   }, [disabled, levelData, placed, showError, handleWin]);
 
   // ── Undo ──────────────────────────────────────────────────────────────────────
@@ -263,7 +246,7 @@ export default function DecimalAreaLab() {
       <div className="flex-1 flex flex-col items-center p-4 gap-4 overflow-y-auto">
 
         {/* Target card */}
-        <div className="bg-white dark:bg-slate-800 rounded-[2rem] w-full max-w-md px-5 py-4 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-800 rounded-[2rem] w-full max-w-md px-5 py-4 shadow-sm border-2 border-teal-200 dark:border-teal-800/40 border-b-4 border-b-teal-400 dark:border-b-teal-700 flex items-center justify-between">
           <div>
             <p className="text-xs font-bold text-slate-400 mb-0.5">יעד — שטח כולל</p>
             <div className="math-font font-black text-4xl text-teal-600 dark:text-teal-400 tracking-tight" dir="ltr">
@@ -277,7 +260,7 @@ export default function DecimalAreaLab() {
         </div>
 
         {/* Grid card */}
-        <div className="bg-white dark:bg-slate-800 rounded-[2rem] w-full max-w-md p-5 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col items-center gap-3">
+        <div className="bg-white dark:bg-slate-800 rounded-[2rem] w-full max-w-md p-5 shadow-sm border-2 border-teal-200 dark:border-teal-800/40 flex flex-col items-center gap-3">
 
           {/* Grid + axes */}
           <div className="relative mt-4 ml-5">
@@ -397,9 +380,10 @@ export default function DecimalAreaLab() {
       <FeedbackOverlay
         visible={feedback.visible}
         isLevelUp={feedback.isLevelUp}
+        unlocked={feedback.unlocked}
         pts={feedback.pts}
         onDone={() => {
-          setFeedback({ visible: false, isLevelUp: false, pts: 0 });
+          setFeedback({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
           newLevel();
         }}
       />

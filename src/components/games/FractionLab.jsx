@@ -179,7 +179,7 @@ export default function FractionLab() {
   const [lives, setLives] = useState(3);
   const [justLost, setJustLost] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [feedback, setFeedback] = useState({ visible: false, isLevelUp: false, pts: 0 });
+  const [feedback, setFeedback] = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
   const [consecutiveErrors, setConsecutiveErrors] = useState(0);
 
   const recentRef = useRef([]);
@@ -204,7 +204,7 @@ export default function FractionLab() {
       if (!localStorage.getItem(ONBOARD_KEY)) {
         Swal.fire({
           title: 'מעבדת השברים 🍕',
-          html: '<div class="text-right text-sm leading-relaxed">בכל שאלה תצטרך לייצג שבר נכון.<br><br>🍕 <b>ויזואלי</b> — התאם את השבר לציור<br>✂️ <b>צמצום</b> — פשט את השבר<br>🔢 <b>עשרוני</b> — המר מספר עשרוני לשבר<br><br>השתמש בכפתורי + ו- כדי לשנות את המונה והמכנה.</div>',
+          html: '<div class="text-right text-sm leading-relaxed">בכל שאלה תצטרך לייצג שבר נכון.<br><br>🍕 <b>ויזואלי</b> — התאם את השבר לציור<br>🔗 <b>שווה ערך</b> — בנה שבר השווה לנתון<br>✂️ <b>צמצום</b> — פשט את השבר לצורה הפשוטה ביותר<br>📐 <b>שבר מדומה</b> — ייצג שבר הגדול מ-1<br><br>השתמש בכפתורי + ו- כדי לשנות את המונה והמכנה.</div>',
           confirmButtonText: 'יאללה למעבדה!',
           confirmButtonColor: '#f97316',
           customClass: { popup: 'rounded-3xl' },
@@ -222,8 +222,7 @@ export default function FractionLab() {
     if (mode === 'visual' || mode === 'improper') {
       text = 'ספור את מספר החלקים הצבועים ואת סך כל החלקים — זה השבר שלך.';
     } else if (mode === 'equivalent') {
-      const ansN = targetN * (question.lockedD / targetD);
-      text = `שבר שווה ערך נוצר כשמכפילים גם את המונה וגם את המכנה באותו מספר. המכנה כאן הוא ${question.lockedD} — חלק ${question.lockedD} ÷ ${targetD} כדי למצוא בכמה להכפיל את המונה. התשובה: ${ansN}/${question.lockedD}.`;
+      text = `שבר שווה ערך נוצר כשמכפילים גם את המונה וגם את המכנה באותו מספר. המכנה החדש הוא ${question.lockedD} — חלק אותו ב-${targetD} כדי למצוא בכמה צריך להכפיל. ואז — כפול את המונה באותו מספר!`;
     } else if (mode === 'simplify') {
       const g = gcd(targetN, targetD);
       text = `צמצום = לחלק גם את המונה וגם את המכנה במחלק משותף. המחלק הגדול כאן הוא ${g}. חלק ב-${g} לקבל את השבר הפשוט.`;
@@ -256,21 +255,15 @@ export default function FractionLab() {
         setJustLost(true);
         setTimeout(() => setJustLost(false), 600);
         if (next <= 0) {
-          const result = handleGameFail('fractionLab');
-          if (result === 'locked') {
-            Swal.fire({ title: 'הרמה ננעלה 🔒', html: '<div class="text-right">נעלנו את הרמה כדי שתוכל להתאמן! 🧠</div>', icon: 'warning', confirmButtonText: 'הבנתי', confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } })
-              .then(() => setScreen('menu'));
-          } else {
-            Swal.fire({ title: 'אופס! 💥', text: 'נגמרו הניסיונות, ננסה שאלה חדשה.', icon: 'error', confirmButtonColor: '#ef4444', customClass: { popup: 'rounded-3xl' } })
-              .then(() => newQuestion());
-          }
+          handleGameFail('fractionLab');
+          setScreen('menu');
         }
       }
       return;
     }
 
-    // Require reduced form for simplify mode; for equivalent, accept any equivalent
-    if (question.mode !== 'equivalent' && gcd(userN, userD) > 1) {
+    // Require reduced form only in simplify mode
+    if (question.mode === 'simplify' && gcd(userN, userD) > 1) {
       vibe(30);
       setErrorMsg('⚠️ התשובה נכונה, אך יש לצמצם אותה קודם!');
       return;
@@ -279,7 +272,7 @@ export default function FractionLab() {
     vibe([30, 50, 30]);
     confetti({ particleCount: 60, spread: 60, origin: { y: 0.7 } });
     const result = handleWinStore('fractionLab');
-    setFeedback({ visible: true, isLevelUp: result.isLevelUp, pts: result.pts });
+    setFeedback({ visible: true, isLevelUp: result.isLevelUp, unlocked: result.unlocked, pts: result.pts });
   };
 
   if (!question) return null;
@@ -289,7 +282,7 @@ export default function FractionLab() {
       <div className="w-full max-w-md flex flex-col md:flex-row gap-4 items-stretch">
 
         {/* Task card */}
-        <div className="flex-1 bg-white dark:bg-slate-800 rounded-[2rem] p-5 shadow-lg border-2 border-orange-100 dark:border-slate-700 flex flex-col items-center gap-4">
+        <div className="flex-1 bg-white dark:bg-slate-800 rounded-[2rem] p-5 shadow-lg border-2 border-orange-200 dark:border-orange-800/40 border-b-4 border-b-orange-400 dark:border-b-orange-700 flex flex-col items-center gap-4">
           <div className="w-full flex justify-between items-center gap-2">
             <span className="text-[11px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-full">
               {modeLabels[question.mode]}
@@ -339,7 +332,7 @@ export default function FractionLab() {
           <div className="w-full flex items-center justify-between gap-2">
             <button onClick={() => { setUserN((v) => Math.max(1, v - 1)); setErrorMsg(''); vibe(10); }} className="w-11 h-11 rounded-xl bg-slate-700 hover:bg-slate-600 text-2xl font-black active:scale-90 transition-all flex items-center justify-center">−</button>
             <div className="flex-1 text-center text-4xl font-black" dir="ltr">{userN}</div>
-            <button onClick={() => { setUserN((v) => v + 1); setErrorMsg(''); vibe(10); }} className="w-11 h-11 rounded-xl bg-orange-500 hover:bg-orange-400 text-2xl font-black active:scale-90 transition-all flex items-center justify-center shadow-lg">+</button>
+            <button onClick={() => { setUserN((v) => Math.min(v + 1, (question?.targetD ?? 2) * 4)); setErrorMsg(''); vibe(10); }} className="w-11 h-11 rounded-xl bg-orange-500 hover:bg-orange-400 text-2xl font-black active:scale-90 transition-all flex items-center justify-center shadow-lg">+</button>
           </div>
 
           <div className="w-full h-0.5 bg-slate-600 rounded-full" />
@@ -364,14 +357,14 @@ export default function FractionLab() {
 
           <button
             onClick={showHint}
-            className="w-full py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-xl font-bold text-sm transition-all active:scale-95"
+            className="w-full py-2 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 rounded-xl font-bold text-sm transition-all active:scale-95"
           >
             💡 רמז
           </button>
 
           <button
             onClick={checkAnswer}
-            className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-white rounded-2xl font-black text-xl shadow-xl transition-all active:scale-95 mt-1"
+            className="w-full py-4 bg-orange-500 hover:bg-orange-400 dark:bg-orange-600 dark:hover:bg-orange-500 text-white rounded-2xl font-black text-xl shadow-xl transition-all active:scale-95 mt-1"
           >
             בדיקה ✓
           </button>
@@ -381,8 +374,9 @@ export default function FractionLab() {
       <FeedbackOverlay
         visible={feedback.visible}
         isLevelUp={feedback.isLevelUp}
+        unlocked={feedback.unlocked}
         pts={feedback.pts}
-        onDone={() => { setFeedback({ visible: false, isLevelUp: false, pts: 0 }); newQuestion(); }}
+        onDone={() => { setFeedback({ visible: false, isLevelUp: false, unlocked: false, pts: 0 }); newQuestion(); }}
       />
     </div>
   );

@@ -8,13 +8,14 @@ import Swal from 'sweetalert2';
 const ONBOARD_KEY = 'onboard_multichamp';
 
 // Level configs
+// cols × rows = grid size, maxProduct = upper bound for generated target
 const LEVELS = [
   null, // index 0 unused
-  { name: 'טירון', numRange: [1, 5],  isFraction: false, timeLimit: 30 },
-  { name: 'קצין',  numRange: [1, 12], isFraction: false, timeLimit: 30 },
-  { name: 'אלוף',  numRange: [1, 10], isFraction: false, timeLimit: 30 },
-  { name: 'מאסטר', isFraction: true, hard: false, timeLimit: 30 },
-  { name: 'אגדה',  isFraction: true, hard: true,  timeLimit: 30 },
+  { name: 'טירון', cols: 2, rows: 4, maxProduct: 25,  isFraction: false, timeLimit: 30 },
+  { name: 'קצין',  cols: 4, rows: 3, maxProduct: 60,  isFraction: false, timeLimit: 30 },
+  { name: 'אלוף',  cols: 4, rows: 4, maxProduct: 144, isFraction: false, timeLimit: 30 },
+  { name: 'מאסטר', cols: 4, rows: 4, maxProduct: 1,   isFraction: true,  hard: false, timeLimit: 30 },
+  { name: 'אגדה',  cols: 4, rows: 4, maxProduct: 1,   isFraction: true,  hard: true,  timeLimit: 30 },
 ];
 
 // Fraction definitions
@@ -52,61 +53,47 @@ function FracDisplay({ n, d, size = 'md' }) {
   );
 }
 
-// Generate a round (target + 16 tiles)
+// Generate a round — tile count = cols × rows
 function generateRound(lvl) {
   const cfg = LEVELS[lvl];
-  if (!cfg.isFraction) {
-    const [lo, hi] = cfg.numRange;
-    const allNums = [];
-    for (let i = lo; i <= hi; i++) allNums.push(i);
+  const tileCount = cfg.cols * cfg.rows;
 
-    // Pick two operands whose product is unique among distractors
-    let a, b, target;
-    let tries = 0;
+  if (!cfg.isFraction) {
+    // Number ranges per level
+    // lvl1: 1-5 (product ≤ 25), lvl2: 2-12 (product ≤ 60), lvl3: 1-12 (full table)
+    const ranges = { 1: [1, 5], 2: [2, 12], 3: [1, 12] };
+    const [lo, hi] = ranges[lvl] || [1, 12];
+
+    let a, b, target, tries = 0;
     do {
       a = lo + Math.floor(Math.random() * (hi - lo + 1));
       b = lo + Math.floor(Math.random() * (hi - lo + 1));
       target = a * b;
       tries++;
-    } while (tries < 20 && (target < 2));
+    } while (tries < 30 && (target < 2 || target > cfg.maxProduct));
 
-    // Build 16 tiles: include a and b, fill rest with numbers from range
-    const pool = allNums.filter(x => x !== a && x !== b);
-    const extras = shuffle(pool).slice(0, 14);
+    // Build pool of distractor numbers (1–12, no duplicates of a/b)
+    const pool = [];
+    for (let i = 1; i <= 12; i++) {
+      if (i !== a && i !== b) pool.push(i);
+    }
+    const extras = shuffle(pool).slice(0, tileCount - 2);
     const tiles = shuffle([a, b, ...extras]);
 
-    return {
-      isFraction: false,
-      target,
-      tiles,        // array of numbers
-      correctA: a,
-      correctB: b,
-      targetLabel: String(target),
-    };
+    return { isFraction: false, target, tiles, correctA: a, correctB: b, targetLabel: String(target) };
   } else {
-    // Fraction round
     const fracPool = cfg.hard ? HARD_FRACS : EASY_FRACS;
     const f1 = fracPool[Math.floor(Math.random() * fracPool.length)];
     let f2;
     do { f2 = fracPool[Math.floor(Math.random() * fracPool.length)]; } while (f2 === f1);
 
-    const rawN = f1.n * f2.n;
-    const rawD = f1.d * f2.d;
-    const result = simplify(rawN, rawD);
+    const result = simplify(f1.n * f2.n, f1.d * f2.d);
 
-    // Build 16 fraction tiles: include f1 and f2, fill with others
     const others = fracPool.filter(f => f !== f1 && f !== f2);
-    const extras = shuffle(others).slice(0, 14);
+    const extras = shuffle(others).slice(0, tileCount - 2);
     const tiles = shuffle([f1, f2, ...extras]);
 
-    return {
-      isFraction: true,
-      target: result,
-      tiles,
-      correctA: f1,
-      correctB: f2,
-      targetLabel: `${result.n}/${result.d}`,
-    };
+    return { isFraction: true, target: result, tiles, correctA: f1, correctB: f2, targetLabel: `${result.n}/${result.d}` };
   }
 }
 
@@ -254,6 +241,7 @@ export default function MultiplicationChamp() {
 
     if (correct) {
       vibe([30, 50, 30]);
+      setSelected(newSel); // keep both selected so both light up green
       setFlash('correct');
       setScore(s => s + 1);
       setCorrectPairs(p => p + 1);
@@ -264,6 +252,7 @@ export default function MultiplicationChamp() {
       }, 600));
     } else {
       vibe([50, 50, 50]);
+      setSelected(newSel); // keep both selected so both flash red
       setFlash('wrong');
       timersRef.current.push(setTimeout(() => {
         setFlash(null);
@@ -331,8 +320,11 @@ export default function MultiplicationChamp() {
           </div>
         </div>
 
-        {/* Tile grid 4×4 */}
-        <div className="grid grid-cols-4 gap-2">
+        {/* Tile grid — dynamic cols per level */}
+        <div
+          className="grid gap-2"
+          style={{ gridTemplateColumns: `repeat(${cfg.cols}, minmax(0, 1fr))` }}
+        >
           {round.tiles.map((tile, idx) => {
             const isSel = selected.includes(idx);
             const isCorrectFlash = flash === 'correct' && isSel;
@@ -354,7 +346,7 @@ export default function MultiplicationChamp() {
                 {round.isFraction ? (
                   <FracDisplay n={tile.n} d={tile.d} size="sm" />
                 ) : (
-                  <span className="text-xl">{tile}</span>
+                  <span className={cfg.cols === 2 ? 'text-3xl' : 'text-xl'}>{tile}</span>
                 )}
               </button>
             );

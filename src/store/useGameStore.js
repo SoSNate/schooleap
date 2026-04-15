@@ -103,8 +103,8 @@ const useGameStore = create(
           }
         } else {
           // Normal mode: count wins toward level up
-          // Fast-track for Equations L3 and L4 (1 win = level up)
-          const threshold = (game === 'equations' && newLvl >= 3) ? 1 : 3;
+          // Fast-track: equations L3+ and multChamp always level up on every win
+          const threshold = (game === 'multChamp' || (game === 'equations' && newLvl >= 3)) ? 1 : 3;
           newCount = s[game].count + 1;
           if (newCount >= threshold && newLvl < 5) {
             newLvl++;

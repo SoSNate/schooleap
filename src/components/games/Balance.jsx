@@ -247,26 +247,26 @@ export default function Balance() {
   };
 
   return (
-    <div className={`screen-enter flex flex-col items-center p-4 flex-1 min-h-[calc(100dvh-80px)] ${errorFlash ? 'error-flash' : ''}`}>
+    <div className={`screen-enter flex flex-col items-center p-2 sm:p-4 flex-1 min-h-[calc(100dvh-80px)] ${errorFlash ? 'error-flash' : ''}`}>
       <GameTutorial gameName="balance" level={gameState.lvl} />
-      <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] px-4 pt-5 pb-6 w-full max-w-md shadow-xl flex flex-col items-center gap-4 border-2 border-green-200 dark:border-green-800/40 border-b-4 border-b-green-400 dark:border-b-green-700 transition-colors" style={{ overflow: 'visible' }}>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl sm:rounded-[2.5rem] px-3 sm:px-4 pt-4 sm:pt-5 pb-5 sm:pb-6 w-full max-w-xs sm:max-w-md shadow-xl flex flex-col items-center gap-3 sm:gap-4 border-2 border-green-200 dark:border-green-800/40 border-b-4 border-b-green-400 dark:border-b-green-700 transition-colors" style={{ overflow: 'visible' }}>
 
         {/* Lives */}
-        <div className="flex gap-2 justify-center w-full">
+        <div className="flex gap-2 justify-center w-full mb-2">
           <Hearts lives={lives} maxLives={3} justLost={justLost} />
         </div>
 
         {/* Rules (level 5) */}
         {rulesHtml && (
-          <div className="w-full flex justify-center -mb-2">
-            <div className="bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 font-bold px-4 py-2 rounded-xl text-sm border border-rose-200 math-font" dir="ltr">
+          <div className="w-full flex justify-center -mb-1 sm:-mb-2">
+            <div className="bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 font-bold px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm border border-rose-200 math-font" dir="ltr">
               {rulesHtml}
             </div>
           </div>
         )}
 
         {/* ─── Physical Scale ─── */}
-        <div className="scale-scene">
+        <div className="scale-scene w-full sm:w-auto">
 
           {/* Beam — rotates, holds everything */}
           <div
@@ -307,39 +307,39 @@ export default function Balance() {
         </div>
 
         {/* ─── Input Area ─── */}
-        <div className="flex flex-col items-center gap-4 w-full pb-2">
+        <div className="flex flex-col items-center gap-2 sm:gap-4 w-full pb-1 sm:pb-2">
 
           {/* Variable display */}
-          <div className="flex justify-center items-center gap-3" dir="ltr">
-            <span className="weight-var text-lg w-8 h-8">?</span>
-            <span className="text-2xl font-bold text-slate-400 dark:text-slate-500">=</span>
-            <span className="text-5xl font-black text-green-500 min-w-[60px] text-center">{sliderVal}</span>
+          <div className="flex justify-center items-center gap-2 sm:gap-3" dir="ltr">
+            <span className="weight-var text-base sm:text-lg w-6 sm:w-8 h-6 sm:h-8">?</span>
+            <span className="text-lg sm:text-2xl font-bold text-slate-400 dark:text-slate-500">=</span>
+            <span className="text-3xl sm:text-5xl font-black text-green-500 min-w-[50px] sm:min-w-[60px] text-center">{sliderVal}</span>
           </div>
 
           {/* +/- control */}
-          <div className="val-control select-none">
+          <div className="val-control select-none scale-90 sm:scale-100 origin-center">
             <button className="val-btn" onClick={() => adjust(-1)} aria-label="פחות">−</button>
             <div className="val-display">{sliderVal}</div>
             <button className="val-btn" onClick={() => adjust(1)} aria-label="יותר">+</button>
           </div>
 
           {consecutiveErrors >= 2 && (
-            <div className="text-xs text-amber-600 dark:text-amber-400 font-bold animate-pulse">
+            <div className="text-xs sm:text-sm text-amber-600 dark:text-amber-400 font-bold animate-pulse text-center px-2">
               💡 קשה? לחץ על הרמז ותחשוב בשלבים!
             </div>
           )}
 
           {/* Action buttons */}
-          <div className="flex gap-2 w-full">
+          <div className="flex gap-1.5 sm:gap-2 w-full">
             <button
               onClick={showHint}
-              className={`w-16 py-4 rounded-3xl font-black text-xl shadow-sm transition-all active:scale-95 ${consecutiveErrors >= 2 ? 'bg-amber-400 text-white animate-pulse' : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800 hover:bg-green-200'}`}
+              className={`w-12 sm:w-16 py-3 sm:py-4 rounded-2xl sm:rounded-3xl font-black text-lg sm:text-xl shadow-sm transition-all active:scale-95 ${consecutiveErrors >= 2 ? 'bg-amber-400 text-white animate-pulse' : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800 hover:bg-green-200'}`}
             >
               💡
             </button>
             <button
               onClick={checkAnswer}
-              className="flex-1 py-4 bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white rounded-3xl font-black text-xl md:text-2xl shadow-xl transition-all active:scale-95"
+              className="flex-1 py-3 sm:py-4 bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white rounded-2xl sm:rounded-3xl font-black text-base sm:text-xl md:text-2xl shadow-xl transition-all active:scale-95"
             >
               בדוק! ⚖️
             </button>

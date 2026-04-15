@@ -469,31 +469,46 @@
 
       this._recognition = new SR();
       this._recognition.lang           = 'he-IL';
-      this._recognition.continuous     = true;   // ללא הגבלת זמן
+      this._recognition.continuous     = false;  // תן גבול לחלק — הפעל מחדש בעצמנו
       this._recognition.interimResults = true;
       this._transcriptBase = ''; // טקסט שהושלם מסבבים קודמים
+      this._recognitionRetries = 0; // מעקב אחר נסיונות הפעלה מחדש כדי להימנע מ-infinite loops
 
       this._recognition.onresult = (e) => {
         // חלוקה: תוצאות שהושלמו + interim
         let finalPart = '';
         let interimPart = '';
         for (let i = e.resultIndex; i < e.results.length; i++) {
+          const transcript = (e.results[i][0].transcript || '').trim();
+          if (!transcript) continue; // דלג על טקסטים ריקים
           if (e.results[i].isFinal) {
-            finalPart  += e.results[i][0].transcript;
+            finalPart  += (finalPart && transcript ? ' ' : '') + transcript; // הוסף רווח
           } else {
-            interimPart += e.results[i][0].transcript;
+            interimPart += (interimPart && transcript ? ' ' : '') + transcript;
           }
         }
-        if (finalPart) this._transcriptBase += finalPart;
+        if (finalPart) {
+          this._transcriptBase += (this._transcriptBase && finalPart ? ' ' : '') + finalPart;
+        }
         const ta = this.shadowRoot.getElementById('noteText');
-        if (ta) ta.value = this._transcriptBase + interimPart;
+        if (ta) {
+          // הצג את הטקסט הסופי + interim (ללא דפליקציה)
+          ta.value = this._transcriptBase + (interimPart ? (this._transcriptBase ? ' ' : '') + interimPart : '');
+        }
       };
 
-      // כשה-recognition נגמר בעצמו (שגיאת רשת / דפדפן) — הפעל מחדש אם עדיין אמורים להקליט
+      // כשה-recognition נגמר בעצמו (קול הושלם / דפדפן) — הפעל מחדש אם עדיין אמורים להקליט
       this._recognition.onend = () => {
-        if (this._isRecording) {
+        if (this._isRecording && this._recognitionRetries < 3) {
+          this._recognitionRetries++;
           try { this._recognition.start(); } catch (_) { this._isRecording = false; this._updateMicUI(); }
+        } else if (this._isRecording && this._recognitionRetries >= 3) {
+          // סגור אחרי 3 נסיונות כושלים כדי להמנע מ-infinite loop
+          this._isRecording = false;
+          this._updateMicUI();
+          this._toast('הקלטה התעלמה — אפס את הקלטת קול או בדוק אם המיקרופון פעיל', 'error');
         } else {
+          this._recognitionRetries = 0;
           this._updateMicUI();
         }
       };
@@ -513,9 +528,9 @@
         this._recognition.stop();
         this._updateMicUI();
       } else {
-        this._transcriptBase = ''; // אפס טקסט מצטבר בהקלטה חדשה
-        const ta = this.shadowRoot.getElementById('noteText');
-        if (ta) ta.value = '';
+        // אל תאפס את הטקסט הקיים — רק התחל הקלטה חדשה
+        // הטקסט ההקלוט יתווסף לטקסט הקיים
+        this._recognitionRetries = 0; // אפס את מונה הנסיונות כשהקלטה חדשה מתחילה
         this._isRecording = true;
         this._updateMicUI();
         try { this._recognition.start(); }

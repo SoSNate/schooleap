@@ -315,8 +315,8 @@ export default function Balance() {
         <div className="flex flex-col items-center gap-2 sm:gap-4 w-full pb-1 sm:pb-2">
 
           {/* Variable display */}
-          <div className="flex justify-center items-center gap-2 sm:gap-3" dir="ltr">
-            <span className="weight-var text-base sm:text-lg w-6 sm:w-8 h-6 sm:h-8">?</span>
+          <div className="flex justify-center items-center gap-1" dir="ltr">
+            <span className="weight-var">?</span>
             <span className="text-lg sm:text-2xl font-bold text-slate-400 dark:text-slate-500">=</span>
             <span className="text-3xl sm:text-5xl font-black text-green-500 min-w-[50px] sm:min-w-[60px] text-center">{sliderVal}</span>
           </div>

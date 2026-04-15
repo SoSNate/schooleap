@@ -241,12 +241,12 @@ body {
 /* Variable box style — coin/circle feel — נעלם ? */
 .weight-var {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px;
-  background: linear-gradient(135deg, #ea580c, #f97316, #c2410c);
-  color: #fff7ed; font-size: 0.85rem; font-weight: 900;
-  border-radius: 50%; border: 2px solid #c2410c;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 2px 6px rgba(234,88,12,0.45);
-  letter-spacing: 0; vertical-align: middle; margin: 0 1px;
+  width: 28px; height: 28px; flex-shrink: 0;
+  background: linear-gradient(135deg, #ca8a04, #eab308, #a16207);
+  color: #fefce8; font-size: 0.85rem; font-weight: 900;
+  border-radius: 50%; border: 2px solid #a16207;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 2px 6px rgba(234,179,8,0.45);
+  letter-spacing: 0; vertical-align: middle; margin: 0;
 }
 /* משתנה אדום 🔴 — עיגול אדום נקי */
 .weight-var-red {

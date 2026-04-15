@@ -1,12 +1,16 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// הגדרות עבור Vercel ואבטחת קוד המקור
+// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   build: {
-<<<<<<< HEAD
-    sourcemap: false, // זה ימנע מהדפדפן להציג את קבצי המקור שלך ב-DevTools
+    // השבתת Source Maps מונעת מהדפדפן להציג את קבצי המקור המקוריים (JSX) שלכם.
+    // זהו צעד קריטי להגנה על הקוד באתר החי.
+    sourcemap: false,
+    
+    // כיווץ הקוד (Minification) הופך אותו לבלתי קריא עבור בני אדם
+    minify: 'esbuild',
   }
 })
-=======
-    sourcemap: false, // מבטיח שלא ייווצרו קבצי מפה שחושפים את הקוד המקורי
-  }
-})
->>>>>>> 0d62cecfbeadf39fae695e87c3238948be743d55

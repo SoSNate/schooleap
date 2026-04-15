@@ -12,6 +12,7 @@ const games = [
   { id: 'magicPatterns', label: 'תבניות הקסם',       emoji: '🪄', colorToken: 'rose'    },
   { id: 'grid',          label: 'מעבדת השטחים',      emoji: '📐', colorToken: 'teal'    },
   { id: 'word',          label: 'שאלות מילוליות',    emoji: '🧠', colorToken: 'red'     },
+  { id: 'multChamp',     label: 'אלוף הכפל',         emoji: '✖️', colorToken: 'yellow'  },
 ];
 
 // Helper: return full Tailwind classes for a color token (avoids dynamic class names)
@@ -43,8 +44,9 @@ export default function Menu() {
   const magicPatterns = useGameStore((s) => s.magicPatterns);
   const grid = useGameStore((s) => s.grid);
   const word = useGameStore((s) => s.word);
+  const multChamp = useGameStore((s) => s.multChamp);
 
-  const gameStates = { equations, balance, tank, decimal, fractionLab, magicPatterns, grid, word };
+  const gameStates = { equations, balance, tank, decimal, fractionLab, magicPatterns, grid, word, multChamp };
 
   const startGame = (gameId) => {
     vibe(10);

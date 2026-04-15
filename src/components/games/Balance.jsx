@@ -193,11 +193,11 @@ export default function Balance() {
     vibe(20);
     const lvl = gameState.lvl;
     const hints = [
-      'חשוב בשלבים: אם ? + b = c אז ? = c − b. כתוב את המשוואה ופתור אותה!',
-      'כפל: חלק את שני הצדדים במספר שכופלים בו.\nחילוק: כפל את שני הצדדים במחלק!',
-      '?  מופיע משני הצדדים! כתוב: ? + a = 20 − ?, אסוף: 2×? = 20 − a, חלק ב-2.',
-      'פתח את הסוגריים קודם. מצא ערך שהופך את שני הצדדים לשווים.',
-      'החלף את 🔴 בביטוי שמופיע למעלה, פשט — ואז פתור: לאיזה ? המשוואה מתקיימת?',
+      'נסה מספרים! אם ? + 3 = 10, אז ? = 10 − 3 = 7 ✓\nכלל: מה שמוסיפים — מחסירים מהצד השני.',
+      'נסה מספרים! אם ? × 4 = 20, אז ? = 20 ÷ 4 = 5 ✓\nכלל: מה שכופלים — מחלקים בו מהצד השני.',
+      '? מופיע בשני הצדדים!\nדוגמה: ? + 2 = 20 − ?\nחבר ? לשני הצדדים: 2×? = 18, אז ? = 9 ✓',
+      'נסה להכניס מספרים: ? = 1, 2, 3...\nמצא את זה שהופך את שני הצדדים לשווים!',
+      'ראה את הכלל למעלה 🔴 = ?, החלף אותו ונסה: ? = 1, 2, 3...',
     ];
     Swal.fire({
       title: '💡 רמז',
@@ -305,20 +305,22 @@ export default function Balance() {
             </div>
           </div>
 
-          {/* Fixed elements (don't rotate) */}
+          {/* Fixed elements: pivot on top, pole + base below */}
           <div className="scale-pivot" />
           <div className="scale-pole" />
           <div className="scale-base" />
+          {/* Spacer so pans have room below base */}
+          <div style={{ height: 90 }} />
         </div>
 
         {/* ─── Input Area ─── */}
         <div className="flex flex-col items-center gap-2 sm:gap-4 w-full pb-1 sm:pb-2">
 
           {/* Variable display */}
-          <div className="flex justify-center items-center gap-1" dir="ltr">
-            <span className="weight-var">?</span>
-            <span className="text-lg sm:text-2xl font-bold text-slate-400 dark:text-slate-500">=</span>
-            <span className="text-3xl sm:text-5xl font-black text-green-500 min-w-[50px] sm:min-w-[60px] text-center">{sliderVal}</span>
+          <div className="flex justify-center items-center gap-2" dir="ltr">
+            <span className="weight-var" style={{ width: 36, height: 36, fontSize: '1rem' }}>?</span>
+            <span className="text-2xl font-bold text-slate-400 dark:text-slate-500 leading-none">=</span>
+            <span className="text-4xl font-black text-green-500 leading-none min-w-[48px] text-center">{sliderVal}</span>
           </div>
 
           {/* +/- control */}

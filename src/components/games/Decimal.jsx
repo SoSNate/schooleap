@@ -73,16 +73,16 @@ const RotaryKnob = ({ stepIndex, onChange }) => {
   const dialRadius = 85; // הוגדל כדי לרווח את התוויות
 
   const labelDefs = [
-    { idx: 0, content: <span className="text-sm font-black">×1</span>, style: { top: '-2.5rem', left: '50%', transform: 'translateX(-50%)' } },
-    { idx: 1, content: <div className="flex items-center gap-1 text-sm font-black"><span>×</span><Fraction n={1} d={10} /></div>, style: { top: '50%', right: '-5rem', transform: 'translateY(-50%)' } },
-    { idx: 2, content: <div className="flex items-center gap-1 text-sm font-black"><span>×</span><Fraction n={1} d={100} /></div>, style: { bottom: '-1.5rem', left: '50%', transform: 'translateX(-50%)' } },
-    { idx: 3, content: <div className="flex items-center gap-1 text-sm font-black"><span>×</span><Fraction n={1} d={1000} /></div>, style: { top: '50%', left: '-5.2rem', transform: 'translateY(-50%)' } },
+    { idx: 0, content: <span className="text-sm font-black">×1</span>,                                                                          style: { top: '-2rem',   left: '50%', transform: 'translateX(-50%)' } },
+    { idx: 1, content: <div className="flex items-center gap-0.5 text-sm font-black" dir="ltr"><span>×</span><Fraction n={1} d={10}   /></div>, style: { top: '50%',    right: '-4.5rem', transform: 'translateY(-50%)' } },
+    { idx: 2, content: <div className="flex flex-col items-center gap-0 text-sm font-black" dir="ltr"><span>×</span><Fraction n={1} d={100}  /></div>, style: { bottom: '-2.8rem', left: '50%', transform: 'translateX(-50%)' } },
+    { idx: 3, content: <div className="flex items-center gap-0.5 text-sm font-black" dir="ltr"><span>×</span><Fraction n={1} d={1000} /></div>, style: { top: '50%',    left:  '-5rem',   transform: 'translateY(-50%)' } },
   ];
 
   return (
     <div className="flex flex-col items-center gap-1">
       {/* מעגל חיצוני עם תוויות טקסט */}
-      <div className="relative flex items-center justify-center w-full h-36 mt-1">
+      <div className="relative flex items-center justify-center w-full h-44 mt-1" style={{ paddingBottom: '1.5rem' }}>
 
         {/* תוויות ניתנות ללחיצה — ללא עיגול */}
         {labelDefs.map(({ idx, content, style }) => (
@@ -323,7 +323,7 @@ export default function Decimal() {
     rangeRef.current = f.range;
     setTargetFrac(f);
     setMaxZoom(f.z);
-    setLives(5);
+    setLives(3);
     setJustLost(false);
     setStepIndex(0);
     const [rMin, rMax] = f.range;
@@ -427,7 +427,7 @@ export default function Decimal() {
           <div className="flex items-center gap-2">
             <span className="text-sm font-black text-yellow-600 dark:text-yellow-400">תפוס את הנקודה 🎯</span>
           </div>
-          <Hearts lives={lives} maxLives={5} justLost={justLost} />
+          <Hearts lives={lives} maxLives={3} justLost={justLost} />
         </div>
 
         {/* Target fraction */}

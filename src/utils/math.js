@@ -12,6 +12,7 @@ export const GAME_COLORS = {
   magicPatterns: { token: 'rose',    bar: 'bg-rose-500' },
   grid:          { token: 'teal',    bar: 'bg-teal-500' },
   word:          { token: 'red',     bar: 'bg-red-800' },
+  multChamp:     { token: 'yellow',  bar: 'bg-yellow-500' },
 };
 
 export const anims = {
@@ -35,13 +36,13 @@ export function getWeekId() {
 }
 
 export function getGameShort(game) {
-  const map = { equations: 'eq', balance: 'bal', tank: 'tank', decimal: 'dec', fractionLab: 'flab', magicPatterns: 'mpat', grid: 'grid', word: 'word' };
+  const map = { equations: 'eq', balance: 'bal', tank: 'tank', decimal: 'dec', fractionLab: 'flab', magicPatterns: 'mpat', grid: 'grid', word: 'word', multChamp: 'mult' };
   return map[game] || game.substring(0, 3);
 }
 
 export function emptyWeek() {
   return {
     weekId: getWeekId(),
-    days: Array(7).fill(null).map(() => ({ pts: 0, games: { eq: 0, bal: 0, tank: 0, dec: 0, flab: 0, mpat: 0, grid: 0, word: 0 } }))
+    days: Array(7).fill(null).map(() => ({ pts: 0, games: { eq: 0, bal: 0, tank: 0, dec: 0, flab: 0, mpat: 0, grid: 0, word: 0, mult: 0 } }))
   };
 }

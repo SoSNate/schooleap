@@ -23,7 +23,17 @@ function pickGendered() {
   const pool = isMale ? NAMES_M : NAMES_F;
   return { name: pool[Math.floor(Math.random() * pool.length)], isMale };
 }
-const ITEMS = ['סוכריות', 'בלונים', 'מדבקות', 'עפרונות', 'כדורים', 'ספרים'];
+// כל פריט: { p=רבים, s=יחיד, v=פועל עולה/עולים }
+const ITEM_DEFS = [
+  { p: 'סוכריות', s: 'סוכרייה', cost: 'עולות' },
+  { p: 'בלונים',  s: 'בלון',    cost: 'עולים' },
+  { p: 'מדבקות', s: 'מדבקה',   cost: 'עולות' },
+  { p: 'עפרונות', s: 'עיפרון',  cost: 'עולים' },
+  { p: 'כדורים',  s: 'כדור',    cost: 'עולים' },
+  { p: 'ספרים',   s: 'ספר',     cost: 'עולים' },
+];
+const ITEMS = ITEM_DEFS.map(i => i.p); // תאימות לאחור לשימושים קיימים
+function pickItem() { return ITEM_DEFS[Math.floor(Math.random() * ITEM_DEFS.length)]; }
 
 /* ── Schemas ─────────────────────────────────────────────────────────────── */
 // eqParts: number = slot index into tokens[], string = static symbol/text
@@ -84,13 +94,13 @@ const SCHEMAS = [
   {
     id: 5, diff: 3,
     gen(lvl) {
-      const groups = rnd(2, 5 + lvl), each = rnd(3, 7 + lvl), total = groups * each;
+      const kids = rnd(2, 5 + lvl), each = rnd(3, 7 + lvl), total = kids * each;
       return {
-        text: `יש ${total} ממתקים. מחלקים אותם בשווה בין ${each} ילדים. כמה ממתקים כל ילד מקבל?`,
-        tokens: [{ display: String(total), value: total }, { display: String(each), value: each }],
+        text: `יש ${total} ממתקים. מחלקים אותם בשווה בין ${kids} ילדים. כמה ממתקים כל ילד מקבל?`,
+        tokens: [{ display: String(total), value: total }, { display: String(kids), value: kids }],
         opHint: 'מחלקים שווה → חילוק (÷)',
         eqParts: [0, ' ÷ ', 1],
-        answer: groups,
+        answer: each,
       };
     },
   },
@@ -220,7 +230,11 @@ const SCHEMAS = [
     gen(lvl) {
       const goal = rnd(15, 35 + lvl * 5), has = rnd(3, goal - 5);
       return {
-        text: (() => { const { name, isMale } = pickGendered(); return `${name} רוצה לקנות ${pick(ITEMS)} שעולה ${goal} שקלים. יש ${isMale ? 'לו' : 'לה'} ${has} שקלים. כמה חסר ${isMale ? 'לו' : 'לה'}?`; })(),
+        text: (() => {
+          const { name, isMale } = pickGendered();
+          const item = pickItem();
+          return `${name} רוצה לקנות ${item.p} ש${item.cost} ${goal} שקלים. יש ${isMale ? 'לו' : 'לה'} ${has} שקלים. כמה חסר ${isMale ? 'לו' : 'לה'}?`;
+        })(),
         tokens: [{ display: String(goal), value: goal }, { display: String(has), value: has }],
         opHint: 'חסר → חיסור (−)',
         eqParts: [0, ' − ', 1],

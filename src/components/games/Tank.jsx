@@ -25,7 +25,7 @@ export default function Tank() {
   const [tickD, setTickD] = useState(0); // denominator for tick marks
   const [feedback, setFeedback] = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
   const [errorFlash, setErrorFlash] = useState(false);
-  const [lives, setLives] = useState(5);
+  const [lives, setLives] = useState(3);
   const [justLost, setJustLost] = useState(false);
   const [consecutiveErrors, setConsecutiveErrors] = useState(0);
 
@@ -114,9 +114,11 @@ export default function Tank() {
     setFracDisplay(display);
     setKnownLineBottom((n / d) * 100);
     setTickD(d);
-    setSliderMax(Math.round(ans * 1.5));
+    // הוסף offset רנדומלי (25%–75% מעל התשובה) כדי שהתשובה לא תהיה בסוף הסליידר
+    const overShoot = ans * (0.25 + Math.random() * 0.5);
+    setSliderMax(Math.round(ans + overShoot));
     setSliderVal(10);
-    setLives(5);
+    setLives(3);
     setJustLost(false);
     setConsecutiveErrors(0);
   }, [gameState.lvl]);
@@ -198,7 +200,7 @@ export default function Tank() {
 
         {/* Lives */}
         <div className="flex justify-center">
-          <Hearts lives={lives} maxLives={5} justLost={justLost} />
+          <Hearts lives={lives} maxLives={3} justLost={justLost} />
         </div>
 
         <div className="flex items-center gap-8 justify-center">
@@ -233,13 +235,13 @@ export default function Tank() {
           </div>
 
           {/* Info */}
-          <div className="text-right">
+          <div className="text-right min-w-0 flex-1">
             <div className="text-sm text-slate-500 dark:text-slate-400 font-bold mb-1">נתון בכוס:</div>
-            <div className="text-6xl font-black text-blue-700 dark:text-blue-400 ltr flex items-baseline gap-1" dir="ltr">
-              <span>{pVal}</span> <span className="text-sm ml-1 text-slate-400">מ"ל</span>
+            <div className="text-3xl font-black text-blue-700 dark:text-blue-400 flex items-baseline gap-1 flex-wrap" dir="ltr">
+              <span>{pVal}</span> <span className="text-lg ml-1 text-slate-400">מ"ל</span>
             </div>
-            <div className="text-sm text-slate-500 dark:text-slate-400 font-bold mt-4 mb-1">שהם בדיוק:</div>
-            <div className="text-6xl font-black text-blue-900 dark:text-blue-300 mt-1">
+            <div className="text-sm text-slate-500 dark:text-slate-400 font-bold mt-3 mb-1">שהם בדיוק:</div>
+            <div className="text-4xl font-black text-blue-900 dark:text-blue-300 mt-1">
               {fracDisplay}
             </div>
             {consecutiveErrors >= 2 && (
@@ -252,9 +254,9 @@ export default function Tank() {
 
         {/* Slider area */}
         <div className="text-center pb-4">
-          <div className="text-5xl md:text-6xl font-black text-blue-600 dark:text-blue-400 math-font mb-4" dir="ltr">
+          <div className="text-4xl font-black text-blue-600 dark:text-blue-400 math-font mb-4" dir="ltr">
             <span>{sliderVal}</span>
-            <span className="text-lg md:text-xl ml-1 text-slate-400">מ"ל</span>
+            <span className="text-xl ml-1 text-slate-400">מ"ל</span>
           </div>
 
           <input

@@ -303,7 +303,7 @@ export default function DecimalAreaLab() {
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerUp}
-              className="relative border-2 border-slate-400 dark:border-slate-500 bg-white dark:bg-slate-900 rounded cursor-crosshair overflow-hidden"
+              className="relative border-4 border-slate-500 dark:border-slate-400 bg-white dark:bg-slate-900 rounded cursor-crosshair overflow-hidden"
               style={gridBg}
             >
               {/* Placed rectangles */}

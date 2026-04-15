@@ -20,9 +20,10 @@ const useGameStore = create(
       magicPatterns: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
       grid: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
       word: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
+      multChamp: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
 
       // Locks
-      locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0, magicPatterns: 0, grid: 0, word: 0 },
+      locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0, magicPatterns: 0, grid: 0, word: 0, multChamp: 0 },
 
       // Weekly stats
       weeklyStats: emptyWeek(),
@@ -162,7 +163,8 @@ const useGameStore = create(
           magicPatterns: { ...fresh },
           grid: { ...fresh },
           word: { ...fresh },
-          locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0, magicPatterns: 0, grid: 0, word: 0 },
+          multChamp: { ...fresh },
+          locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0, magicPatterns: 0, grid: 0, word: 0, multChamp: 0 },
           weeklyStats: emptyWeek(),
         });
       },
@@ -179,6 +181,7 @@ const useGameStore = create(
         magicPatterns: state.magicPatterns,
         grid: state.grid,
         word: state.word,
+        multChamp: state.multChamp,
         locks: state.locks,
         weeklyStats: state.weeklyStats,
         darkMode: state.darkMode,

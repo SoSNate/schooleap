@@ -307,15 +307,15 @@ export default function FractionLab() {
           <div className="flex-1 flex items-center justify-center min-h-[150px] w-full">
             {question.mode === 'visual' && <VisualShape n={question.targetN} d={question.targetD} visualMode={question.visualMode} />}
             {question.mode === 'equivalent' && (
-              <div className="flex flex-col items-center gap-3" dir="ltr">
+              <div className="flex flex-col items-center gap-2" dir="ltr">
                 <div className="text-sm font-bold text-slate-500 dark:text-slate-400 text-center" dir="rtl">בנה שבר השווה ל:</div>
-                <div className="text-6xl font-black">
+                <div className="text-4xl font-black">
                   <Fraction numerator={question.targetN} denominator={question.targetD} />
                 </div>
               </div>
             )}
             {question.mode === 'simplify' && (
-              <div dir="ltr" className="text-6xl font-black">
+              <div dir="ltr" className="text-4xl font-black">
                 <Fraction numerator={question.targetN} denominator={question.targetD} />
               </div>
             )}
@@ -345,7 +345,7 @@ export default function FractionLab() {
           {/* Numerator row */}
           <div className="w-full flex items-center justify-between gap-2">
             <button onClick={() => { setUserN((v) => Math.max(1, v - 1)); setErrorMsg(''); vibe(10); }} className="w-11 h-11 rounded-xl bg-slate-700 hover:bg-slate-600 text-2xl font-black active:scale-90 transition-all flex items-center justify-center">−</button>
-            <div className="flex-1 text-center text-5xl font-black" dir="ltr">{userN}</div>
+            <div className="flex-1 text-center text-3xl font-black" dir="ltr">{userN}</div>
             <button onClick={() => { setUserN((v) => Math.min(v + 1, (question?.targetD ?? 2) * 4)); setErrorMsg(''); vibe(10); }} className="w-11 h-11 rounded-xl bg-orange-500 hover:bg-orange-400 text-2xl font-black active:scale-90 transition-all flex items-center justify-center shadow-lg">+</button>
           </div>
 
@@ -358,7 +358,7 @@ export default function FractionLab() {
               disabled={question.mode === 'equivalent'}
               className="w-11 h-11 rounded-xl bg-slate-700 hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed text-2xl font-black active:scale-90 transition-all flex items-center justify-center"
             >−</button>
-            <div className="flex-1 text-center text-5xl font-black" dir="ltr">
+            <div className="flex-1 text-center text-3xl font-black" dir="ltr">
               {userD}
               {question.mode === 'equivalent' && <span className="text-xs text-slate-400 block">🔒</span>}
             </div>

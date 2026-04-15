@@ -317,7 +317,7 @@ function Slot({ id, shape, filled, isError, scaffoldStage, hideColors, hasSelect
       data-slot-id={id}
       onClick={() => onTap(id)}
       className={[
-        'w-14 h-14 flex items-center justify-center relative rounded-xl border-2 cursor-pointer transition-all select-none',
+        'w-11 h-11 sm:w-14 sm:h-14 flex items-center justify-center relative rounded-xl border-2 cursor-pointer transition-all select-none',
         isError
           ? 'bg-red-100 dark:bg-red-900/40 border-red-400 scale-110'
           : isEmpty
@@ -736,7 +736,7 @@ export default function MagicPatterns() {
           <div className="text-2xl text-slate-300 dark:text-slate-600 animate-bounce select-none">⬇️</div>
 
           {/* ── RHS Slots ── */}
-          <div className="flex items-center justify-center flex-wrap gap-2" dir="ltr">
+          <div className="flex items-center justify-center flex-wrap gap-1 sm:gap-2 w-full" dir="ltr">
             {question.slotParts.map((part, i) => {
               if (part.t === 'slot') {
                 return (
@@ -830,7 +830,7 @@ export default function MagicPatterns() {
                 onPointerCancel={handleCardPointerUp}
                 className={[
                   // Base: large card style (not using .draggable-item since color varies)
-                  'w-14 h-14 flex items-center justify-center rounded-xl border-2 font-black text-2xl math-font',
+                  'w-11 h-11 sm:w-14 sm:h-14 flex items-center justify-center rounded-xl border-2 font-black text-xl sm:text-2xl math-font',
                   'cursor-grab active:cursor-grabbing touch-none select-none transition-all',
                   'shadow-[0_4px_0_rgba(0,0,0,0.1)] active:shadow-none active:translate-y-1',
                   isUsed

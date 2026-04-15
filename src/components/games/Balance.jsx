@@ -21,8 +21,10 @@ function PanContent({ text }) {
   const raw = Array.from(remaining.matchAll(/(🟦|🔴|\d+(?:\.\d+)?|[^🟦🔴\d]+)/g));
   raw.forEach((m, i) => {
     const tok = m[0];
-    if (tok === '🟦' || tok === '🔴') {
-      tokens.push({ type: 'var', val: tok === '🔴' ? '🔴' : '?', key: i });
+    if (tok === '🟦') {
+      tokens.push({ type: 'var-blue', val: '?', key: i });
+    } else if (tok === '🔴') {
+      tokens.push({ type: 'var-red', val: '●', key: i });
     } else if (/^\d+(\.\d+)?$/.test(tok.trim())) {
       tokens.push({ type: 'num', val: tok.trim(), key: i });
     } else if (tok.trim()) {
@@ -35,8 +37,11 @@ function PanContent({ text }) {
   return (
     <span className="flex items-center justify-center flex-nowrap gap-0.5" dir="ltr">
       {tokens.map((t) => {
-        if (t.type === 'var') return (
+        if (t.type === 'var-blue') return (
           <span key={t.key} className="weight-var">{t.val}</span>
+        );
+        if (t.type === 'var-red') return (
+          <span key={t.key} className="weight-var-red">{t.val}</span>
         );
         if (t.type === 'num') return (
           <span key={t.key} className="weight-num">{t.val}</span>
@@ -259,8 +264,8 @@ export default function Balance() {
         {/* Rules (level 5) */}
         {rulesHtml && (
           <div className="w-full flex justify-center -mb-1 sm:-mb-2">
-            <div className="bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 font-bold px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm border border-rose-200 math-font" dir="ltr">
-              {rulesHtml}
+            <div className="bg-rose-100 dark:bg-rose-900/30 font-bold px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm border border-rose-200">
+              <PanContent text={rulesHtml} />
             </div>
           </div>
         )}

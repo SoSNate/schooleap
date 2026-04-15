@@ -1,24 +1,31 @@
 import { useState, useEffect } from 'react';
 
-export default function GameTutorial({ gameName, level = 1, onDismiss = () => {} }) {
-  const [isVisible, setIsVisible] = useState(level === 1);
+const SESSION_KEY = (gameName) => `seen_tutorial_${gameName}`;
 
+export default function GameTutorial({ gameName, level = 1, onDismiss = () => {} }) {
+  // Show once per session: first time this game is opened, regardless of level
+  const [isVisible, setIsVisible] = useState(() => {
+    try { return !sessionStorage.getItem(SESSION_KEY(gameName)); } catch { return false; }
+  });
+
+  // If someone navigates away and comes back in same session — don't show again
   useEffect(() => {
-    setIsVisible(level === 1);
-  }, [level]);
+    if (!isVisible) return;
+    try { sessionStorage.setItem(SESSION_KEY(gameName), '1'); } catch {}
+  }, [isVisible, gameName]);
 
   if (!isVisible) return null;
 
   const tutorials = {
     magicPatterns: {
-      title: '✨ תבניות הקסם',
+      title: '🪄 תבניות הקסם',
       instructions: [
-        '👁️ הסתכל על הצורות בצד שמאל',
-        '🔄 מצא את התבנית שלהן',
-        '📋 תקבל משוואה בצד ימין',
-        '✅ בחר את הצורה הנכונה להשלמת הסדרה',
+        'מולך יש תבנית של סדר פעולות שיש לבצע על מספרים כלשהם',
+        'עליך לזהות את התבנית ולבצע את הבנייה שלה עם המספרים שמולך',
+        '🔢 הזן את הערך שמתקבל מיישום התבנית',
+        '✅ לחץ "בדיקה" כדי לאשר',
       ],
-      tips: 'טיפ: חפש דפוס בצבעים, גודל או סוג הצורה',
+      tips: 'טיפ: עקוב אחרי הפעולות בסדר מימין לשמאל',
     },
     grid: {
       title: '📐 מעבדת השטחים',

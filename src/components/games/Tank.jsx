@@ -46,9 +46,16 @@ export default function Tank() {
     // Denominators: 2, 4, 5, 10 (divide nicely into 100)
     // Units: 100 for d=2, 100 for d=4, 100 for d=5, 100 for d=10
     const VALID_FRACTIONS = [
+      // u=100 (answer is n/d × 100)
       { n: 1, d: 2, u: 100 }, { n: 1, d: 4, u: 100 }, { n: 3, d: 4, u: 100 },
       { n: 1, d: 5, u: 100 }, { n: 2, d: 5, u: 100 }, { n: 3, d: 5, u: 100 }, { n: 4, d: 5, u: 100 },
       { n: 1, d: 10, u: 100 }, { n: 3, d: 10, u: 100 }, { n: 7, d: 10, u: 100 }, { n: 9, d: 10, u: 100 },
+      // u=50: answers like 25, 10, 40 — different slider range
+      { n: 1, d: 2, u: 50 }, { n: 1, d: 5, u: 50 }, { n: 2, d: 5, u: 50 },
+      { n: 1, d: 10, u: 50 }, { n: 3, d: 10, u: 50 },
+      // u=200: answers like 100, 50, 80, 150
+      { n: 1, d: 2, u: 200 }, { n: 1, d: 4, u: 200 }, { n: 3, d: 4, u: 200 },
+      { n: 1, d: 5, u: 200 }, { n: 2, d: 5, u: 200 }, { n: 4, d: 5, u: 200 },
     ];
 
     do {
@@ -209,8 +216,16 @@ export default function Tank() {
                 return (
                   <div
                     key={i}
-                    className={`absolute left-0 ${isTarget ? 'w-4 border-blue-500 dark:border-blue-400 border-[1.5px]' : 'w-2.5 border-slate-400 dark:border-slate-500 border-[1px] opacity-50'}`}
-                    style={{ bottom: `${pct}%` }}
+                    style={{
+                      position: 'absolute',
+                      left: 0,
+                      bottom: `${pct}%`,
+                      width: isTarget ? '18px' : '10px',
+                      height: 0,
+                      borderTop: isTarget
+                        ? '2px solid #3b82f6'
+                        : '1.5px solid rgba(148,163,184,0.7)',
+                    }}
                   />
                 );
               })}
@@ -220,11 +235,11 @@ export default function Tank() {
           {/* Info */}
           <div className="text-right">
             <div className="text-sm text-slate-500 dark:text-slate-400 font-bold mb-1">נתון בכוס:</div>
-            <div className="text-4xl font-black text-blue-700 dark:text-blue-400 ltr flex items-baseline gap-1" dir="ltr">
+            <div className="text-6xl font-black text-blue-700 dark:text-blue-400 ltr flex items-baseline gap-1" dir="ltr">
               <span>{pVal}</span> <span className="text-sm ml-1 text-slate-400">מ"ל</span>
             </div>
             <div className="text-sm text-slate-500 dark:text-slate-400 font-bold mt-4 mb-1">שהם בדיוק:</div>
-            <div className="text-4xl font-black text-blue-900 dark:text-blue-300 mt-1">
+            <div className="text-6xl font-black text-blue-900 dark:text-blue-300 mt-1">
               {fracDisplay}
             </div>
             {consecutiveErrors >= 2 && (

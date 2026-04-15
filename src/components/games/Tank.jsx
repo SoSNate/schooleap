@@ -22,6 +22,7 @@ export default function Tank() {
   const [fracDisplay, setFracDisplay] = useState(null);
   const [knownLineBottom, setKnownLineBottom] = useState(0);
   const [totalCapacity, setTotalCapacity] = useState(200);
+  const [tickD, setTickD] = useState(0); // denominator for tick marks
   const [feedback, setFeedback] = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
   const [errorFlash, setErrorFlash] = useState(false);
   const [lives, setLives] = useState(5);
@@ -29,6 +30,11 @@ export default function Tank() {
   const [consecutiveErrors, setConsecutiveErrors] = useState(0);
 
   const recentRef = useRef([]);
+  const timersRef = useRef([]);
+
+  useEffect(() => {
+    return () => timersRef.current.forEach(clearTimeout);
+  }, []);
 
   const initGame = useCallback(() => {
     const lvl = gameState.lvl;
@@ -36,56 +42,57 @@ export default function Tank() {
     let attempts = 0;
     const recent = recentRef.current;
 
-    // Base units per denominator: must be divisible by step=10 so totalCapacity (u×d) is always reachable
-    const DENOM_BASES = { 2: 100, 3: 90, 4: 100, 5: 100, 6: 90, 8: 100, 10: 100 };
+    // Whitelist of valid fractions: only clean, easy-to-understand fractions
+    // Denominators: 2, 4, 5, 10 (divide nicely into 100)
+    // Units: 100 for d=2, 100 for d=4, 100 for d=5, 100 for d=10
+    const VALID_FRACTIONS = [
+      { n: 1, d: 2, u: 100 }, { n: 1, d: 4, u: 100 }, { n: 3, d: 4, u: 100 },
+      { n: 1, d: 5, u: 100 }, { n: 2, d: 5, u: 100 }, { n: 3, d: 5, u: 100 }, { n: 4, d: 5, u: 100 },
+      { n: 1, d: 10, u: 100 }, { n: 3, d: 10, u: 100 }, { n: 7, d: 10, u: 100 }, { n: 9, d: 10, u: 100 },
+    ];
 
     do {
       if (lvl <= 3) {
-        d = [2, 3, 4, 5, 6, 8, 10][Math.floor(Math.random() * 7)];
-        n = Math.floor(Math.random() * (d - 1)) + 1;
-        u = DENOM_BASES[d];
+        // Single simple fraction
+        const frac = VALID_FRACTIONS[Math.floor(Math.random() * VALID_FRACTIONS.length)];
+        n = frac.n;
+        d = frac.d;
+        u = frac.u;
         display = <Fraction numerator={n} denominator={d} />;
       } else if (lvl === 4) {
-        // Procedural: two fractions with same base denominator that add to < 1
-        const baseD = [4, 6, 8][Math.floor(Math.random() * 3)];
-        let n1, n2;
-        let inner = 0;
-        do {
-          n1 = Math.floor(Math.random() * (baseD - 1)) + 1;
-          n2 = Math.floor(Math.random() * (baseD - 1)) + 1;
-          inner++;
-        } while ((n1 + n2 >= baseD || n1 === n2) && inner < 20);
-        // Reduce fractions for display
-        const g1 = gcd(n1, baseD), g2 = gcd(n2, baseD);
-        const sumN = n1 + n2;
-        const gSum = gcd(sumN, baseD);
-        d = baseD / gSum; n = sumN / gSum; u = 100;
+        // Two fractions that add to < 1
+        const pairs = [
+          { n1: 1, d1: 4, n2: 1, d2: 4 },
+          { n1: 1, d1: 5, n2: 2, d2: 5 },
+          { n1: 1, d1: 4, n2: 1, d2: 5 },
+          { n1: 2, d1: 5, n2: 1, d2: 10 },
+          { n1: 1, d1: 5, n2: 1, d2: 10 },
+        ];
+        const pair = pairs[Math.floor(Math.random() * pairs.length)];
+        n = pair.n1 + pair.n2; d = 5; u = 100; // Result simplified
         display = (
           <div className="flex items-center gap-2 math-font" dir="ltr">
-            <Fraction numerator={n1 / g1} denominator={baseD / g1} />
+            <Fraction numerator={pair.n1} denominator={pair.d1} />
             <span className="text-xl">+</span>
-            <Fraction numerator={n2 / g2} denominator={baseD / g2} />
+            <Fraction numerator={pair.n2} denominator={pair.d2} />
           </div>
         );
       } else {
-        // Procedural: two fractions with same base denominator, n1 > n2
-        const baseD = [4, 6, 8][Math.floor(Math.random() * 3)];
-        let n1, n2;
-        let inner = 0;
-        do {
-          n1 = Math.floor(Math.random() * (baseD - 1)) + 2;
-          n2 = Math.floor(Math.random() * (n1 - 1)) + 1;
-          inner++;
-        } while (n1 === n2 && inner < 20);
-        const g1 = gcd(n1, baseD), g2 = gcd(n2, baseD);
-        const diffN = n1 - n2;
-        const gDiff = gcd(diffN, baseD);
-        d = baseD / gDiff; n = diffN / gDiff; u = 100;
+        // Two fractions that subtract to > 0
+        const pairs = [
+          { n1: 3, d1: 4, n2: 1, d2: 4 },
+          { n1: 4, d1: 5, n2: 1, d2: 5 },
+          { n1: 3, d1: 5, n2: 1, d2: 5 },
+          { n1: 7, d1: 10, n2: 2, d2: 10 },
+          { n1: 3, d1: 4, n2: 1, d2: 5 },
+        ];
+        const pair = pairs[Math.floor(Math.random() * pairs.length)];
+        n = pair.n1 - pair.n2; d = 4; u = 100; // Result simplified
         display = (
           <div className="flex items-center gap-2 math-font" dir="ltr">
-            <Fraction numerator={n1 / g1} denominator={baseD / g1} />
+            <Fraction numerator={pair.n1} denominator={pair.d1} />
             <span className="text-xl">-</span>
-            <Fraction numerator={n2 / g2} denominator={baseD / g2} />
+            <Fraction numerator={pair.n2} denominator={pair.d2} />
           </div>
         );
       }
@@ -99,6 +106,7 @@ export default function Tank() {
     setPVal(u * n);
     setFracDisplay(display);
     setKnownLineBottom((n / d) * 100);
+    setTickD(d);
     setSliderMax(Math.round(ans * 1.5));
     setSliderVal(10);
     setLives(5);
@@ -160,12 +168,19 @@ export default function Tank() {
       setJustLost(true);
       setErrorFlash(true);
       setConsecutiveErrors(newErrors);
-      setTimeout(() => { setErrorFlash(false); setJustLost(false); }, 600);
+      timersRef.current.push(setTimeout(() => { setErrorFlash(false); setJustLost(false); }, 600));
       vibe([50, 50, 50]);
 
       if (newLives <= 0) {
         handleGameFail('tank');
-        setScreen('menu');
+        Swal.fire({
+          title: 'הרמה ננעלה 🔒',
+          text: 'השג 5 ניצחונות ברצף כדי להתקדם לרמה הבאה!',
+          icon: 'warning',
+          confirmButtonText: 'הבנתי',
+          confirmButtonColor: '#3b82f6',
+          customClass: { popup: 'rounded-3xl' },
+        }).then(() => setScreen('menu'));
       }
     }
   };
@@ -187,17 +202,29 @@ export default function Tank() {
               <div className="known-line" style={{ bottom: `${knownLineBottom}%` }}>
                 <span className="known-label">הידוע</span>
               </div>
+              {/* Adaptive tick marks showing denominator divisions */}
+              {tickD > 1 && Array.from({ length: tickD - 1 }, (_, i) => {
+                const pct = ((i + 1) / tickD) * 100;
+                const isTarget = Math.abs(pct - knownLineBottom) < 1;
+                return (
+                  <div
+                    key={i}
+                    className={`absolute left-0 ${isTarget ? 'w-4 border-blue-500 dark:border-blue-400 border-[1.5px]' : 'w-2.5 border-slate-400 dark:border-slate-500 border-[1px] opacity-50'}`}
+                    style={{ bottom: `${pct}%` }}
+                  />
+                );
+              })}
             </div>
           </div>
 
           {/* Info */}
           <div className="text-right">
             <div className="text-sm text-slate-500 dark:text-slate-400 font-bold mb-1">נתון בכוס:</div>
-            <div className="text-3xl font-black text-blue-700 dark:text-blue-400 ltr flex items-baseline gap-1" dir="ltr">
+            <div className="text-4xl font-black text-blue-700 dark:text-blue-400 ltr flex items-baseline gap-1" dir="ltr">
               <span>{pVal}</span> <span className="text-sm ml-1 text-slate-400">מ"ל</span>
             </div>
             <div className="text-sm text-slate-500 dark:text-slate-400 font-bold mt-4 mb-1">שהם בדיוק:</div>
-            <div className="text-2xl font-black text-blue-900 dark:text-blue-300 mt-1">
+            <div className="text-4xl font-black text-blue-900 dark:text-blue-300 mt-1">
               {fracDisplay}
             </div>
             {consecutiveErrors >= 2 && (

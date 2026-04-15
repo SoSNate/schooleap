@@ -301,6 +301,11 @@ export default function Decimal() {
   const targetRef = useRef(0);
   const rangeRef = useRef([-0.5, 2.5]);
   const recentRef = useRef([]);
+  const timersRef = useRef([]);
+
+  useEffect(() => {
+    return () => timersRef.current.forEach(clearTimeout);
+  }, []);
 
   const zoom = Math.min(maxZoom, stepIndex);
   const step = stepOptions[stepIndex];
@@ -373,23 +378,32 @@ export default function Decimal() {
 
   const checkAnswer = () => {
     const snappedPos = parseFloat((Math.round(position / step) * step).toFixed(4));
-    if (Math.abs(snappedPos - targetRef.current) < step * 0.6) {
+    const target     = targetRef.current;
+
+    if (Math.abs(snappedPos - target) < step * 0.6) {
       vibe([30, 50, 30]);
       const result = handleWinStore('decimal');
       setFeedback({ visible: true, isLevelUp: result.isLevelUp, unlocked: result.unlocked, pts: result.pts });
     } else {
       vibe([50, 50, 50]);
       setErrorFlash(true);
-      setTimeout(() => setErrorFlash(false), 400);
+      timersRef.current.push(setTimeout(() => setErrorFlash(false), 400));
       const newLives = lives - 1;
       const newErrors = consecutiveErrors + 1;
       setLives(newLives);
       setJustLost(true);
       setConsecutiveErrors(newErrors);
-      setTimeout(() => setJustLost(false), 600);
+      timersRef.current.push(setTimeout(() => setJustLost(false), 600));
       if (newLives <= 0) {
         handleGameFail('decimal');
-        setScreen('menu');
+        Swal.fire({
+          title: 'הרמה ננעלה 🔒',
+          text: 'השג 5 ניצחונות ברצף כדי להתקדם לרמה הבאה!',
+          icon: 'warning',
+          confirmButtonText: 'הבנתי',
+          confirmButtonColor: '#eab308',
+          customClass: { popup: 'rounded-3xl' },
+        }).then(() => setScreen('menu'));
       }
     }
   };
@@ -481,7 +495,7 @@ export default function Decimal() {
               style={{ color: cursorColor, background: cursorColor + '22', border: `1.5px solid ${cursorColor}66` }}
             >+</button>
             <div
-              className="font-black text-2xl px-6 py-2 rounded-xl border-[1.5px] transition-colors duration-300 bg-white dark:bg-slate-800 min-w-[7rem] text-center"
+              className="font-black text-4xl px-6 py-2 rounded-xl border-[1.5px] transition-colors duration-300 bg-white dark:bg-slate-800 min-w-[7rem] text-center"
               style={{ color: cursorColor, borderColor: cursorColor + '66' }}
               dir="ltr"
             >

@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/schooleap/',
   plugins: [react()],
+  build: {
+    sourcemap: false, // זה ימנע מהדפדפן להציג את קבצי המקור שלך ב-DevTools
+  }
 })

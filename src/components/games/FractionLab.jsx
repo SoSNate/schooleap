@@ -183,6 +183,11 @@ export default function FractionLab() {
   const [consecutiveErrors, setConsecutiveErrors] = useState(0);
 
   const recentRef = useRef([]);
+  const timersRef = useRef([]);
+
+  useEffect(() => {
+    return () => timersRef.current.forEach(clearTimeout);
+  }, []);
 
   const newQuestion = useCallback(() => {
     const q = generateQuestion(gameState.lvl, recentRef.current);
@@ -253,10 +258,17 @@ export default function FractionLab() {
         const next = lives - 1;
         setLives(next);
         setJustLost(true);
-        setTimeout(() => setJustLost(false), 600);
+        timersRef.current.push(setTimeout(() => setJustLost(false), 600));
         if (next <= 0) {
           handleGameFail('fractionLab');
-          setScreen('menu');
+          Swal.fire({
+            title: 'הרמה ננעלה 🔒',
+            text: 'השג 5 ניצחונות ברצף כדי להתקדם לרמה הבאה!',
+            icon: 'warning',
+            confirmButtonText: 'הבנתי',
+            confirmButtonColor: '#f97316',
+            customClass: { popup: 'rounded-3xl' },
+          }).then(() => setScreen('menu'));
         }
       }
       return;
@@ -297,11 +309,13 @@ export default function FractionLab() {
             {question.mode === 'equivalent' && (
               <div className="flex flex-col items-center gap-3" dir="ltr">
                 <div className="text-sm font-bold text-slate-500 dark:text-slate-400 text-center" dir="rtl">בנה שבר השווה ל:</div>
-                <Fraction numerator={question.targetN} denominator={question.targetD} />
+                <div className="text-4xl font-black">
+                  <Fraction numerator={question.targetN} denominator={question.targetD} />
+                </div>
               </div>
             )}
             {question.mode === 'simplify' && (
-              <div dir="ltr">
+              <div dir="ltr" className="text-4xl font-black">
                 <Fraction numerator={question.targetN} denominator={question.targetD} />
               </div>
             )}

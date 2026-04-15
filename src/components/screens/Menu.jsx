@@ -25,8 +25,8 @@ const getColorClasses = (colorToken) => {
     orange:  { border: 'border-orange-400 dark:border-orange-600', text: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/30' },
     violet:  { border: 'border-violet-400 dark:border-violet-600', text: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-900/30' },
     teal:    { border: 'border-teal-400 dark:border-teal-600', text: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-50 dark:bg-teal-900/30' },
-    rose:    { border: 'border-rose-400 dark:border-rose-600', text: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-50 dark:bg-rose-900/30' },
-    red:     { border: 'border-red-800 dark:border-red-900', text: 'text-red-800 dark:text-red-300', bg: 'bg-red-50 dark:bg-red-900/30' },
+    rose:    { border: 'border-rose-400 dark:border-rose-200', text: 'text-rose-600 dark:text-rose-100', bg: 'bg-rose-50 dark:bg-rose-900/30' },
+    red:     { border: 'border-red-800 dark:border-red-950', text: 'text-red-800 dark:text-red-700', bg: 'bg-red-50 dark:bg-red-950/40' },
   };
   return classMap[colorToken] || classMap.purple;
 };
@@ -53,17 +53,6 @@ export default function Menu() {
 
   const handleCheatLevel = (e, gameId) => {
     e.stopPropagation();
-    if (locks[gameId] > 0) {
-      Swal.fire({
-        title: 'המשחק נעול 🔒',
-        text: 'הרמה ננעלה! ניתן לשחרר אותה במסך ההגדרות.',
-        icon: 'info',
-        confirmButtonText: 'הבנתי',
-        confirmButtonColor: '#4f46e5',
-        customClass: { popup: 'rounded-3xl' },
-      });
-      return;
-    }
     vibe(30);
     cheatLevel(gameId);
   };

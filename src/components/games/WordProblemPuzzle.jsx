@@ -518,7 +518,14 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
           setDisabled(true);
           setTimeout(() => {
             handleGameFail('word');
-            setScreen('menu');
+            Swal.fire({
+              title: 'הרמה ננעלה 🔒',
+              text: 'השג 5 ניצחונות ברצף כדי להתקדם לרמה הבאה!',
+              icon: 'warning',
+              confirmButtonText: 'הבנתי',
+              confirmButtonColor: '#991b1b',
+              customClass: { popup: 'rounded-3xl' },
+            }).then(() => setScreen('menu'));
           }, 600);
         }
         return next;

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import useGameStore from '../../store/useGameStore';
 import Hearts from '../shared/Hearts';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
+import GameTutorial from '../shared/GameTutorial';
 import { vibe } from '../../utils/math';
 import Swal from 'sweetalert2';
 
@@ -20,12 +21,12 @@ function ShapeIcon({ shape, className = 'w-full h-full' }) {
 
 // shape → Tailwind color tokens
 const SC = {
-  sq: { text: 'text-blue-500',    bg: 'bg-blue-50 dark:bg-blue-900/25',       border: 'border-blue-300 dark:border-blue-600'       },
-  ci: { text: 'text-red-500',     bg: 'bg-red-50 dark:bg-red-900/25',         border: 'border-red-300 dark:border-red-600'         },
-  tr: { text: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/25', border: 'border-emerald-300 dark:border-emerald-600' },
-  rh: { text: 'text-orange-500',  bg: 'bg-orange-50 dark:bg-orange-900/25',   border: 'border-orange-300 dark:border-orange-600'   },
-  st: { text: 'text-purple-500',  bg: 'bg-purple-50 dark:bg-purple-900/25',   border: 'border-purple-300 dark:border-purple-600'   },
-  hx: { text: 'text-teal-500',    bg: 'bg-teal-50 dark:bg-teal-900/25',       border: 'border-teal-300 dark:border-teal-600'       },
+  sq: { text: 'text-blue-600',    bg: 'bg-blue-50 dark:bg-blue-900/30',       border: 'border-blue-400 dark:border-blue-500'       },  // כחול
+  ci: { text: 'text-rose-600',    bg: 'bg-rose-50 dark:bg-rose-900/30',       border: 'border-rose-400 dark:border-rose-500'       },  // ורוד
+  tr: { text: 'text-green-600',   bg: 'bg-green-50 dark:bg-green-900/30',     border: 'border-green-400 dark:border-green-500'     },  // ירוק
+  rh: { text: 'text-amber-500',   bg: 'bg-amber-50 dark:bg-amber-900/30',     border: 'border-amber-400 dark:border-amber-500'     },  // צהוב-כתום
+  st: { text: 'text-violet-600',  bg: 'bg-violet-50 dark:bg-violet-900/30',   border: 'border-violet-400 dark:border-violet-500'   },  // סגול
+  hx: { text: 'text-cyan-600',    bg: 'bg-cyan-50 dark:bg-cyan-900/30',       border: 'border-cyan-400 dark:border-cyan-500'       },  // תכלת
 };
 const NEUTRAL = { text: 'text-slate-500', bg: 'bg-slate-100 dark:bg-slate-700', border: 'border-slate-300 dark:border-slate-600' };
 
@@ -42,8 +43,10 @@ function shuffle(arr) {
 }
 
 // Returns n unique random shapes from the full pool — ensures variety across questions
-const SHAPE_POOL = ['sq', 'ci', 'tr', 'rh', 'st', 'hx'];
-function pickShapes(n) { return shuffle(SHAPE_POOL).slice(0, n); }
+const SHAPE_POOL_SIMPLE = ['sq', 'ci', 'tr'];                    // L1-2: צורות בסיסיות בלבד
+const SHAPE_POOL_ALL    = ['sq', 'ci', 'tr', 'rh', 'st', 'hx']; // L3+: כל הצורות
+let _activeShapePool = SHAPE_POOL_ALL; // מוגדר לפני קריאה ל-generateQuestion
+function pickShapes(n) { return shuffle(_activeShapePool).slice(0, n); }
 
 // Returns a distractor value not already in the excluded list
 function pickDistractor(exclude, min = 2, max = 9) {
@@ -252,6 +255,8 @@ const LEVEL_GENS = {
 };
 
 function generateQuestion(lvl, recentKeys) {
+  // הגדר pool צורות לפי רמה
+  _activeShapePool = lvl <= 2 ? SHAPE_POOL_SIMPLE : SHAPE_POOL_ALL;
   const pool = LEVEL_GENS[lvl] || LEVEL_GENS[1];
   for (let i = 0; i < 20; i++) {
     const q = pool[Math.floor(Math.random() * pool.length)]();
@@ -688,6 +693,7 @@ export default function MagicPatterns() {
 
   return (
     <div className={`screen-enter flex flex-col flex-1 min-h-[calc(100dvh-80px)] ${errorFlash ? 'error-flash' : ''}`}>
+      <GameTutorial gameName="magicPatterns" level={gameState.lvl} />
 
       {/* ── Scrollable content ── */}
       <div className="flex-1 flex flex-col items-center p-4 gap-4 overflow-y-auto">
@@ -722,7 +728,7 @@ export default function MagicPatterns() {
             <p className="text-xs font-bold text-slate-400 dark:text-slate-500 mb-1">התרגיל</p>
             <div className="flex items-center justify-center flex-wrap gap-1" dir="ltr">
               {question.lhsParts.map((part, i) => renderLhsPart(part, i, hideColors))}
-              <span className="math-font font-black text-2xl text-slate-400 ml-1">=</span>
+              <span className="math-font font-black text-4xl text-yellow-400 dark:text-yellow-300 ml-2 drop-shadow-md">=</span>
             </div>
           </div>
 

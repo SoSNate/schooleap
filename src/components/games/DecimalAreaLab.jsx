@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import useGameStore from '../../store/useGameStore';
 import Hearts from '../shared/Hearts';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
+import GameTutorial from '../shared/GameTutorial';
 import { vibe } from '../../utils/math';
 import Swal from 'sweetalert2';
 
@@ -11,8 +12,8 @@ const ONBOARD_KEY = 'onboard_grid';
 const UNITS       = 2;   // 2×2 unit space
 const SUBDIVS     = 10;  // 10 cells per unit
 const TOTAL_CELLS = UNITS * SUBDIVS; // 20×20
-const CELL        = 16;  // px per cell
-const GPIX        = TOTAL_CELLS * CELL; // 320px
+const CELL        = 20;  // px per cell (increased from 16 for better mobile touch targets)
+const GPIX        = TOTAL_CELLS * CELL; // 400px (was 320px)
 const AXIS_MARKS  = [0, 0.5, 1.0, 1.5, 2.0];
 
 const RECT_STYLES = [
@@ -175,7 +176,14 @@ export default function DecimalAreaLab() {
         setDisabled(true);
         setTimeout(() => {
           handleGameFail('grid');
-          setScreen('menu');
+          Swal.fire({
+            title: 'הרמה ננעלה 🔒',
+            text: 'השג 5 ניצחונות ברצף כדי להתקדם לרמה הבאה!',
+            icon: 'warning',
+            confirmButtonText: 'הבנתי',
+            confirmButtonColor: '#14b8a6',
+            customClass: { popup: 'rounded-3xl' },
+          }).then(() => setScreen('menu'));
         }, 700);
       }
       return next;
@@ -243,6 +251,7 @@ export default function DecimalAreaLab() {
 
   return (
     <div className="screen-enter flex flex-col flex-1 min-h-[calc(100dvh-80px)]">
+      <GameTutorial gameName="grid" level={gameState.lvl} />
       <div className="flex-1 flex flex-col items-center p-4 gap-4 overflow-y-auto">
 
         {/* Target card */}

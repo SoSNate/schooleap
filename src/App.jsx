@@ -27,7 +27,7 @@ const screens = {
 
 export default function App() {
   const currentScreen = useGameStore((s) => s.currentScreen);
-  const initDarkMode = useGameStore((s) => s.initDarkMode);
+  const initDarkMode  = useGameStore((s) => s.initDarkMode);
 
   useEffect(() => {
     initDarkMode();

@@ -12,7 +12,7 @@ const games = [
   { id: 'magicPatterns', label: 'תבניות הקסם',       emoji: '🪄', colorToken: 'rose'    },
   { id: 'grid',          label: 'מעבדת השטחים',      emoji: '📐', colorToken: 'teal'    },
   { id: 'word',          label: 'שאלות מילוליות',    emoji: '🧠', colorToken: 'red'     },
-  { id: 'multChamp',     label: 'אלוף הכפל',         emoji: '✖️', colorToken: 'yellow'  },
+  { id: 'multChamp',     label: 'אלוף הכפל',         emoji: '✖️', colorToken: 'lime'    },
 ];
 
 // Helper: return full Tailwind classes for a color token (avoids dynamic class names)
@@ -28,6 +28,7 @@ const getColorClasses = (colorToken) => {
     teal:    { border: 'border-teal-400 dark:border-teal-600', text: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-50 dark:bg-teal-900/30' },
     rose:    { border: 'border-rose-400 dark:border-rose-200', text: 'text-rose-600 dark:text-rose-100', bg: 'bg-rose-50 dark:bg-rose-900/30' },
     red:     { border: 'border-red-800 dark:border-red-950', text: 'text-red-800 dark:text-red-700', bg: 'bg-red-50 dark:bg-red-950/40' },
+    lime:    { border: 'border-lime-400 dark:border-lime-600', text: 'text-lime-600 dark:text-lime-400', bg: 'bg-lime-50 dark:bg-lime-900/30' },
   };
   return classMap[colorToken] || classMap.purple;
 };

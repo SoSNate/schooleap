@@ -12,7 +12,7 @@ export const GAME_COLORS = {
   magicPatterns: { token: 'rose',    bar: 'bg-rose-500' },
   grid:          { token: 'teal',    bar: 'bg-teal-500' },
   word:          { token: 'red',     bar: 'bg-red-800' },
-  multChamp:     { token: 'yellow',  bar: 'bg-yellow-500' },
+  multChamp:     { token: 'lime',    bar: 'bg-lime-500' },
 };
 
 export const anims = {

@@ -12,6 +12,7 @@ const gameOptions = [
   { value: 'magicPatterns', label: 'תבניות הקסם' },
   { value: 'grid', label: 'מעבדת השטחים' },
   { value: 'word', label: 'המעבדה המילולית' },
+  { value: 'multChamp', label: 'אלוף הכפל' },
 ];
 
 const GAME_LEGEND = [
@@ -23,6 +24,7 @@ const GAME_LEGEND = [
   { key: 'mpat', color: GAME_COLORS.magicPatterns.bar, label: 'תבניות' },
   { key: 'grid', color: GAME_COLORS.grid.bar,          label: 'שטחים' },
   { key: 'word', color: GAME_COLORS.word.bar,          label: 'מילולי' },
+  { key: 'mult', color: GAME_COLORS.multChamp.bar,     label: 'כפל' },
 ];
 
 const dayNames = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
@@ -38,6 +40,7 @@ const getGameBarClass = (shortKey) => {
     mpat: GAME_COLORS.magicPatterns.bar,
     grid: GAME_COLORS.grid.bar,
     word: GAME_COLORS.word.bar,
+    mult: GAME_COLORS.multChamp.bar,
   };
   return map[shortKey] || 'bg-slate-300';
 };
@@ -128,6 +131,7 @@ export default function Settings() {
                   <div className={`h-full ${getGameBarClass('mpat')}`} style={{ width: `${((d.games.mpat || 0) / maxPts) * 100}%` }} />
                   <div className={`h-full ${getGameBarClass('grid')}`} style={{ width: `${((d.games.grid || 0) / maxPts) * 100}%` }} />
                   <div className={`h-full ${getGameBarClass('word')}`} style={{ width: `${((d.games.word || 0) / maxPts) * 100}%` }} />
+                  <div className={`h-full ${getGameBarClass('mult')}`} style={{ width: `${((d.games.mult || 0) / maxPts) * 100}%` }} />
                 </div>
                 <div className={`w-10 text-left text-xs font-bold ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>
                   {d.pts}⭐

@@ -10,11 +10,11 @@ const ONBOARD_KEY = 'onboard_multichamp';
 // Level configs
 const LEVELS = [
   null, // index 0 unused
-  { name: 'טירון', numRange: [1, 5],  isFraction: false, timeLimit: 60 },
-  { name: 'קצין',  numRange: [1, 12], isFraction: false, timeLimit: 60 },
-  { name: 'אלוף',  numRange: [1, 10], isFraction: false, timeLimit: 45 }, // harder number combos
-  { name: 'מאסטר', isFraction: true, hard: false, timeLimit: 90 },
-  { name: 'אגדה',  isFraction: true, hard: true,  timeLimit: 90 },
+  { name: 'טירון', numRange: [1, 5],  isFraction: false, timeLimit: 30 },
+  { name: 'קצין',  numRange: [1, 12], isFraction: false, timeLimit: 30 },
+  { name: 'אלוף',  numRange: [1, 10], isFraction: false, timeLimit: 30 },
+  { name: 'מאסטר', isFraction: true, hard: false, timeLimit: 30 },
+  { name: 'אגדה',  isFraction: true, hard: true,  timeLimit: 30 },
 ];
 
 // Fraction definitions
@@ -179,19 +179,29 @@ export default function MultiplicationChamp() {
   useEffect(() => {
     if (!gameOver) return;
     clearInterval(timerRef.current);
-    const needed = LEVELS[gameState.lvl]?.isFraction ? 3 : 5;
-    if (correctPairs >= needed) {
+    if (correctPairs >= 4) {
+      // 4/4 — win + potential level up
       const result = handleWin('multChamp');
       timersRef.current.push(setTimeout(() => {
         setFeedback({ visible: true, isLevelUp: result.isLevelUp, unlocked: result.unlocked, pts: result.pts });
       }, 300));
+    } else if (correctPairs === 3) {
+      // 3/4 — give points but no level up (partial win)
+      const pts = gameState.lvl + 1;
+      Swal.fire({
+        title: 'כמעט! 👏',
+        html: `<div class="text-center">ענית נכון על <b>3 מתוך 4</b>!<br>קיבלת <b>${pts}⭐</b> אבל לא עלית רמה.<br>נסה שוב להגיע ל-4/4!</div>`,
+        confirmButtonText: 'שוב!',
+        confirmButtonColor: '#65a30d',
+        customClass: { popup: 'rounded-3xl' },
+      }).then(() => startGame());
     } else {
       handleGameFail('multChamp');
       Swal.fire({
         title: 'הזמן נגמר ⏱️',
-        html: `<div class="text-center">מצאת <b>${correctPairs}</b> מהזוגות הנכונים.<br>צריך לפחות <b>${needed}</b> כדי להתקדם!</div>`,
+        html: `<div class="text-center">ענית נכון על <b>${correctPairs} מתוך 4</b>.<br>צריך לפחות <b>3</b> כדי לקבל ניקוד!</div>`,
         confirmButtonText: 'נסה שוב',
-        confirmButtonColor: '#ca8a04',
+        confirmButtonColor: '#65a30d',
         customClass: { popup: 'rounded-3xl' },
       }).then(() => setScreen('menu'));
     }
@@ -270,13 +280,13 @@ export default function MultiplicationChamp() {
 
   return (
     <div className={`screen-enter flex flex-col items-center p-4 flex-1 min-h-[calc(100dvh-80px)] ${flash === 'wrong' ? 'error-flash' : ''}`}>
-      <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-4 md:p-6 w-full max-w-md shadow-xl flex flex-col gap-4 border-2 border-yellow-300 dark:border-yellow-700/60 border-b-4 border-b-yellow-400 dark:border-b-yellow-600 transition-colors">
+      <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-4 md:p-6 w-full max-w-md shadow-xl flex flex-col gap-4 border-2 border-lime-300 dark:border-lime-700/60 border-b-4 border-b-lime-400 dark:border-b-lime-600 transition-colors">
 
         {/* Header: score + timer */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex flex-col items-start">
             <span className="text-xs text-slate-400 font-bold">ניקוד</span>
-            <span className="text-2xl font-black text-yellow-600 dark:text-yellow-400">{score}</span>
+            <span className="text-2xl font-black text-lime-600 dark:text-lime-400">{score}</span>
           </div>
 
           {/* Timer bar */}
@@ -292,7 +302,7 @@ export default function MultiplicationChamp() {
 
           <button
             onClick={() => setShowHint(!showHint)}
-            className="w-10 h-10 rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-600 dark:text-yellow-400 font-black text-lg flex items-center justify-center hover:bg-yellow-200 transition-colors"
+            className="w-10 h-10 rounded-full bg-lime-100 dark:bg-lime-900/40 text-lime-600 dark:text-lime-400 font-black text-lg flex items-center justify-center hover:bg-lime-200 transition-colors"
           >
             💡
           </button>
@@ -300,7 +310,7 @@ export default function MultiplicationChamp() {
 
         {/* Hint (fraction levels) */}
         {showHint && cfg.isFraction && (
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded-2xl p-3 text-center text-sm text-yellow-800 dark:text-yellow-300 font-bold" dir="rtl">
+          <div className="bg-lime-50 dark:bg-lime-900/20 border border-lime-300 dark:border-lime-700 rounded-2xl p-3 text-center text-sm text-lime-800 dark:text-lime-300 font-bold" dir="rtl">
             כפל שברים: מונה × מונה, מכנה × מכנה
           </div>
         )}
@@ -309,14 +319,14 @@ export default function MultiplicationChamp() {
         <div className="flex flex-col items-center gap-1">
           <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">מצא שני מספרים שמכפלתם:</span>
           <div
-            className={`flex items-center justify-center w-24 h-16 rounded-3xl border-4 border-yellow-400 dark:border-yellow-600 bg-yellow-50 dark:bg-yellow-900/30 shadow-lg transition-all ${flash === 'correct' ? 'scale-110 border-green-500' : ''}`}
+            className={`flex items-center justify-center w-24 h-16 rounded-3xl border-4 border-lime-400 dark:border-lime-600 bg-lime-50 dark:bg-lime-900/30 shadow-lg transition-all ${flash === 'correct' ? 'scale-110 border-green-500' : ''}`}
           >
             {round.isFraction ? (
-              <div className="text-yellow-700 dark:text-yellow-300">
+              <div className="text-lime-700 dark:text-lime-300">
                 <FracDisplay n={round.target.n} d={round.target.d} />
               </div>
             ) : (
-              <span className="text-4xl font-black text-yellow-600 dark:text-yellow-400">{round.target}</span>
+              <span className="text-4xl font-black text-lime-600 dark:text-lime-400">{round.target}</span>
             )}
           </div>
         </div>
@@ -337,8 +347,8 @@ export default function MultiplicationChamp() {
                   aspect-square rounded-2xl font-black flex items-center justify-center transition-all active:scale-90 shadow-sm
                   ${isCorrectFlash ? 'bg-green-400 dark:bg-green-500 text-white scale-105 border-2 border-green-600' :
                     isWrongFlash ? 'bg-red-400 dark:bg-red-500 text-white border-2 border-red-600' :
-                    isSel ? 'bg-yellow-400 dark:bg-yellow-500 text-white border-2 border-yellow-600 scale-105' :
-                    'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border-2 border-yellow-200 dark:border-yellow-700/50 hover:bg-yellow-100 dark:hover:bg-yellow-900/50'}
+                    isSel ? 'bg-lime-400 dark:bg-lime-500 text-white border-2 border-lime-600 scale-105' :
+                    'bg-lime-50 dark:bg-lime-900/30 text-lime-800 dark:text-lime-300 border-2 border-lime-200 dark:border-lime-700/50 hover:bg-lime-100 dark:hover:bg-lime-900/50'}
                 `}
               >
                 {round.isFraction ? (
@@ -352,8 +362,12 @@ export default function MultiplicationChamp() {
         </div>
 
         {/* Progress indicator */}
-        <div className="text-center text-xs text-slate-400 dark:text-slate-500 font-bold">
-          זוגות נכונים: {correctPairs} / {cfg.isFraction ? 3 : 5}
+        <div className="flex justify-center gap-2">
+          {[1,2,3,4].map(i => (
+            <div key={i} className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-black transition-all ${correctPairs >= i ? 'bg-lime-400 border-lime-600 text-white scale-110' : 'bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-400'}`}>
+              {correctPairs >= i ? '✓' : i}
+            </div>
+          ))}
         </div>
 
       </div>

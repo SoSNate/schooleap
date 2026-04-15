@@ -82,7 +82,7 @@ const RotaryKnob = ({ stepIndex, onChange }) => {
   return (
     <div className="flex flex-col items-center gap-1">
       {/* מעגל חיצוני עם תוויות טקסט */}
-      <div className="relative flex items-center justify-center w-full h-48 mt-4">
+      <div className="relative flex items-center justify-center w-full h-36 mt-1">
 
         {/* תוויות ניתנות ללחיצה — ללא עיגול */}
         {labelDefs.map(({ idx, content, style }) => (
@@ -431,16 +431,16 @@ export default function Decimal() {
         </div>
 
         {/* Target fraction */}
-        <div className="w-full bg-slate-50 dark:bg-slate-900 rounded-2xl p-4 flex flex-col items-center gap-1 border border-slate-200 dark:border-slate-700">
+        <div className="w-full bg-slate-50 dark:bg-slate-900 rounded-2xl py-2 px-4 flex flex-col items-center gap-0.5 border border-slate-200 dark:border-slate-700">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">מקם על ציר המספרים</span>
-          <div className="mt-2 flex items-center gap-3" dir="ltr">
+          <div className="mt-1 flex items-center gap-3" dir="ltr">
             {targetFrac?.neg && (
-              <span className="font-black text-rose-500" style={{ fontSize: '3.5rem', lineHeight: 1 }}>−</span>
+              <span className="font-black text-rose-500" style={{ fontSize: '2.8rem', lineHeight: 1 }}>−</span>
             )}
             {targetFrac && (
               <div className="flex items-center gap-2">
                 {targetFrac.w > 0 && (
-                  <span className="font-black text-slate-900 dark:text-white" style={{ fontSize: '3.5rem', lineHeight: 1 }}>
+                  <span className="font-black text-slate-900 dark:text-white" style={{ fontSize: '2.8rem', lineHeight: 1 }}>
                     {targetFrac.w}
                   </span>
                 )}
@@ -449,10 +449,10 @@ export default function Decimal() {
                   className="text-slate-900 dark:text-white"
                   dir="ltr"
                 >
-                  <span style={{ fontSize: '2.5rem', borderBottom: '3px solid currentColor', padding: '0 0.4rem', display: 'block' }}>
+                  <span style={{ fontSize: '2rem', borderBottom: '3px solid currentColor', padding: '0 0.4rem', display: 'block' }}>
                     {targetFrac.n}
                   </span>
-                  <span style={{ fontSize: '2.5rem', padding: '0 0.4rem', display: 'block' }}>
+                  <span style={{ fontSize: '2rem', padding: '0 0.4rem', display: 'block' }}>
                     {targetFrac.d}
                   </span>
                 </div>
@@ -462,7 +462,7 @@ export default function Decimal() {
         </div>
 
         {/* מסגרת הכיוון הסטטית — overflow:visible מאפשר לציר לפרוץ */}
-        <div className="w-full bg-slate-50 dark:bg-slate-900 rounded-3xl p-4 md:p-6 flex flex-col items-center gap-6 shadow-inner my-4 relative z-10" style={{ overflow: 'visible' }}>
+        <div className="w-full bg-slate-50 dark:bg-slate-900 rounded-3xl p-3 flex flex-col items-center gap-3 shadow-inner my-1 relative z-10" style={{ overflow: 'visible' }}>
 
           {/* גבול יחיד — מעל הציר */}
           <div className="absolute inset-0 rounded-3xl border-2 border-slate-200 dark:border-slate-700 pointer-events-none z-20" />
@@ -520,7 +520,7 @@ export default function Decimal() {
         </div>
 
         {/* RotaryKnob — בוחר גודל צעד */}
-        <div className="w-full flex flex-col items-center gap-6 pb-14 mt-2">
+        <div className="w-full flex flex-col items-center gap-2 pb-2 mt-0">
           <div className="text-xs font-black text-slate-400 uppercase tracking-widest">🔍 דיוק הצעד</div>
           <RotaryKnob stepIndex={stepIndex} onChange={(idx) => setStepIndex(Math.min(idx, maxZoom))} maxZoom={maxZoom} />
         </div>

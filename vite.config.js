@@ -11,6 +11,6 @@ export default defineConfig({
     sourcemap: false,
     
     // כיווץ הקוד (Minification) הופך אותו לבלתי קריא עבור בני אדם
-    minify: 'esbuild',
+    minify: 'oxc',
   }
 })

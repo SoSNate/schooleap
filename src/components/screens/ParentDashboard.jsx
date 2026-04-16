@@ -527,7 +527,7 @@ export default function ParentDashboard() {
   }, [profile]);
 
   const trialDaysLeft = useMemo(() => {
-    if (!profile?.subscription_expires_at) return 30;
+    if (!profile?.subscription_expires_at) return 14;
     const diff = new Date(profile.subscription_expires_at) - new Date();
     return Math.max(0, Math.ceil(diff / (24 * 60 * 60 * 1000)));
   }, [profile]);
@@ -956,7 +956,7 @@ export default function ParentDashboard() {
               <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all ${trialDaysLeft <= 3 ? 'bg-red-400' : 'bg-indigo-500'}`}
-                  style={{ width: `${(trialDaysLeft / 30) * 100}%` }}
+                  style={{ width: `${(trialDaysLeft / 14) * 100}%` }}
                 />
               </div>
               <button

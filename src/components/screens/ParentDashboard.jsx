@@ -355,10 +355,9 @@ export default function ParentDashboard() {
     if (!user) return;
     setAddingChild(true);
     try {
-      const token = crypto.randomUUID();
       const { data, error: err } = await supabase
         .from('children')
-        .insert({ parent_id: user.id, magic_token: token, name: name || null })
+        .insert({ parent_id: user.id, name: name || null })
         .select()
         .single();
       if (err) throw err;
@@ -392,7 +391,7 @@ export default function ParentDashboard() {
     try {
       const { error: authErr } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/parent` },
+        options: { redirectTo: `${window.location.origin}/parent` }, // דינמי — עובד הן בלוקאל והן בוורסל
       });
       if (authErr) throw authErr;
     } catch (e) {

@@ -124,7 +124,6 @@ export default function Equations() {
   const initGame = useCallback(() => {
     const lvl  = gameState.lvl;
     const tier = Math.min(countRef.current, 2);
-    idCounter.current = 0;
     setLives(3);
     setJustLost(false);
 

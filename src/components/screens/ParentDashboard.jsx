@@ -171,10 +171,13 @@ function buildNotifications(events) {
 function EmptyState({ onAdd, loading }) {
   const [name, setName] = useState('');
   const [open, setOpen] = useState(false);
+  const [nameErr, setNameErr] = useState('');
 
   function submit(e) {
     e.preventDefault();
-    onAdd(name.trim() || null);
+    if (!name.trim()) { setNameErr('נדרש שם לאסטרונאוט'); return; }
+    setNameErr('');
+    onAdd(name.trim()); // NOT NULL בDB — חייב לשלוח שם
   }
 
   return (
@@ -236,10 +239,12 @@ function EmptyState({ onAdd, loading }) {
             <input
               autoFocus
               className="w-full bg-white/10 border border-white/20 text-white placeholder-slate-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              placeholder="שם הילד (אופציונלי)"
+              placeholder="שם הילד (חובה)"
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={e => { setName(e.target.value); setNameErr(''); }}
+              required
             />
+            {nameErr && <p className="text-red-400 text-xs">{nameErr}</p>}
             <div className="flex gap-3">
               <button
                 type="submit"
@@ -279,17 +284,20 @@ function EmptyState({ onAdd, loading }) {
 
 export default function ParentDashboard() {
   const [user, setUser]           = useState(null);
+  const [profile, setProfile]     = useState(null); // מ-profiles: subscription_status, subscription_expires_at
   const [child, setChild]         = useState(null);
-  const [childExists, setChildExists] = useState(null); // null=unknown, false=none, true=has child
+  const [childExists, setChildExists] = useState(null);
   const [events, setEvents]       = useState([]);
   const [goals, setGoals]         = useState([]);
   const [loading, setLoading]     = useState(true);
   const [addingChild, setAddingChild] = useState(false);
   const [copied, setCopied]       = useState(false);
   const [error, setError]         = useState(null);
-  const [view, setView]           = useState('dashboard'); // 'dashboard' | 'pricing'
+  const [view, setView]           = useState('dashboard');
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [goalForm, setGoalForm]   = useState({ title: '', reward: '' });
+  const [couponCode, setCouponCode] = useState('');
+  const [couponMsg, setCouponMsg]   = useState(null);
 
   // ─── Fetch events ──────────────────────────────────────────────────────
   const fetchEvents = useCallback(async (childToken) => {
@@ -322,9 +330,18 @@ export default function ParentDashboard() {
     }
   }, []);
 
-  // ─── Load child (without auto-creating) ───────────────────────────────
+  // ─── Load child + profile ──────────────────────────────────────────────
   const loadChild = useCallback(async (u) => {
     try {
+      // טען profile (subscription_status, subscription_expires_at)
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('subscription_status, subscription_expires_at, applied_coupon')
+        .eq('id', u.id)
+        .maybeSingle();
+      if (prof) setProfile(prof);
+
+      // טען ילד
       const { data, error: err } = await supabase
         .from('children')
         .select('*')
@@ -347,18 +364,34 @@ export default function ParentDashboard() {
     } catch (e) {
       setError('שגיאה בטעינת הנתונים. נסה לרענן את הדף.');
       console.error('[ParentDashboard] loadChild:', e);
-      setChildExists(false); // אל תתקע בטעינה
+      setChildExists(false);
     }
   }, [fetchEvents, fetchGoals]);
 
   // ─── Add child (called from EmptyState) ───────────────────────────────
+  async function handleApplyCoupon() {
+    if (!couponCode.trim()) return;
+    const { data, error: err } = await supabase.rpc('apply_coupon', { p_code: couponCode.trim().toUpperCase() });
+    if (err || data !== 'success') {
+      setCouponMsg({ ok: false, text: 'קוד לא תקף או לא פעיל' });
+    } else {
+      setCouponMsg({ ok: true, text: '✅ הקופון הופעל בהצלחה!' });
+      setCouponCode('');
+      // רענן profile
+      const { data: prof } = await supabase
+        .from('profiles').select('subscription_status, subscription_expires_at, applied_coupon')
+        .eq('id', user.id).maybeSingle();
+      if (prof) setProfile(prof);
+    }
+  }
+
   async function handleAddChild(name) {
-    if (!user) return;
+    if (!user || !name) return; // name NOT NULL בDB
     setAddingChild(true);
     try {
       const { data, error: err } = await supabase
         .from('children')
-        .insert({ parent_id: user.id, name: name || null })
+        .insert({ parent_id: user.id, name }) // magic_token יוצר DB אוטומטית
         .select()
         .single();
       if (err) throw err;
@@ -482,17 +515,22 @@ export default function ParentDashboard() {
   const radarData     = useMemo(() => buildRadarData(events), [events]);
 
   // Trial check — 14 days from created_at in children table
+  // trial/active status מה-profiles table (לפי SQL)
   const trialActive = useMemo(() => {
-    if (!child?.created_at) return true;
-    const trialEnd = new Date(child.created_at).getTime() + 14 * 24 * 60 * 60 * 1000;
-    return Date.now() < trialEnd;
-  }, [child]);
+    if (!profile) return true; // טרם נטען — אל תחסום
+    const status = profile.subscription_status;
+    if (status === 'active' || status === 'vip') return true;
+    if (status === 'expired' || status === 'canceled') return false;
+    // trial — בדוק תאריך
+    if (!profile.subscription_expires_at) return true;
+    return new Date(profile.subscription_expires_at) > new Date();
+  }, [profile]);
 
   const trialDaysLeft = useMemo(() => {
-    if (!child?.created_at) return 14;
-    const trialEnd = new Date(child.created_at).getTime() + 14 * 24 * 60 * 60 * 1000;
-    return Math.max(0, Math.ceil((trialEnd - Date.now()) / (24 * 60 * 60 * 1000)));
-  }, [child]);
+    if (!profile?.subscription_expires_at) return 30;
+    const diff = new Date(profile.subscription_expires_at) - new Date();
+    return Math.max(0, Math.ceil(diff / (24 * 60 * 60 * 1000)));
+  }, [profile]);
 
   // ─── Loading ───────────────────────────────────────────────────────────
   if (loading) {
@@ -918,7 +956,7 @@ export default function ParentDashboard() {
               <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all ${trialDaysLeft <= 3 ? 'bg-red-400' : 'bg-indigo-500'}`}
-                  style={{ width: `${(trialDaysLeft / 14) * 100}%` }}
+                  style={{ width: `${(trialDaysLeft / 30) * 100}%` }}
                 />
               </div>
               <button
@@ -928,6 +966,33 @@ export default function ParentDashboard() {
                 <CreditCard size={12} className="inline ml-1" />
                 בחר מסלול
               </button>
+            </div>
+
+            {/* Coupon */}
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm space-y-3">
+              <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest">קוד קופון</h4>
+              <div className="flex gap-2">
+                <input
+                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 text-right"
+                  placeholder="הכנס קוד..."
+                  value={couponCode}
+                  onChange={e => { setCouponCode(e.target.value.toUpperCase()); setCouponMsg(null); }}
+                />
+                <button
+                  onClick={handleApplyCoupon}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-black text-xs hover:bg-indigo-700 transition-all active:scale-95"
+                >
+                  החל
+                </button>
+              </div>
+              {couponMsg && (
+                <p className={`text-xs font-bold ${couponMsg.ok ? 'text-green-600' : 'text-red-500'}`}>
+                  {couponMsg.text}
+                </p>
+              )}
+              {profile?.applied_coupon && (
+                <p className="text-xs text-slate-400">קופון פעיל: <span className="font-bold text-indigo-600">{profile.applied_coupon}</span></p>
+              )}
             </div>
 
             {/* Pedagogical insight */}

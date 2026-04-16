@@ -216,76 +216,43 @@ export default function LandingPage() {
         style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(79,70,229,0.15) 0%, transparent 60%)' }}
       />
 
-      {/* About section */}
-      <div
-        id="about-section"
-        dir="rtl"
-        className="min-h-[100dvh] w-full bg-slate-50 py-20 px-6 relative z-10 flex items-center justify-center"
-      >
-        <div className="max-w-2xl mx-auto space-y-8">
-          {/* Header */}
-          <div className="text-center space-y-2">
-            <h2 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight">
-              היי, אני נתנאל 👋
-            </h2>
-            <p className="text-slate-500 text-sm">מורה פרטי למתמטיקה, באשקלון</p>
-          </div>
-
-          {/* Story */}
-          <div className="bg-white rounded-[2rem] border-2 border-slate-100 p-8 md:p-10 shadow-lg space-y-6">
-            <p className="text-slate-700 leading-relaxed text-base">
-              <span className="font-black text-indigo-600">מתוך היכרות עמוקה עם השטח</span>, זיהיתי את הקושי והפערים שנוצרים במעבר בין בית הספר היסודי לחטיבת הביניים.
+      {/* סקשן אודות אישי */}
+      <section id="about-section" className="py-20 bg-slate-900/50 w-full relative z-10">
+        <div className="container mx-auto px-4 max-w-4xl text-right" dir="rtl">
+          <div className="bg-slate-800/50 p-8 rounded-3xl border border-blue-500/20 backdrop-blur-sm">
+            <h2 className="text-3xl font-bold text-white mb-6">החזון שמאחורי הפלטפורמה</h2>
+            <p className="text-xl text-slate-300 leading-relaxed mb-6">
+              היי, אני נתנאל, מורה פרטי למתמטיקה מראשון לציון.
+              מתוך היכרות עמוקה עם השטח, זיהיתי את הקושי והפערים שנוצרים במעבר הקריטי בין בית הספר היסודי לחטיבת הביניים (כיתות ו' עד ז').
             </p>
-            <p className="text-slate-700 leading-relaxed text-base">
-              בילדים יש את הכלים המתמטיים. להם פשוט חסרה הביטחון והנהנעות לשימוש בהם.
-              <span className="font-black text-indigo-600 block mt-3">
-                אז בניתי את חשבונאוטיקה.
-              </span>
+            <p className="text-xl text-slate-300 leading-relaxed mb-6">
+              פיתחתי את "חשבונאוטיקה" כדי להעניק לילדים סביבה בטוחה, חווייתית ומעצימה.
+              כאן הם יכולים לקחת את הכלים שרכשו ביסודי, לשחק עם החשבון שלמדו, ולבנות ביטחון עצמי לקראת האתגרים הבאים.
             </p>
-            <p className="text-slate-700 leading-relaxed text-base">
-              סביבה בטוחה, מהנה ומחנכת. שם הילדים יכולים לקחת את הכלים שרכשו — ופשוט לשחק עם החשבון שלמדו.
-            </p>
-            <div className="bg-indigo-50 border-l-4 border-indigo-600 pl-6 py-4">
-              <p className="text-indigo-900 font-bold text-sm">
-                📧 משהו לא עובד? או יש לך הצעה מעולה?
+            <div className="bg-blue-600/20 p-4 rounded-2xl inline-block border border-blue-500/30">
+              <p className="text-blue-300 font-medium">
+                יש לכם פידבק? רעיון? אשמח לשמוע מכם אישית:
+                <a
+                  href={`mailto:${CONTACT_EMAIL}`}
+                  className="block text-white underline mt-1"
+                >
+                  {CONTACT_EMAIL}
+                </a>
               </p>
-              <p className="text-indigo-800 text-sm mt-2">
-                אני באמת רוצה לשמוע ממך.
-              </p>
-              <a
-                href={`mailto:${CONTACT_EMAIL}`}
-                className="inline-block mt-4 bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all active:scale-95"
-              >
-                שלח לי הודעה ✉️
-              </a>
             </div>
           </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 text-center">
-            {[
-              { num: '12+', label: 'שנות ניסיון' },
-              { num: '500+', label: 'תלמידים' },
-              { num: '9', label: 'משחקים' },
-            ].map((stat, i) => (
-              <div key={i} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-                <p className="text-2xl font-black text-indigo-600">{stat.num}</p>
-                <p className="text-xs text-slate-500 font-bold mt-1">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Back button */}
-          <div className="text-center pt-4">
-            <button
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="text-slate-500 hover:text-indigo-600 font-bold text-sm transition-colors"
-            >
-              ← חזור למעלה
-            </button>
-          </div>
         </div>
-      </div>
+
+        {/* Back to top */}
+        <div className="text-center mt-10">
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="text-slate-500 hover:text-blue-400 font-bold text-sm transition-colors"
+          >
+            ↑ חזור למעלה
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

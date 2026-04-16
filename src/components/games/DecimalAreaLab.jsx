@@ -12,14 +12,6 @@ const SUBDIVS     = 10;  // 10 cells per unit
 const TOTAL_CELLS = UNITS * SUBDIVS; // 20×20
 const AXIS_MARKS  = [0, 0.5, 1.0, 1.5, 2.0];
 
-// Responsive cell size: fits inside the screen with room for axes + padding
-function calcCell() {
-  // card max-w-md = 448px, padding p-5 = 20px×2, axis ml-5 = 20px, border = 8px → usable ≈ min(screenW, 448) - 68
-  const usable = Math.min(window.innerWidth, 448) - 68;
-  // snap to nearest multiple of TOTAL_CELLS so grid lines stay crisp
-  return Math.max(14, Math.floor(usable / TOTAL_CELLS));
-}
-
 const RECT_STYLES = [
   { border: 'border-blue-500',    bg: 'bg-blue-400/40',    text: 'text-blue-700 dark:text-blue-300' },
   { border: 'border-emerald-500', bg: 'bg-emerald-400/40', text: 'text-emerald-700 dark:text-emerald-300' },
@@ -70,24 +62,31 @@ export default function DecimalAreaLab() {
   const setScreen      = useGameStore((s) => s.setScreen);
 
   const [levelData,    setLevelData]    = useState(null);
-  const [placed,       setPlaced]       = useState([]);   // array of {x1,y1,x2,y2}
-  const [drawing,      setDrawing]      = useState(null); // rect being drawn
+  const [placed,       setPlaced]       = useState([]);
+  const [drawing,      setDrawing]      = useState(null);
   const [isDrawing,    setIsDrawing]    = useState(false);
   const [errorMsg,     setErrorMsg]     = useState('');
   const [lives,        setLives]        = useState(3);
   const [justLost,     setJustLost]     = useState(false);
   const [disabled,     setDisabled]     = useState(false);
   const [feedback,     setFeedback]     = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
-  const [cell,         setCell]         = useState(calcCell);
+  const [cell,         setCell]         = useState(14);
+  const [nearEdge,     setNearEdge]     = useState(false);
 
-  const gridRef = useRef(null);
+  const gridRef      = useRef(null);
+  const containerRef = useRef(null);
   const recentTargetsRef = useRef([]);
 
-  // Recalc cell size on resize
+  // ── Responsive cell size via ResizeObserver on the card container ──────────
   useEffect(() => {
-    const onResize = () => setCell(calcCell());
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    if (!containerRef.current) return;
+    const ro = new ResizeObserver(([entry]) => {
+      // card width − p-5 padding (40px) − Y-axis space (24px)
+      const usable = entry.contentRect.width - 64;
+      setCell(Math.max(12, Math.floor(usable / TOTAL_CELLS)));
+    });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
   }, []);
 
   // ── Init level ──────────────────────────────────────────────────────────────
@@ -102,10 +101,10 @@ export default function DecimalAreaLab() {
     setLives(3);
     setJustLost(false);
     setDisabled(false);
+    setNearEdge(false);
   }, [gameState.lvl]);
 
   useEffect(() => { newLevel(); }, [newLevel]);
-
 
   // ── Coordinate helper ────────────────────────────────────────────────────────
   const getCoords = useCallback((e) => {
@@ -130,10 +129,25 @@ export default function DecimalAreaLab() {
   }, [disabled, levelData, placed.length, getCoords]);
 
   const onPointerMove = useCallback((e) => {
+    // Glow: detect proximity to grid edge (within 20px)
+    const rect = gridRef.current?.getBoundingClientRect();
+    if (rect) {
+      const px = e.clientX - rect.left;
+      const py = e.clientY - rect.top;
+      const gpx = cell * TOTAL_CELLS;
+      const inside = px >= 0 && py >= 0 && px <= gpx && py <= gpx;
+      const near   = inside && (px < 20 || py < 20 || px > gpx - 20 || py > gpx - 20);
+      setNearEdge(near);
+    }
+
     if (!isDrawing) return;
     const { cx, cy } = getCoords(e);
     setDrawing((prev) => prev ? { ...prev, x2: cx, y2: cy } : prev);
-  }, [isDrawing, getCoords]);
+  }, [isDrawing, getCoords, cell]);
+
+  const onPointerLeave = useCallback(() => {
+    setNearEdge(false);
+  }, []);
 
   const onPointerUp = useCallback(() => {
     if (!isDrawing || !drawing) return;
@@ -141,9 +155,8 @@ export default function DecimalAreaLab() {
     vibe(10);
 
     const norm = normalizeRect(drawing);
-    if (norm.w === 0 || norm.h === 0) { setDrawing(null); return; } // zero-size → ignore
+    if (norm.w === 0 || norm.h === 0) { setDrawing(null); return; }
 
-    // Collision check
     const normPlaced = placed.map(normalizeRect);
     if (normPlaced.some((p) => hasCollision(norm, p))) {
       setErrorMsg('חפיפה! המלבנים לא יכולים לחפוף זה עם זה.');
@@ -182,7 +195,7 @@ export default function DecimalAreaLab() {
       }
       return next;
     });
-  }, [handleGameFail, setScreen, newLevel]);
+  }, [handleGameFail, setScreen]);
 
   // ── Check answer ─────────────────────────────────────────────────────────────
   const handleCheck = useCallback(() => {
@@ -206,7 +219,6 @@ export default function DecimalAreaLab() {
       }
     }
 
-    // WIN
     vibe([30, 50, 30]);
     setDisabled(true);
     const result = handleWin('grid');
@@ -242,6 +254,11 @@ export default function DecimalAreaLab() {
       `${cell}px ${cell}px`,
       `${cell}px ${cell}px`,
     ].join(', '),
+    // Neon Glow when pointer is near the edge
+    boxShadow: nearEdge
+      ? '0 0 0 3px #2dd4bf, 0 0 16px 6px rgba(45,212,191,0.45)'
+      : undefined,
+    transition: 'box-shadow 0.12s ease',
   };
 
   return (
@@ -263,14 +280,17 @@ export default function DecimalAreaLab() {
           <Hearts lives={lives} maxLives={3} justLost={justLost} />
         </div>
 
-        {/* Grid card */}
-        <div className="bg-white dark:bg-slate-800 rounded-[2rem] w-full max-w-md p-5 shadow-sm border-2 border-teal-200 dark:border-teal-800/40 flex flex-col items-center gap-3">
+        {/* Grid card — ref here for ResizeObserver */}
+        <div
+          ref={containerRef}
+          className="bg-white dark:bg-slate-800 rounded-[2rem] w-full max-w-md p-5 shadow-sm border-2 border-teal-200 dark:border-teal-800/40 flex flex-col items-center gap-3 overflow-hidden"
+        >
 
-          {/* Grid + axes */}
-          <div className="relative mt-4 ml-5">
+          {/* Grid + axes wrapper — ps-6 instead of ml-5 to stay inside card */}
+          <div className="relative mt-4 ps-6">
             {/* X-axis */}
             {levelData.showAxis && (
-              <div className="absolute -top-5 left-0" style={{ width: gpix }} dir="ltr">
+              <div className="absolute -top-5 left-6" style={{ width: gpix }} dir="ltr">
                 {AXIS_MARKS.map((m) => (
                   <span key={m} className="absolute text-[10px] font-mono font-bold text-slate-400 -translate-x-1/2"
                     style={{ left: `${(m / UNITS) * 100}%` }}>
@@ -281,7 +301,7 @@ export default function DecimalAreaLab() {
             )}
             {/* Y-axis */}
             {levelData.showAxis && (
-              <div className="absolute top-0 -left-5" style={{ height: gpix }} dir="ltr">
+              <div className="absolute top-0 left-0" style={{ height: gpix }} dir="ltr">
                 {AXIS_MARKS.map((m) => (
                   <span key={m} className="absolute text-[10px] font-mono font-bold text-slate-400 -translate-y-1/2"
                     style={{ top: `${(m / UNITS) * 100}%` }}>
@@ -298,6 +318,7 @@ export default function DecimalAreaLab() {
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerUp}
+              onPointerLeave={onPointerLeave}
               className="relative border-4 border-slate-500 dark:border-slate-400 bg-white dark:bg-slate-900 rounded cursor-crosshair overflow-hidden"
               style={gridBg}
             >

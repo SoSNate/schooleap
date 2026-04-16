@@ -13,8 +13,14 @@ import InstallPrompt, { captureInstallEvent, shouldAutoShowInstallPrompt } from 
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
-const APP_URL      = 'https://schooleap.vercel.app';
-const MORNING_URL  = 'https://mrng.to/BSq146MiEt';
+const APP_URL = 'https://schooleap.vercel.app';
+
+const PLAN_URLS = {
+  '1m':  'https://mrng.to/5MeNM9EHv5',
+  '3m':  'https://mrng.to/JbLqveBkPU',
+  'vip': 'https://wa.me/972535303607?text=' +
+         encodeURIComponent('שלום, אני מעוניין בפרטים על מסלול ה-VIP של חשבונאוטיקה'),
+};
 
 const PLANS = [
   {
@@ -22,6 +28,7 @@ const PLANS = [
     title: 'מנוי חודשי',
     price: 100,
     period: 'חודש אחד',
+    type: 'payment',
     desc: 'תרגול ממוקד לריענון נושאים ספציפיים.',
     features: [
       'גישה מלאה לכל השלבים והמשחקים',
@@ -34,38 +41,27 @@ const PLANS = [
     title: 'גשר הקיץ',
     price: 200,
     period: '3 חודשים',
+    type: 'payment',
+    popular: true,
     desc: 'המסלול האופטימלי להכנה מלאה לחטיבת הביניים.',
     features: [
       'כל יכולות המנוי החודשי',
-      'זיהוי קשיים מתקדם — AI מנתח דפוסי שגיאות',
+      'זיהוי קשיים — AI מנתח דפוסי שגיאות',
       'התראות חכמות על נושאים שדורשים תשומת לב',
     ],
-    popular: true,
   },
   {
-    id: '6m',
-    title: 'מנוי סמסטריאלי',
-    price: 500,
-    period: 'חצי שנה',
-    desc: 'ליווי פדגוגי אישי לאורך כל תקופת המעבר.',
+    id: 'vip',
+    title: 'VIP — מורה פרטי',
+    price: 1500,
+    period: 'חבילה אחת',
+    type: 'contact',
+    desc: '10 שיעורים אישיים של שעה + בניית מערכת למידה ייעודית לילד.',
     features: [
-      'כל יכולות גשר הקיץ',
-      'שיחות ייעוץ אישיות עם המורה',
-      'הערכה פדגוגית חצי שנתית כתובה',
-      'גישת המורה לדוח המלא של הילד',
-    ],
-  },
-  {
-    id: '12m',
-    title: 'מנוי שנתי VIP',
-    price: 800,
-    period: 'שנה שלמה',
-    desc: 'השקעה אסטרטגית בשליטה מתמטית לאורך כל השנה.',
-    features: [
-      'כל התכונות פתוחות לתמיד',
-      'ליווי אישי שוטף עם המורה',
-      'הערכות רבעוניות + דוחות מפורטים',
-      'עדכונים עתידיים ותכנים חדשים חינם',
+      '10 מפגשים בני שעה עם המורה (וידאו/פגישה)',
+      'בניית תכנית למידה אישית לילד',
+      'גישה מלאה לחשבונאוטיקה לכל תקופת החבילה',
+      'הערכה פדגוגית כתובה + מעקב רציף',
     ],
   },
 ];
@@ -296,10 +292,10 @@ export default function ParentDashboard() {
   const [error, setError]         = useState(null);
   const [view, setView]           = useState('dashboard');
   const [showGoalModal, setShowGoalModal] = useState(false);
-  const [goalForm, setGoalForm]   = useState({ title: '', reward: '' });
   const [couponCode, setCouponCode] = useState('');
   const [couponMsg, setCouponMsg]   = useState(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [goalForm, setGoalForm]     = useState({ title: '', reward: '', target_hours: '' });
 
   // ─── Fetch events ──────────────────────────────────────────────────────
   const fetchEvents = useCallback(async (childToken) => {
@@ -487,15 +483,21 @@ export default function ParentDashboard() {
   async function handleAddGoal(e) {
     e.preventDefault();
     if (!goalForm.title || !goalForm.reward || !user) return;
+    const targetHours = goalForm.target_hours ? Number(goalForm.target_hours) : null;
     try {
       const { data, error: err } = await supabase
         .from('goals')
-        .insert({ parent_id: user.id, title: goalForm.title, reward: goalForm.reward })
+        .insert({
+          parent_id: user.id,
+          title: goalForm.title,
+          reward: goalForm.reward,
+          ...(targetHours ? { target_hours: targetHours } : {}),
+        })
         .select()
         .single();
       if (err) throw err;
       setGoals(prev => [...prev, data]);
-      setGoalForm({ title: '', reward: '' });
+      setGoalForm({ title: '', reward: '', target_hours: '' });
       setShowGoalModal(false);
     } catch (e) {
       console.error('[ParentDashboard] addGoal:', e);
@@ -693,16 +695,18 @@ export default function ParentDashboard() {
                   ))}
                 </ul>
                 <a
-                  href={MORNING_URL}
+                  href={PLAN_URLS[plan.id]}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`block w-full py-3 rounded-xl font-black text-center text-sm transition-all active:scale-95 ${
-                    plan.popular
-                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'
-                      : 'bg-slate-900 text-white'
+                    plan.id === 'vip'
+                      ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-100'
+                      : plan.popular
+                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'
+                        : 'bg-slate-900 text-white'
                   }`}
                 >
-                  בחר במסלול זה
+                  {plan.id === 'vip' ? '📞 צור קשר — WhatsApp' : 'בחר במסלול זה'}
                 </a>
               </div>
             ))}
@@ -963,6 +967,25 @@ export default function ParentDashboard() {
               <h3 className="text-sm font-black text-slate-700 flex items-center gap-2 px-1">
                 <Trophy className="text-amber-500" size={16} /> הסכם הפרסים
               </h3>
+
+              {/* Reward system explainer */}
+              <div className="bg-amber-50 border border-amber-200 rounded-[1.5rem] p-4 space-y-2">
+                <p className="text-xs font-black text-amber-800 flex items-center gap-1.5">
+                  <Trophy size={13} className="text-amber-600" /> כיצד עובד מערכת התגמול?
+                </p>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  אנחנו מאמינים שילד לומד טוב יותר כשיש לו מטרה ברורה. קבעו עם ילדכם יעד זמן למידה —
+                  למשל 20 שעות של פתרון תרגילים בחודש — ופרס מוסכם שיקבל בהגיעו ליעד.
+                </p>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  המערכת תציג לילד פרוגרס-בר עם ספירה לאחור לקראת הפרס. <strong>שימו לב:</strong> זמן למידה
+                  נמדד לפי תרגילים שפותרו בפועל — לא לפי זמן שהאפליקציה פתוחה.
+                </p>
+                <p className="text-xs text-slate-500 italic">
+                  💡 הפרוגרס-בר יוצג לילד רק אם הגדרתם הסכם — אחרת הממשק שלו נשאר נקי ומינימליסטי.
+                </p>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {goals.map(g => (
                   <div key={g.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative group">
@@ -1091,6 +1114,21 @@ export default function ParentDashboard() {
                   onChange={e => setGoalForm(f => ({ ...f, reward: e.target.value }))}
                 />
               </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-widest">יעד שעות למידה (אופציונלי)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="200"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                  placeholder="למשל: 20 שעות בחודש"
+                  value={goalForm.target_hours}
+                  onChange={e => setGoalForm(f => ({ ...f, target_hours: e.target.value }))}
+                />
+                <p className="text-[10px] text-slate-400 mt-1 leading-snug">
+                  אם תגדירו יעד, הילד יראה פרוגרס-בר לקראת הפרס. ללא יעד — הפרס נשמר בדשבורד בלבד.
+                </p>
+              </div>
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
@@ -1100,7 +1138,7 @@ export default function ParentDashboard() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setShowGoalModal(false); setGoalForm({ title: '', reward: '' }); }}
+                  onClick={() => { setShowGoalModal(false); setGoalForm({ title: '', reward: '', target_hours: '' }); }}
                   className="px-5 py-3 text-slate-400 font-bold text-sm hover:text-slate-600"
                 >
                   ביטול

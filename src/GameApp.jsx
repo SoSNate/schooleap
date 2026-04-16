@@ -107,6 +107,58 @@ function OnboardingScreen({ onDone }) {
   );
 }
 
+// ─── GoalProgressBanner ───────────────────────────────────────────────────────
+// Shown only when a parent has set a goal with a target_hours value.
+// Learning time is measured by solved attempts (game_events), not open time.
+
+function GoalProgressBanner({ goal }) {
+  const TOKEN_KEY = 'hasbaonautica_child_token';
+  const [eventCount, setEventCount] = useState(0);
+
+  useEffect(() => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token || !goal?.created_at) return;
+    // Fetch events created after the goal was set (current month window)
+    supabase
+      .rpc('get_child_events', { p_token: token })
+      .then(({ data }) => {
+        if (!data) return;
+        const since = new Date(goal.created_at);
+        setEventCount(data.filter((e) => new Date(e.created_at) >= since).length);
+      })
+      .catch(() => {});
+  }, [goal]);
+
+  // 1 event ≈ 2 minutes of active problem-solving
+  const achievedMinutes = eventCount * 2;
+  const achievedHours   = achievedMinutes / 60;
+  const targetHours     = goal.target_hours;
+  const pct             = Math.min(100, (achievedHours / targetHours) * 100);
+  const done            = achievedHours >= targetHours;
+
+  return (
+    <div dir="rtl" className="mx-3 mt-2 mb-1 bg-gradient-to-l from-amber-900/80 to-yellow-900/80 backdrop-blur-sm border border-amber-500/30 rounded-2xl px-4 py-3 space-y-1.5">
+      <div className="flex justify-between items-center">
+        <p className="text-xs font-black text-amber-200 truncate max-w-[60%]">
+          🏆 {goal.title}
+        </p>
+        <p className="text-xs font-bold text-amber-300 shrink-0">
+          {achievedHours.toFixed(1)}/{targetHours} שע׳
+        </p>
+      </div>
+      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${done ? 'bg-green-400' : 'bg-gradient-to-l from-amber-400 to-yellow-300'}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="text-[10px] text-amber-400/70 text-center">
+        {done ? '🎉 הגעת ליעד! תזכיר להורים את הפרס' : `הפרס: ${goal.reward} 🎁`}
+      </p>
+    </div>
+  );
+}
+
 // ─── GameApp ──────────────────────────────────────────────────────────────────
 
 export default function GameApp() {
@@ -148,7 +200,11 @@ export default function GameApp() {
           }
           setSubChecked(true);
         })
-        .catch(() => setSubChecked(true)); // fail-open — Supabase לא זמין
+        .catch(() => {
+          // fail-closed: אם לא ניתן לאמת מנוי — חוסם גישה למשחקים
+          setSubBlocked(true);
+          setSubChecked(true);
+        });
 
       supabase.rpc('get_child_goals', { p_token: token })
         .then(({ data }) => { if (data) setGoals(data); })
@@ -209,6 +265,11 @@ export default function GameApp() {
 
   const ScreenComponent = screens[currentScreen] || Menu;
 
+  // ── Goal progress banner (only when parent set a goal with target_hours) ──
+  // Achieved learning time = number of events × 2 minutes (each event = 1 solved attempt)
+  // This counts actual problem-solving activity, not time-the-app-was-open.
+  const activeGoal = goals.find((g) => g.target_hours && g.target_hours > 0) ?? null;
+
   return (
     <div className="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors duration-300 flex flex-col min-h-[100dvh]">
       {showOnboarding && (
@@ -218,6 +279,10 @@ export default function GameApp() {
         <InstallPrompt onClose={() => setShowInstallPrompt(false)} />
       )}
       <Header />
+
+      {/* ── Reward agreement progress banner ── */}
+      {activeGoal && <GoalProgressBanner goal={activeGoal} />}
+
       <main className="flex-1 flex flex-col overflow-y-auto">
         <ScreenComponent key={currentScreen} goals={goals} />
       </main>

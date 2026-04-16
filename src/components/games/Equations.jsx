@@ -97,19 +97,25 @@ export default function Equations() {
   const [lives,      setLives]      = useState(3);
   const [justLost,   setJustLost]   = useState(false);
 
-  const dragRef     = useRef(null);
-  const dragElRef   = useRef(null);
-  const offsetRef   = useRef({ x: 0, y: 0 });
+  const dragRef      = useRef(null);
+  const dragElRef    = useRef(null);
+  const offsetRef    = useRef({ x: 0, y: 0 });
   const containerRef = useRef(null);
-  const idCounter   = useRef(0);
-  const countRef    = useRef(gameState.count);
-  const timersRef   = useRef([]);
+  const countRef     = useRef(gameState.count);
+  const timersRef    = useRef([]);
+  // cleanup: document-level drag listeners attached while mid-drag
+  const dragCleanupRef = useRef(null);
 
   useEffect(() => {
-    return () => timersRef.current.forEach(clearTimeout);
+    return () => {
+      timersRef.current.forEach(clearTimeout);
+      // Remove any dangling drag listeners if component unmounts mid-drag
+      dragCleanupRef.current?.();
+    };
   }, []);
 
-  const nextId = () => ++idCounter.current;
+  // Use crypto.randomUUID for guaranteed-unique, non-resettable block IDs
+  const nextId = () => crypto.randomUUID();
   const isLvl5 = gameState.lvl === 5;
 
   useEffect(() => { countRef.current = gameState.count; }, [gameState.count]);
@@ -251,6 +257,10 @@ export default function Equations() {
     };
 
     const end = (ev) => {
+      // Guard: touchend + mouseup both fire on touch devices — only handle once
+      if (!dragRef.current) return;
+      dragRef.current = null; // ← claim ownership immediately
+
       vibe(15);
       const endX = ev.changedTouches ? ev.changedTouches[0].clientX : ev.clientX;
       const endY = ev.changedTouches ? ev.changedTouches[0].clientY : ev.clientY;
@@ -312,15 +322,24 @@ export default function Equations() {
 
       document.removeEventListener('mousemove', move);
       document.removeEventListener('touchmove', move);
-      document.removeEventListener('mouseup', end);
-      document.removeEventListener('touchend', end);
-      dragRef.current = null;
+      document.removeEventListener('mouseup',   end);
+      document.removeEventListener('touchend',  end);
+      dragCleanupRef.current = null;
     };
 
     document.addEventListener('mousemove', move, { passive: false });
     document.addEventListener('touchmove', move, { passive: false });
-    document.addEventListener('mouseup', end);
-    document.addEventListener('touchend', end);
+    document.addEventListener('mouseup',   end);
+    document.addEventListener('touchend',  end);
+
+    // Register cleanup so unmount can remove listeners even if drag never ends
+    dragCleanupRef.current = () => {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('touchmove', move);
+      document.removeEventListener('mouseup',   end);
+      document.removeEventListener('touchend',  end);
+      if (dragElRef.current) { dragElRef.current.remove(); dragElRef.current = null; }
+    };
   };
 
   // ─── Check answer ───────────────────────────────────────────────────────────

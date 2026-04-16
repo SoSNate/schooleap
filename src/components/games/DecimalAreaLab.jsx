@@ -267,17 +267,22 @@ export default function DecimalAreaLab() {
       <div className="flex-1 flex flex-col items-center p-4 gap-4 overflow-y-auto">
 
         {/* Target card */}
-        <div className="bg-white dark:bg-slate-800 rounded-[2rem] w-full max-w-md px-5 py-4 shadow-sm border-2 border-teal-200 dark:border-teal-800/40 border-b-4 border-b-teal-400 dark:border-b-teal-700 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold text-slate-400 mb-0.5">יעד — שטח כולל</p>
+        <div className="bg-white dark:bg-slate-800 rounded-[2rem] w-full max-w-md px-5 py-4 shadow-sm border-2 border-teal-200 dark:border-teal-800/40 border-b-4 border-b-teal-400 dark:border-b-teal-700 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-slate-400 mb-0.5 whitespace-nowrap">יעד — שטח כולל</p>
             <div className="math-font font-black text-4xl text-teal-600 dark:text-teal-400 tracking-tight" dir="ltr">
               {levelData.target.toFixed(2)}
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {levelData.pieces} מלבנים{levelData.unique ? ' שונים' : ''}
-            </p>
+            {/* הוראה בולטת — מספר מלבנים */}
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              <span className="inline-flex items-center gap-1 bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 font-black text-sm px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                צייר {levelData.pieces} מלבנים{levelData.unique ? ' שונים' : ''}
+              </span>
+            </div>
           </div>
-          <Hearts lives={lives} maxLives={3} justLost={justLost} />
+          <div className="shrink-0">
+            <Hearts lives={lives} maxLives={3} justLost={justLost} />
+          </div>
         </div>
 
         {/* Grid card — ref here for ResizeObserver */}
@@ -286,66 +291,119 @@ export default function DecimalAreaLab() {
           className="bg-white dark:bg-slate-800 rounded-[2rem] w-full max-w-md p-5 shadow-sm border-2 border-teal-200 dark:border-teal-800/40 flex flex-col items-center gap-3 overflow-hidden"
         >
 
-          {/* Grid + axes wrapper — ps-6 instead of ml-5 to stay inside card */}
-          <div className="relative mt-4 ps-6">
-            {/* X-axis */}
-            {levelData.showAxis && (
-              <div className="absolute -top-5 left-6" style={{ width: gpix }} dir="ltr">
-                {AXIS_MARKS.map((m) => (
-                  <span key={m} className="absolute text-[10px] font-mono font-bold text-slate-400 -translate-x-1/2"
-                    style={{ left: `${(m / UNITS) * 100}%` }}>
-                    {m}
-                  </span>
-                ))}
+          {/* ── Grid layout: X-label row / [Y-labels | Grid] ── */}
+          <div className="mt-4" style={{ direction: 'ltr' }}>
+
+            {/* X-axis label row */}
+            {levelData.showAxis ? (
+              <div style={{ display: 'flex' }}>
+                {/* spacer matching Y-axis column width */}
+                <div style={{ width: 28, flexShrink: 0 }} />
+                {/* label strip exactly as wide as the grid */}
+                <div className="relative" style={{ width: gpix, height: 20 }}>
+                  {AXIS_MARKS.map((m) => (
+                    <span
+                      key={m}
+                      className="absolute text-[11px] font-black text-teal-400 select-none"
+                      style={{
+                        left: `${(m / UNITS) * 100}%`,
+                        transform: 'translateX(-50%)',
+                        bottom: 2,
+                      }}
+                    >
+                      {m}
+                    </span>
+                  ))}
+                </div>
               </div>
-            )}
-            {/* Y-axis */}
-            {levelData.showAxis && (
-              <div className="absolute top-0 left-0" style={{ height: gpix }} dir="ltr">
-                {AXIS_MARKS.map((m) => (
-                  <span key={m} className="absolute text-[10px] font-mono font-bold text-slate-400 -translate-y-1/2"
-                    style={{ top: `${(m / UNITS) * 100}%` }}>
-                    {m}
-                  </span>
-                ))}
-              </div>
+            ) : (
+              <div style={{ height: 8 }} />
             )}
 
-            {/* Grid canvas */}
-            <div
-              ref={gridRef}
-              onPointerDown={onPointerDown}
-              onPointerMove={onPointerMove}
-              onPointerUp={onPointerUp}
-              onPointerCancel={onPointerUp}
-              onPointerLeave={onPointerLeave}
-              className="relative border-4 border-slate-500 dark:border-slate-400 bg-white dark:bg-slate-900 rounded cursor-crosshair overflow-hidden"
-              style={gridBg}
-            >
-              {/* Placed rectangles */}
-              {normPlaced.map((r, idx) => {
-                const s = RECT_STYLES[idx % RECT_STYLES.length];
-                return (
-                  <div key={idx}
-                    className={`absolute border-2 ${s.border} ${s.bg}`}
-                    style={{ left: r.minX * cell, top: r.minY * cell, width: r.w * cell, height: r.h * cell, pointerEvents: 'none' }}>
-                    <span className={`absolute inset-0 flex items-center justify-center font-black text-xs drop-shadow ${s.text}`}>
-                      {r.area.toFixed(2)}
+            {/* Y-axis + Grid row */}
+            <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+
+              {/* Y-axis labels column */}
+              {levelData.showAxis ? (
+                <div className="relative shrink-0" style={{ width: 28, height: gpix }}>
+                  {AXIS_MARKS.map((m) => (
+                    <span
+                      key={m}
+                      className="absolute text-[11px] font-black text-teal-400 select-none"
+                      style={{
+                        top:  `${(m / UNITS) * 100}%`,
+                        right: 4,
+                        transform: 'translateY(-50%)',
+                      }}
+                    >
+                      {m}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ width: 8 }} />
+              )}
+
+              {/* Grid canvas */}
+              <div
+                ref={gridRef}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerCancel={onPointerUp}
+                onPointerLeave={onPointerLeave}
+                className="relative border-2 border-slate-400 dark:border-slate-500 bg-white dark:bg-slate-900 rounded-sm cursor-crosshair overflow-hidden shrink-0"
+                style={gridBg}
+              >
+                {/* ── Vertex dots at every 0.5-unit intersection ── */}
+                {AXIS_MARKS.flatMap((mx) =>
+                  AXIS_MARKS.map((my) => {
+                    const px = (mx / UNITS) * gpix;
+                    const py = (my / UNITS) * gpix;
+                    const isOuterCorner = (mx === 0 || mx === UNITS) && (my === 0 || my === UNITS);
+                    const size = isOuterCorner ? 7 : 5;
+                    return (
+                      <div
+                        key={`dot-${mx}-${my}`}
+                        className="absolute rounded-full pointer-events-none"
+                        style={{
+                          width:  size,
+                          height: size,
+                          background: isOuterCorner ? '#2dd4bf' : '#64748b',
+                          left: px - size / 2,
+                          top:  py - size / 2,
+                          zIndex: 4,
+                          boxShadow: isOuterCorner ? '0 0 5px 2px rgba(45,212,191,0.55)' : undefined,
+                        }}
+                      />
+                    );
+                  })
+                )}
+                {/* Placed rectangles */}
+                {normPlaced.map((r, idx) => {
+                  const s = RECT_STYLES[idx % RECT_STYLES.length];
+                  return (
+                    <div key={idx}
+                      className={`absolute border-2 ${s.border} ${s.bg}`}
+                      style={{ left: r.minX * cell, top: r.minY * cell, width: r.w * cell, height: r.h * cell, pointerEvents: 'none' }}>
+                      <span className={`absolute inset-0 flex items-center justify-center font-black text-xs drop-shadow ${s.text}`}>
+                        {r.area.toFixed(2)}
+                      </span>
+                    </div>
+                  );
+                })}
+                {/* Live drawing rect */}
+                {isDrawing && normDrawing && normDrawing.w > 0 && normDrawing.h > 0 && (
+                  <div className="absolute border-2 border-dashed border-slate-600 bg-slate-400/30"
+                    style={{ left: normDrawing.minX * cell, top: normDrawing.minY * cell, width: normDrawing.w * cell, height: normDrawing.h * cell, pointerEvents: 'none' }}>
+                    <span className="absolute inset-0 flex items-center justify-center font-black text-xs text-slate-600 dark:text-slate-300">
+                      {normDrawing.area.toFixed(2)}
                     </span>
                   </div>
-                );
-              })}
-              {/* Live drawing rect */}
-              {isDrawing && normDrawing && normDrawing.w > 0 && normDrawing.h > 0 && (
-                <div className="absolute border-2 border-dashed border-slate-600 bg-slate-400/30"
-                  style={{ left: normDrawing.minX * cell, top: normDrawing.minY * cell, width: normDrawing.w * cell, height: normDrawing.h * cell, pointerEvents: 'none' }}>
-                  <span className="absolute inset-0 flex items-center justify-center font-black text-xs text-slate-600 dark:text-slate-300">
-                    {normDrawing.area.toFixed(2)}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
+                )}
+              </div>{/* end grid canvas */}
+            </div>{/* end Y+Grid row */}
+          </div>{/* end outer ltr wrapper */}
 
           {/* Running sum display */}
           <div className="min-h-[36px] w-full flex items-center justify-center">

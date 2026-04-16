@@ -296,6 +296,8 @@ export default function ParentDashboard() {
   const [couponMsg, setCouponMsg]   = useState(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [goalForm, setGoalForm]     = useState({ title: '', reward: '', target_hours: '' });
+  const [goalSaving, setGoalSaving] = useState(false);
+  const [goalError,  setGoalError]  = useState('');
 
   // ─── Fetch events ──────────────────────────────────────────────────────
   const fetchEvents = useCallback(async (childToken) => {
@@ -404,6 +406,31 @@ export default function ParentDashboard() {
     }
   }
 
+  // ─── Realtime: auto-refresh events when child plays ───────────────────
+  // The parent dashboard would otherwise show stale data until manual refresh.
+  // This subscribes to new rows in game_events filtered by the child's token.
+  useEffect(() => {
+    if (!child?.magic_token) return;
+
+    const channel = supabase
+      .channel(`child-events-${child.magic_token}`)
+      .on(
+        'postgres_changes',
+        {
+          event:  'INSERT',
+          schema: 'public',
+          table:  'game_events',
+          filter: `child_token=eq.${child.magic_token}`,
+        },
+        (payload) => {
+          setEvents((prev) => [payload.new, ...prev].slice(0, 100));
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [child?.magic_token]);
+
   // ─── Auth listener + F5 fix ────────────────────────────────────────────
   useEffect(() => {
     captureInstallEvent(); // trap beforeinstallprompt for PWA install
@@ -482,15 +509,22 @@ export default function ParentDashboard() {
   // ─── Add goal ──────────────────────────────────────────────────────────
   async function handleAddGoal(e) {
     e.preventDefault();
-    if (!goalForm.title || !goalForm.reward || !user) return;
+    setGoalError('');
+
+    // ── Validation with visible feedback ──
+    if (!goalForm.title.trim()) { setGoalError('חסר שם יעד — מה הילד צריך לעשות?'); return; }
+    if (!goalForm.reward.trim()) { setGoalError('חסר פרס — מה יקבל בהגיעו ליעד?'); return; }
+    if (!user) { setGoalError('שגיאת התחברות — רענן את הדף ונסה שוב'); return; }
+
+    setGoalSaving(true);
     const targetHours = goalForm.target_hours ? Number(goalForm.target_hours) : null;
     try {
       const { data, error: err } = await supabase
         .from('goals')
         .insert({
           parent_id: user.id,
-          title: goalForm.title,
-          reward: goalForm.reward,
+          title:     goalForm.title.trim(),
+          reward:    goalForm.reward.trim(),
           ...(targetHours ? { target_hours: targetHours } : {}),
         })
         .select()
@@ -498,9 +532,14 @@ export default function ParentDashboard() {
       if (err) throw err;
       setGoals(prev => [...prev, data]);
       setGoalForm({ title: '', reward: '', target_hours: '' });
+      setGoalError('');
       setShowGoalModal(false);
-    } catch (e) {
-      console.error('[ParentDashboard] addGoal:', e);
+    } catch (err) {
+      console.error('[ParentDashboard] addGoal:', err);
+      // ← shows inside the modal, not outside
+      setGoalError('שגיאה בשמירה: ' + (err?.message ?? 'נסה שוב'));
+    } finally {
+      setGoalSaving(false);
     }
   }
 
@@ -1002,7 +1041,7 @@ export default function ParentDashboard() {
                   </div>
                 ))}
                 <button
-                  onClick={() => setShowGoalModal(true)}
+                  onClick={() => { setShowGoalModal(true); setGoalError(''); setGoalForm({ title: '', reward: '', target_hours: '' }); }}
                   className="border-2 border-dashed border-slate-200 rounded-2xl p-5 text-slate-400 hover:border-indigo-400 hover:text-indigo-500 transition-all flex flex-col items-center justify-center gap-2 min-h-[80px]"
                 >
                   <Plus size={20} />
@@ -1129,12 +1168,20 @@ export default function ParentDashboard() {
                   אם תגדירו יעד, הילד יראה פרוגרס-בר לקראת הפרס. ללא יעד — הפרס נשמר בדשבורד בלבד.
                 </p>
               </div>
+              {/* ── In-modal error feedback ── */}
+              {goalError && (
+                <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-2.5 text-sm text-rose-600 font-bold">
+                  ⚠️ {goalError}
+                </div>
+              )}
+
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-black text-sm shadow-lg shadow-indigo-100 active:scale-95 transition-all"
+                  disabled={goalSaving}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white py-3 rounded-xl font-black text-sm shadow-lg shadow-indigo-100 active:scale-95 transition-all"
                 >
-                  אשר חוזה
+                  {goalSaving ? '⏳ שומר...' : 'אשר חוזה ✅'}
                 </button>
                 <button
                   type="button"

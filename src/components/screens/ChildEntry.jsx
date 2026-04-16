@@ -61,11 +61,16 @@ export default function ChildEntry() {
     // שמור טוקן מקומית (cache)
     localStorage.setItem(TOKEN_KEY, token);
 
+    // mounted flag — prevents setState on unmounted component
+    let mounted = true;
+
     (async () => {
       try {
         // ── 1. בדוק סטטוס מנוי ────────────────────────────────────────────
         const { data: subRows, error: subErr } = await supabase
           .rpc('get_child_subscription', { p_token: token });
+
+        if (!mounted) return;
 
         if (!subErr && subRows && subRows.length > 0) {
           const { subscription_status, subscription_expires_at } = subRows[0];
@@ -79,7 +84,7 @@ export default function ChildEntry() {
             (subscription_status === 'trial' && expired);
 
           if (blocked) {
-            setPaywalled(true);
+            if (mounted) setPaywalled(true);
             return;
           }
         }
@@ -88,17 +93,21 @@ export default function ChildEntry() {
         const { data: events } = await supabase
           .rpc('get_child_events', { p_token: token });
 
+        if (!mounted) return;
+
         if (events && events.length > 0) {
           loadProgress(events); // מחשב מחדש רמות וכוכבים
         }
 
         // ── 3. כנס למשחק ─────────────────────────────────────────────────
-        navigate('/play', { replace: true });
+        if (mounted) navigate('/play', { replace: true });
       } catch (e) {
         console.error('[ChildEntry]', e);
-        navigate('/play', { replace: true }); // fail-open — עדיף לתת לשחק
+        if (mounted) navigate('/play', { replace: true }); // fail-open
       }
     })();
+
+    return () => { mounted = false; };
   }, [token]); // eslint-disable-line
 
   if (paywalled) return <PaywallScreen />;

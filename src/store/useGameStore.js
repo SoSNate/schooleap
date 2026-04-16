@@ -51,6 +51,26 @@ const useGameStore = create(
         [game]: { ...s[game], ...updates }
       })),
 
+      // ─── Load progress from DB events (called by ChildEntry) ───────────
+      loadProgress: (events) => {
+        const GAMES = ['equations','balance','tank','decimal','fractionLab','magicPatterns','grid','word','multChamp'];
+        const updates = {};
+        let totalStars = 0;
+
+        for (const game of GAMES) {
+          const ge = events.filter((e) => e.game_name === game);
+          if (ge.length === 0) continue;
+          const maxLvl  = Math.min(Math.max(...ge.map((e) => e.level)), 5);
+          const stars   = ge.reduce((acc, e) => acc + (e.success ? e.level + 1 : 0), 0);
+          totalStars   += stars;
+          updates[game] = { stars, lvl: maxLvl, count: 0, consecutiveWins: 0 };
+        }
+
+        if (Object.keys(updates).length > 0) {
+          set({ ...updates, totalStars });
+        }
+      },
+
       handleWin: (game) => {
         const s = get();
         if (s.isAnimating) return { isLevelUp: false, unlocked: false, pts: 0 };
@@ -122,6 +142,9 @@ const useGameStore = create(
           });
         }
 
+        // שלח אירוע ל-Supabase אוטומטית
+        get().reportGameEvent(game, get()[game].lvl, true);
+
         return { isLevelUp, unlocked, pts };
       },
 
@@ -148,6 +171,8 @@ const useGameStore = create(
           locks: { ...s.locks, [game]: s[game].lvl },
           [game]: { ...s[game], count: 0, consecutiveWins: 0 }
         });
+        // שלח אירוע כישלון ל-Supabase
+        get().reportGameEvent(game, s[game].lvl, false);
         return 'locked';
       },
 

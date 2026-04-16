@@ -347,6 +347,7 @@ export default function ParentDashboard() {
     } catch (e) {
       setError('שגיאה בטעינת הנתונים. נסה לרענן את הדף.');
       console.error('[ParentDashboard] loadChild:', e);
+      setChildExists(false); // אל תתקע בטעינה
     }
   }, [fetchEvents, fetchGoals]);
 
@@ -372,14 +373,33 @@ export default function ParentDashboard() {
     }
   }
 
-  // ─── Auth listener ─────────────────────────────────────────────────────
+  // ─── Auth listener + F5 fix ────────────────────────────────────────────
   useEffect(() => {
+    let settled = false;
+
+    // קריאה מיידית ל-getSession — מתקנת F5 כשה-listener מגיע מאוחר
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (settled) return; // onAuthStateChange כבר טיפל
+      const u = session?.user ?? null;
+      setUser(u);
+      try {
+        if (u) await loadChild(u);
+      } finally {
+        setLoading(false);
+        settled = true;
+      }
+    });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        settled = true;
         const u = session?.user ?? null;
         setUser(u);
-        if (u) await loadChild(u);
-        setLoading(false);
+        try {
+          if (u) await loadChild(u);
+        } finally {
+          setLoading(false);
+        }
       }
     );
     return () => subscription.unsubscribe();

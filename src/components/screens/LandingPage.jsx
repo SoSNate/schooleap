@@ -67,6 +67,8 @@ function OrbitDot({ size = 6, color = '#818cf8', radius = 120, angleDeg = 0, spe
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+const CONTACT_EMAIL = 'nathanielmath@example.com'; // ← שנה כאן
+
 export default function LandingPage() {
   const navigate = useNavigate();
   const [launched, setLaunched] = useState(false);
@@ -74,6 +76,10 @@ export default function LandingPage() {
   function handleEnter() {
     setLaunched(true);
     setTimeout(() => navigate('/parent'), 600);
+  }
+
+  function scrollToAbout() {
+    document.getElementById('about-section')?.scrollIntoView({ behavior: 'smooth' });
   }
 
   return (
@@ -194,6 +200,14 @@ export default function LandingPage() {
         <p className="text-slate-600 text-xs">
           כניסה עם Google • ללא סיסמה • ללא התחייבות
         </p>
+
+        {/* About link */}
+        <button
+          onClick={scrollToAbout}
+          className="text-slate-400 text-xs hover:text-indigo-300 transition-colors underline"
+        >
+          דברים עלי →
+        </button>
       </div>
 
       {/* Bottom planet decoration */}
@@ -201,6 +215,77 @@ export default function LandingPage() {
         className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-[600px] h-[300px] rounded-full pointer-events-none"
         style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(79,70,229,0.15) 0%, transparent 60%)' }}
       />
+
+      {/* About section */}
+      <div
+        id="about-section"
+        dir="rtl"
+        className="min-h-[100dvh] w-full bg-slate-50 py-20 px-6 relative z-10 flex items-center justify-center"
+      >
+        <div className="max-w-2xl mx-auto space-y-8">
+          {/* Header */}
+          <div className="text-center space-y-2">
+            <h2 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight">
+              היי, אני נתנאל 👋
+            </h2>
+            <p className="text-slate-500 text-sm">מורה פרטי למתמטיקה, באשקלון</p>
+          </div>
+
+          {/* Story */}
+          <div className="bg-white rounded-[2rem] border-2 border-slate-100 p-8 md:p-10 shadow-lg space-y-6">
+            <p className="text-slate-700 leading-relaxed text-base">
+              <span className="font-black text-indigo-600">מתוך היכרות עמוקה עם השטח</span>, זיהיתי את הקושי והפערים שנוצרים במעבר בין בית הספר היסודי לחטיבת הביניים.
+            </p>
+            <p className="text-slate-700 leading-relaxed text-base">
+              בילדים יש את הכלים המתמטיים. להם פשוט חסרה הביטחון והנהנעות לשימוש בהם.
+              <span className="font-black text-indigo-600 block mt-3">
+                אז בניתי את חשבונאוטיקה.
+              </span>
+            </p>
+            <p className="text-slate-700 leading-relaxed text-base">
+              סביבה בטוחה, מהנה ומחנכת. שם הילדים יכולים לקחת את הכלים שרכשו — ופשוט לשחק עם החשבון שלמדו.
+            </p>
+            <div className="bg-indigo-50 border-l-4 border-indigo-600 pl-6 py-4">
+              <p className="text-indigo-900 font-bold text-sm">
+                📧 משהו לא עובד? או יש לך הצעה מעולה?
+              </p>
+              <p className="text-indigo-800 text-sm mt-2">
+                אני באמת רוצה לשמוע ממך.
+              </p>
+              <a
+                href={`mailto:${CONTACT_EMAIL}`}
+                className="inline-block mt-4 bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all active:scale-95"
+              >
+                שלח לי הודעה ✉️
+              </a>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-4 text-center">
+            {[
+              { num: '12+', label: 'שנות ניסיון' },
+              { num: '500+', label: 'תלמידים' },
+              { num: '9', label: 'משחקים' },
+            ].map((stat, i) => (
+              <div key={i} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+                <p className="text-2xl font-black text-indigo-600">{stat.num}</p>
+                <p className="text-xs text-slate-500 font-bold mt-1">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Back button */}
+          <div className="text-center pt-4">
+            <button
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              className="text-slate-500 hover:text-indigo-600 font-bold text-sm transition-colors"
+            >
+              ← חזור למעלה
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

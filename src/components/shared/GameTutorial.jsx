@@ -1,88 +1,183 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
-const SESSION_KEY = (gameName) => `seen_tutorial_${gameName}`;
+// ─── Tutorial data — כל 9 משחקים ────────────────────────────────────────────
 
-export default function GameTutorial({ gameName, level = 1, onDismiss = () => {} }) {
-  // Show once per session: first time this game is opened, regardless of level
-  const [isVisible, setIsVisible] = useState(() => {
+const TUTORIALS = {
+  equations: {
+    emoji: '🧩',
+    title: 'כאן בונים בכיף',
+    steps: [
+      'גרור מספרים ואופרטורים מהמאגר לתוך המשבצות',
+      'בנה משוואה שנותנת את התוצאה המבוקשת',
+      'ברמות גבוהות — שים לב לסדר פעולות (× ÷ לפני + −)',
+      'לחץ "בדיקה" כשסיימת לבנות',
+    ],
+    tip: 'כפל וחילוק קודמים לחיבור וחיסור!',
+  },
+  balance: {
+    emoji: '⚖️',
+    title: 'שומרים על איזון',
+    steps: [
+      'בצד שמאל יש ביטוי מתמטי — זה הנתון שלך',
+      'בנה ביטוי שקול בצד ימין',
+      'ניתן להוסיף או להחסיר משני הצדדים יחד',
+      'הכף חייבת להישאר מאוזנת עד הסוף!',
+    ],
+    tip: 'מה שעושים לצד אחד — עושים לשני!',
+  },
+  tank: {
+    emoji: '🧪',
+    title: 'חצי הכוס המלאה',
+    steps: [
+      'מולך שבר — למשל ¾',
+      'גרור את מחוון הכמות עד לסימון הנכון על הכוס',
+      'הקו הכחול מסמן את היעד',
+      'לחץ "בדיקה" כשהמים בגובה הנכון',
+    ],
+    tip: 'מצא את הסימון המקווקו על דופן הכוס!',
+  },
+  decimal: {
+    emoji: '🎯',
+    title: 'תפוס את הנקודה',
+    steps: [
+      'מולך מספר עשרוני — למשל 0.75',
+      'גרור את החץ לנקודה הנכונה על ציר המספרים',
+      'שים לב לעשיריות ולמאיות!',
+      'לחץ "בדיקה" כשהכוון נכון',
+    ],
+    tip: 'כל קפיצה קטנה = 0.1, כל קפיצה זעירה = 0.01',
+  },
+  fractionLab: {
+    emoji: '🍕',
+    title: 'מעבדת השברים',
+    steps: [
+      'מולך שבר יעד — למשל ½',
+      'בנה שבר שווה ערך באמצעות החלוקה של הפיצה',
+      'ניתן לשנות מונה ומכנה עם החיצים',
+      'לחץ "בדיקה" כשהשבר שלך שווה ליעד',
+    ],
+    tip: '½ = 2/4 = 3/6 — כולם שווים!',
+  },
+  magicPatterns: {
+    emoji: '🪄',
+    title: 'תבניות הקסם',
+    steps: [
+      'מולך תבנית של סדר פעולות על מספרים',
+      'נסה להבין מה הפעולה: ×2? +10? ÷3?',
+      'הזן את הערך שמתקבל מיישום התבנית',
+      'לחץ "בדיקה" כדי לאשר את התשובה',
+    ],
+    tip: 'עקוב אחרי הפעולות בסדר — מימין לשמאל!',
+  },
+  grid: {
+    emoji: '📐',
+    title: 'מעבדת השטחים',
+    steps: [
+      'מולך שטח מבוקש — למשל 12 יחידות רבועות',
+      'גרור מלבן על הגריד בגודל הנכון',
+      'כל משבצת = יחידה אחת',
+      'לחץ "בדיקה" כשהשטח תואם',
+    ],
+    tip: 'שטח מלבן = אורך × רוחב',
+  },
+  word: {
+    emoji: '🧠',
+    title: 'שאלות מילוליות',
+    steps: [
+      'קרא את הסיפור בעיון',
+      'מצא את המספרים הרלוונטיים',
+      'החלט על פעולה: +, −, ×, ÷',
+      'חשב וכתוב את התשובה',
+    ],
+    tip: 'קרא פעמיים — הפרטים חשובים!',
+  },
+  multChamp: {
+    emoji: '✖️',
+    title: 'אלוף הכפל',
+    steps: [
+      'מולך גריד של כפל — 30 שניות!',
+      'לחץ על כל משבצת ומלא את התוצאה',
+      'ניסה להשלים כמה שיותר בזמן',
+      'כל תשובה נכונה מקנה כוכב',
+    ],
+    tip: 'התחל מהשורות שאתה הכי שולט בהן!',
+  },
+};
+
+// ─── SESSION helpers ──────────────────────────────────────────────────────────
+
+const SESSION_KEY  = (g) => `seen_tutorial_${g}`;
+const ONBOARD_KEY  = 'seen_onboarding_v1';
+
+export function clearAllTutorials() {
+  Object.keys(TUTORIALS).forEach((g) => {
+    try { sessionStorage.removeItem(SESSION_KEY(g)); } catch {}
+  });
+}
+
+// ─── GameTutorial Component ───────────────────────────────────────────────────
+
+export default function GameTutorial({ gameName, onDismiss = () => {} }) {
+  const [visible, setVisible] = useState(() => {
     try { return !sessionStorage.getItem(SESSION_KEY(gameName)); } catch { return false; }
   });
 
-  // If someone navigates away and comes back in same session — don't show again
-  useEffect(() => {
-    if (!isVisible) return;
+  const tutorial = TUTORIALS[gameName];
+  if (!visible || !tutorial) return null;
+
+  function dismiss() {
     try { sessionStorage.setItem(SESSION_KEY(gameName), '1'); } catch {}
-  }, [isVisible, gameName]);
-
-  if (!isVisible) return null;
-
-  const tutorials = {
-    magicPatterns: {
-      title: '🪄 תבניות הקסם',
-      instructions: [
-        'מולך יש תבנית של סדר פעולות שיש לבצע על מספרים כלשהם',
-        'עליך לזהות את התבנית ולבצע את הבנייה שלה עם המספרים שמולך',
-        '🔢 הזן את הערך שמתקבל מיישום התבנית',
-        '✅ לחץ "בדיקה" כדי לאשר',
-      ],
-      tips: 'טיפ: עקוב אחרי הפעולות בסדר מימין לשמאל',
-    },
-    grid: {
-      title: '📐 מעבדת השטחים',
-      instructions: [
-        '📦 גרור את המלבן על הגריד',
-        '📐 כל משבצת = 1 יחידה',
-        '🎯 בנה מלבן בגודל המבוקש',
-        '✅ לחץ "בדיקה" כדי לאשר',
-      ],
-      tips: 'טיפ: זכור את נוסחת השטח: אורך × רוחב',
-    },
-    balance: {
-      title: '⚖️ שומרים על איזון',
-      instructions: [
-        '⚖️ הנוסחה בצד שמאל חייבת להיות נכונה',
-        '⚖️ בנה משוואה בצד ימין שוות ערך',
-        '➕➖ תוכל להוסיף/להחסיר משני הצדדים',
-        '✅ שמור על האיזון עד סוף!',
-      ],
-      tips: 'טיפ: עשה אותו דבר לשני הצדדים כדי לשמור על איזון',
-    },
-  };
-
-  const tutorial = tutorials[gameName];
-  if (!tutorial) return null;
+    setVisible(false);
+    onDismiss();
+  }
 
   return (
-    <div className="fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl">
-        <h2 className="text-2xl font-black mb-4 text-center">{tutorial.title}</h2>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
+      <div
+        dir="rtl"
+        className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden
+                   animate-[slide-up_0.3s_ease-out]"
+        style={{ animation: 'slideUp .25s ease-out' }}
+      >
+        <style>{`@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}`}</style>
 
-        <div className="bg-slate-50 dark:bg-slate-700/50 rounded-2xl p-4 mb-6">
-          <ul className="space-y-3">
-            {tutorial.instructions.map((instruction, i) => (
-              <li key={i} className="flex items-start gap-3 text-sm font-bold">
-                <span className="text-lg min-w-fit">({i + 1})</span>
-                <span className="text-slate-700 dark:text-slate-300">{instruction}</span>
-              </li>
-            ))}
-          </ul>
+        {/* Header */}
+        <div className="bg-gradient-to-l from-indigo-600 to-indigo-800 px-6 py-5 text-white text-right">
+          <div className="text-4xl mb-1">{tutorial.emoji}</div>
+          <h2 className="text-xl font-black">{tutorial.title}</h2>
+          <p className="text-indigo-200 text-xs mt-0.5">איך משחקים?</p>
         </div>
 
-        <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-400 px-4 py-3 rounded-lg mb-6">
+        {/* Steps */}
+        <div className="px-6 py-5 space-y-3">
+          {tutorial.steps.map((step, i) => (
+            <div key={i} className="flex items-start gap-3">
+              <div className="min-w-[28px] h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 font-black text-sm flex items-center justify-center">
+                {i + 1}
+              </div>
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-300 leading-relaxed pt-0.5">
+                {step}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Tip */}
+        <div className="mx-6 mb-5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 rounded-2xl px-4 py-3">
           <p className="text-xs font-bold text-amber-800 dark:text-amber-300">
-            💡 {tutorial.tips}
+            💡 טיפ: {tutorial.tip}
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setIsVisible(false);
-            onDismiss();
-          }}
-          className="w-full bg-blue-600 dark:bg-blue-500 text-white rounded-2xl font-black py-3 text-lg hover:bg-blue-700 transition-colors active:scale-95"
-        >
-          בואו נתחיל! 🚀
-        </button>
+        {/* CTA */}
+        <div className="px-6 pb-6">
+          <button
+            onClick={dismiss}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black py-3.5 text-base transition-all active:scale-95"
+          >
+            בואו נתחיל! 🚀
+          </button>
+        </div>
       </div>
     </div>
   );

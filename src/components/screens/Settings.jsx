@@ -2,6 +2,9 @@ import { useState } from 'react';
 import useGameStore from '../../store/useGameStore';
 import { GAME_COLORS } from '../../utils/math';
 import Swal from 'sweetalert2';
+import { clearAllTutorials } from '../shared/GameTutorial';
+
+const ONBOARD_KEY = 'seen_onboarding_v1';
 
 const gameOptions = [
   { value: 'equations', label: 'כאן בונים בכיף' },
@@ -81,6 +84,18 @@ export default function Settings() {
       position: 'top-start',
       timer: 2000,
       showConfirmButton: false,
+    });
+  };
+
+  const handleReplayTutorials = () => {
+    clearAllTutorials();
+    try { localStorage.removeItem(ONBOARD_KEY); } catch {}
+    Swal.fire({
+      title: '✅ ההסברים אופסו!',
+      text: 'בפעם הבאה שתיכנס לכל משחק תראה שוב את ההסבר.',
+      icon: 'success',
+      confirmButtonText: 'הבנתי',
+      timer: 2500,
     });
   };
 
@@ -195,8 +210,18 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Replay tutorials */}
+      <div className="w-full max-w-md">
+        <button
+          onClick={handleReplayTutorials}
+          className="w-full text-sm font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40 px-4 py-4 rounded-[2rem] border border-indigo-100 dark:border-indigo-900 transition-colors active:scale-95"
+        >
+          📖 חזור על ההסברים הראשוניים
+        </button>
+      </div>
+
       {/* Reset */}
-      <div className="w-full max-w-md mt-4">
+      <div className="w-full max-w-md">
         <button
           onClick={handleReset}
           className="w-full text-sm font-bold text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/20 dark:hover:bg-rose-900/40 px-4 py-4 rounded-[2rem] border border-rose-100 dark:border-rose-900 transition-colors active:scale-95"

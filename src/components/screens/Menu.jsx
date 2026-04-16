@@ -33,7 +33,7 @@ const getColorClasses = (colorToken) => {
   return classMap[colorToken] || classMap.purple;
 };
 
-export default function Menu() {
+export default function Menu({ goals = [] }) {
   const setScreen = useGameStore((s) => s.setScreen);
   const locks = useGameStore((s) => s.locks);
   const cheatLevel = useGameStore((s) => s.cheatLevel);
@@ -76,6 +76,25 @@ export default function Menu() {
           <DotLottieReact src={anims.menuHero} autoplay loop />
         </div>
       </div>
+
+      {/* Goals banner — מוצג רק אם ההורה הגדיר יעדים */}
+      {goals.length > 0 && (
+        <div dir="rtl" className="w-full max-w-sm mb-4 space-y-2">
+          <p className="text-xs font-black text-amber-600 dark:text-amber-400 px-1">🏆 הסכמי הפרסים שלך</p>
+          {goals.map((g) => (
+            <div
+              key={g.id}
+              className="flex items-center gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 rounded-2xl px-4 py-3"
+            >
+              <span className="text-xl">🎁</span>
+              <div className="text-right flex-1">
+                <p className="text-xs font-black text-slate-700 dark:text-slate-200">{g.title}</p>
+                <p className="text-xs text-amber-600 dark:text-amber-400 font-bold">פרס: {g.reward}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {games.map((g) => {
         const colors = getColorClasses(g.colorToken);

@@ -9,6 +9,7 @@ import {
   GraduationCap, Info, Share2, Mail, CreditCard, Trash2,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import InstallPrompt, { captureInstallEvent, shouldAutoShowInstallPrompt } from '../shared/InstallPrompt';
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
@@ -298,6 +299,7 @@ export default function ParentDashboard() {
   const [goalForm, setGoalForm]   = useState({ title: '', reward: '' });
   const [couponCode, setCouponCode] = useState('');
   const [couponMsg, setCouponMsg]   = useState(null);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
 
   // ─── Fetch events ──────────────────────────────────────────────────────
   const fetchEvents = useCallback(async (childToken) => {
@@ -408,6 +410,7 @@ export default function ParentDashboard() {
 
   // ─── Auth listener + F5 fix ────────────────────────────────────────────
   useEffect(() => {
+    captureInstallEvent(); // trap beforeinstallprompt for PWA install
     let settled = false;
 
     // קריאה מיידית ל-getSession — מתקנת F5 כשה-listener מגיע מאוחר
@@ -532,6 +535,14 @@ export default function ParentDashboard() {
     return Math.max(0, Math.ceil(diff / (24 * 60 * 60 * 1000)));
   }, [profile]);
 
+  // Total days in current plan (for progress bar denominator)
+  const planTotalDays = useMemo(() => {
+    const status = profile?.subscription_status;
+    if (status === 'vip') return 36500; // 100 years
+    if (status === 'active') return 30;  // default paid plan
+    return 14; // trial
+  }, [profile]);
+
   // ─── Loading ───────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -587,17 +598,21 @@ export default function ParentDashboard() {
   if (!trialActive) {
     return (
       <div dir="rtl" className="min-h-[100dvh] bg-slate-50 p-4 flex flex-col items-center justify-center gap-6">
-        <div className="bg-white rounded-3xl shadow-lg p-8 max-w-sm w-full text-center space-y-4">
-          <div className="text-5xl">⏰</div>
-          <h2 className="text-2xl font-black text-slate-800">תקופת הניסיון הסתיימה</h2>
+        <div className="bg-white rounded-3xl shadow-lg p-8 max-w-sm w-full text-center space-y-4 border-2 border-red-100">
+          <div className="text-5xl">🔴</div>
+          <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
+            <p className="text-red-700 font-black text-sm">⚠️ הילד לא יכול לגשת למשחקים</p>
+            <p className="text-red-500 text-xs mt-1">המנוי פג — הילד רואה הודעת שגיאה טכנית</p>
+          </div>
+          <h2 className="text-2xl font-black text-slate-800">חידוש מנוי נדרש</h2>
           <p className="text-slate-500 text-sm leading-relaxed">
-            14 ימי הניסיון החינמיים הסתיימו.<br />בחרו מסלול להמשיך ליהנות מהאפליקציה.
+            תקופת הניסיון החינמית הסתיימה.<br />בחרו מסלול כדי לחדש את הגישה.
           </p>
           <button
             onClick={() => setView('pricing')}
-            className="w-full bg-indigo-600 text-white py-3 rounded-2xl font-black text-sm shadow-lg shadow-indigo-100 active:scale-95 transition-all"
+            className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-2xl font-black text-sm shadow-lg active:scale-95 transition-all"
           >
-            צפה במסלולים
+            חדש מנוי עכשיו →
           </button>
           <button onClick={handleLogout} className="text-xs text-slate-400 hover:text-red-500">
             יציאה
@@ -742,11 +757,19 @@ export default function ParentDashboard() {
             <span className="font-black text-lg">חשבונאוטיקה</span>
           </div>
           <div className="flex items-center gap-3">
-            {trialDaysLeft > 0 && (
-              <span className="text-xs font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-100">
-                {trialDaysLeft} ימים נותרו בניסיון
+            {profile?.subscription_status === 'vip' ? (
+              <span className="text-xs font-bold text-violet-600 bg-violet-50 px-3 py-1 rounded-full border border-violet-100">
+                ✨ VIP
               </span>
-            )}
+            ) : profile?.subscription_status === 'active' ? (
+              <span className="text-xs font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-100">
+                ✅ מנוי פעיל — {trialDaysLeft} ימים
+              </span>
+            ) : trialDaysLeft > 0 ? (
+              <span className="text-xs font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-100">
+                ניסיון — {trialDaysLeft} ימים נותרו
+              </span>
+            ) : null}
             <button
               onClick={() => setView('pricing')}
               className="bg-indigo-600 text-white px-4 py-1.5 rounded-xl font-bold text-xs shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all"
@@ -778,6 +801,36 @@ export default function ParentDashboard() {
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
             <p className="text-red-600 text-sm break-all">{error}</p>
+          </div>
+        )}
+
+        {/* Coupon banner — visible on all screen sizes, only when not active/vip */}
+        {profile && profile.subscription_status !== 'active' && profile.subscription_status !== 'vip' && (
+          <div className="bg-gradient-to-l from-indigo-50 to-violet-50 border-2 border-indigo-200 rounded-[2rem] p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex-1">
+              <p className="text-sm font-black text-indigo-800">🎟️ יש לך קוד קופון?</p>
+              <p className="text-xs text-indigo-500 mt-0.5">הזן כאן לפעל מנוי מיידי</p>
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <input
+                className="flex-1 sm:w-44 bg-white border-2 border-indigo-200 rounded-xl px-3 py-2.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 text-right placeholder-slate-400"
+                placeholder="הכנס קוד..."
+                value={couponCode}
+                onChange={e => { setCouponCode(e.target.value.toUpperCase()); setCouponMsg(null); }}
+                onKeyDown={e => e.key === 'Enter' && handleApplyCoupon()}
+              />
+              <button
+                onClick={handleApplyCoupon}
+                className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-black text-sm hover:bg-indigo-700 transition-all active:scale-95 whitespace-nowrap"
+              >
+                החל
+              </button>
+            </div>
+            {couponMsg && (
+              <p className={`text-xs font-bold w-full sm:w-auto ${couponMsg.ok ? 'text-green-600' : 'text-red-500'}`}>
+                {couponMsg.text}
+              </p>
+            )}
           </div>
         )}
 
@@ -860,6 +913,17 @@ export default function ParentDashboard() {
                   </div>
                 </details>
               )}
+            </div>
+
+            {/* PWA Install */}
+            <div className="bg-white rounded-[2rem] p-5 border border-slate-100 shadow-sm">
+              <button
+                onClick={() => setShowInstallPrompt(true)}
+                className="w-full flex items-center justify-center gap-2 text-sm font-black text-violet-600 hover:text-violet-800 bg-violet-50 hover:bg-violet-100 px-4 py-3.5 rounded-2xl border border-violet-100 transition-colors active:scale-95"
+              >
+                📲 צור אייקון במסך הבית
+              </button>
+              <p className="text-xs text-slate-400 text-center mt-2">גישה מהירה ללוח הבקרה מהמסך הראשי</p>
             </div>
 
             {/* Radar chart */}
@@ -946,17 +1010,21 @@ export default function ParentDashboard() {
 
             {/* Trial status */}
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm space-y-3">
-              <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest">סטטוס ניסיון</h4>
+              <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest">
+                {profile?.subscription_status === 'vip' ? 'סטטוס VIP' : profile?.subscription_status === 'active' ? 'מנוי פעיל' : 'סטטוס ניסיון'}
+              </h4>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-slate-700">ימים שנותרו</span>
-                <span className={`text-lg font-black ${trialDaysLeft <= 3 ? 'text-red-500' : 'text-indigo-600'}`}>
-                  {trialDaysLeft}
+                <span className="text-sm font-bold text-slate-700">
+                  {profile?.subscription_status === 'vip' ? 'גישה ללא הגבלה' : 'ימים שנותרו'}
+                </span>
+                <span className={`text-lg font-black ${profile?.subscription_status === 'vip' ? 'text-violet-500' : trialDaysLeft <= 3 ? 'text-red-500' : 'text-indigo-600'}`}>
+                  {profile?.subscription_status === 'vip' ? '∞' : trialDaysLeft}
                 </span>
               </div>
               <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all ${trialDaysLeft <= 3 ? 'bg-red-400' : 'bg-indigo-500'}`}
-                  style={{ width: `${(trialDaysLeft / 14) * 100}%` }}
+                  style={{ width: `${Math.min(100, (trialDaysLeft / planTotalDays) * 100)}%` }}
                 />
               </div>
               <button
@@ -968,32 +1036,12 @@ export default function ParentDashboard() {
               </button>
             </div>
 
-            {/* Coupon */}
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm space-y-3">
-              <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest">קוד קופון</h4>
-              <div className="flex gap-2">
-                <input
-                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 text-right"
-                  placeholder="הכנס קוד..."
-                  value={couponCode}
-                  onChange={e => { setCouponCode(e.target.value.toUpperCase()); setCouponMsg(null); }}
-                />
-                <button
-                  onClick={handleApplyCoupon}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-black text-xs hover:bg-indigo-700 transition-all active:scale-95"
-                >
-                  החל
-                </button>
-              </div>
-              {couponMsg && (
-                <p className={`text-xs font-bold ${couponMsg.ok ? 'text-green-600' : 'text-red-500'}`}>
-                  {couponMsg.text}
-                </p>
-              )}
-              {profile?.applied_coupon && (
+            {/* Applied coupon indicator */}
+            {profile?.applied_coupon && (
+              <div className="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm">
                 <p className="text-xs text-slate-400">קופון פעיל: <span className="font-bold text-indigo-600">{profile.applied_coupon}</span></p>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Pedagogical insight */}
             <div className="bg-indigo-50 p-5 rounded-[2rem] border border-indigo-100">
@@ -1016,6 +1064,10 @@ export default function ParentDashboard() {
       </div>
 
       {/* Goal modal */}
+      {showInstallPrompt && (
+        <InstallPrompt forceShow onClose={() => setShowInstallPrompt(false)} />
+      )}
+
       {showGoalModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-[2rem] p-8 w-full max-w-sm shadow-2xl">

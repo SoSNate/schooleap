@@ -5,10 +5,9 @@ import Hearts from '../shared/Hearts';
 import Fraction from '../shared/Fraction';
 import { vibe } from '../../utils/math';
 import Swal from 'sweetalert2';
+import GameTutorial from '../shared/GameTutorial';
 
 function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
-
-const ONBOARD_KEY = 'onboard_tank';
 
 export default function Tank() {
   const gameState = useGameStore((s) => s.tank);
@@ -127,21 +126,6 @@ export default function Tank() {
     initGame();
   }, [initGame]);
 
-  // First-time onboarding
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem(ONBOARD_KEY)) {
-        Swal.fire({
-          title: 'חצי הכוס המלאה 🧪',
-          html: '<div class="text-right text-sm leading-relaxed">יש לך כוס ובה כמות נוזל ידועה. עליך לגלות מה הנפח <b>הכולל</b> של הכוס.<br><br>🔴 הקו האדום = הכמות הידועה בכוס<br>📐 השבר מראה איזה חלק מהכוס מלא<br>🎯 הזז את הסליידר עד שתמצא את הנפח הכולל הנכון!</div>',
-          confirmButtonText: 'יאללה נתחיל!',
-          confirmButtonColor: '#3b82f6',
-          customClass: { popup: 'rounded-3xl' },
-        });
-        localStorage.setItem(ONBOARD_KEY, '1');
-      }
-    } catch {}
-  }, []);
 
   const liquidHeight = Math.min((sliderVal / totalCapacity) * 100, 100);
 
@@ -196,6 +180,7 @@ export default function Tank() {
 
   return (
     <div className={`screen-enter flex flex-col items-center p-4 flex-1 min-h-[calc(100dvh-80px)] ${errorFlash ? 'error-flash' : ''}`}>
+      <GameTutorial gameName="tank" />
       <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-6 md:p-8 w-full max-w-md shadow-xl flex flex-col gap-6 md:gap-8 border-2 border-blue-200 dark:border-blue-800/40 border-b-4 border-b-blue-400 dark:border-b-blue-700 transition-colors">
 
         {/* Lives */}

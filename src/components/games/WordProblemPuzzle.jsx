@@ -4,13 +4,13 @@ import Hearts from '../shared/Hearts';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
 import { vibe } from '../../utils/math';
 import Swal from 'sweetalert2';
+import GameTutorial from '../shared/GameTutorial';
 
 /* ── Telemetry stub ──────────────────────────────────────────────────────── */
 function telemetry(event, data) { /* no-op until LMS integration */ }
 
 /* ── Config ──────────────────────────────────────────────────────────────── */
 export const DEFAULT_CONFIG = { maxLvl: 5, livesPerRound: 3 };
-const ONBOARD_KEY = 'onboard_word';
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 function rnd(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
@@ -446,25 +446,6 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
 
   useEffect(() => { newQuestion(); }, [newQuestion]);
 
-  /* ── onboarding ────────────────────────────────────────────────────────── */
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem(ONBOARD_KEY)) {
-        Swal.fire({
-          title: 'שאלות מילוליות 🧠',
-          html: `<div class="text-right text-sm leading-relaxed">
-            <b>שלב 1 — אסוף:</b> לחץ על המספרים בסיפור.<br><br>
-            <b>שלב 2 — סדר:</b> הנח אותם בסלוטים של המשוואה.<br><br>
-            <b>שלב 3 — פתור:</b> הזן את התוצאה!
-          </div>`,
-          confirmButtonText: 'יאללה! 🚀',
-          confirmButtonColor: '#4f46e5',
-          customClass: { popup: 'rounded-3xl' },
-        });
-        localStorage.setItem(ONBOARD_KEY, '1');
-      }
-    } catch {}
-  }, []);
 
   /* ── collect: tap number in text ──────────────────────────────────────── */
   const handleTokenTap = useCallback((tokenIdx) => {
@@ -556,6 +537,7 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
 
   return (
     <div className="screen-enter flex flex-col flex-1 min-h-[calc(100dvh-80px)]" dir="rtl">
+      <GameTutorial gameName="word" />
       <div className="flex-1 flex flex-col items-center p-4 gap-4 overflow-y-auto">
 
         {/* Header */}

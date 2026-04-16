@@ -4,8 +4,7 @@ import Hearts from '../shared/Hearts';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
 import { vibe } from '../../utils/math';
 import Swal from 'sweetalert2';
-
-const ONBOARD_KEY = 'onboard_decimal';
+import GameTutorial from '../shared/GameTutorial';
 
 // צעדים: index → גודל צעד → זום
 const stepOptions  = [1, 0.1, 0.01, 0.001];
@@ -334,21 +333,6 @@ export default function Decimal() {
 
   useEffect(() => { initGame(); }, [initGame]);
 
-  // First-time onboarding
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem(ONBOARD_KEY)) {
-        Swal.fire({
-          title: 'תפוס את הנקודה 🎯',
-          html: '<div class="text-right text-sm leading-relaxed">יש לך ציר מספרים. עליך למקם את הסמן (החץ) בדיוק על הערך של השבר המוצג.<br><br>🎛️ <b>חוגה</b> — בחר גודל צעד (דיוק)<br>↔️ <b>סליידר</b> — הזז את הסמן על הציר</div>',
-          confirmButtonText: 'יאללה נתפוס!',
-          confirmButtonColor: '#eab308',
-          customClass: { popup: 'rounded-3xl' },
-        });
-        localStorage.setItem(ONBOARD_KEY, '1');
-      }
-    } catch {}
-  }, []);
 
   const handlePositionChange = useCallback((newPos) => {
     const [min, max] = rangeRef.current;
@@ -420,6 +404,7 @@ export default function Decimal() {
 
   return (
     <div className={`screen-enter flex flex-col items-center p-3 md:p-4 flex-1 overflow-x-hidden w-full ${errorFlash ? 'error-flash' : ''}`}>
+      <GameTutorial gameName="decimal" />
       <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-4 md:p-5 w-full max-w-md shadow-xl flex flex-col items-center gap-4 border border-yellow-200 dark:border-yellow-800/40 border-b-4 border-b-yellow-400 dark:border-b-yellow-700 transition-colors">
 
         {/* Top bar */}

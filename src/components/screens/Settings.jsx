@@ -3,6 +3,7 @@ import useGameStore from '../../store/useGameStore';
 import { GAME_COLORS } from '../../utils/math';
 import Swal from 'sweetalert2';
 import { clearAllTutorials } from '../shared/GameTutorial';
+import InstallPrompt, { canInstallNatively, triggerNativeInstall } from '../shared/InstallPrompt';
 
 const ONBOARD_KEY = 'seen_onboarding_v1';
 
@@ -57,6 +58,7 @@ export default function Settings() {
 
   const [lockGame, setLockGame] = useState('equations');
   const [lockLvl, setLockLvl] = useState(1);
+  const [showInstall, setShowInstall] = useState(false);
 
   const todayIdx = new Date().getDay();
   const maxPts = Math.max(...weeklyStats.days.map((d) => d.pts), 10);
@@ -210,6 +212,16 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Install PWA */}
+      <div className="w-full max-w-md">
+        <button
+          onClick={() => setShowInstall(true)}
+          className="w-full text-sm font-bold text-violet-600 hover:text-violet-800 bg-violet-50 hover:bg-violet-100 dark:bg-violet-900/20 dark:hover:bg-violet-900/40 px-4 py-4 rounded-[2rem] border border-violet-100 dark:border-violet-900 transition-colors active:scale-95"
+        >
+          📲 הוסף לדף הבית כאפליקציה
+        </button>
+      </div>
+
       {/* Replay tutorials */}
       <div className="w-full max-w-md">
         <button
@@ -219,6 +231,8 @@ export default function Settings() {
           📖 חזור על ההסברים הראשוניים
         </button>
       </div>
+
+      {showInstall && <InstallPrompt forceShow onClose={() => setShowInstall(false)} />}
 
       {/* Reset */}
       <div className="w-full max-w-md">

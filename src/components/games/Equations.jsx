@@ -4,8 +4,7 @@ import FeedbackOverlay from '../shared/FeedbackOverlay';
 import Hearts from '../shared/Hearts';
 import { vibe, opsDict, opEmojis } from '../../utils/math';
 import Swal from 'sweetalert2';
-
-const ONBOARD_KEY = 'onboard_equations';
+import GameTutorial from '../shared/GameTutorial';
 
 // ─── Safe math evaluator (Shunting-yard, no eval) ─────────────────────────────
 const safeEvaluate = (expr) => {
@@ -213,21 +212,6 @@ export default function Equations() {
 
   useEffect(() => { initGame(); }, [initGame]);
 
-  // ─── First-time onboarding ──────────────────────────────────────────────────
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem(ONBOARD_KEY)) {
-        Swal.fire({
-          title: 'כאן בונים בכיף 🧩',
-          html: '<div class="text-right text-sm leading-relaxed">גרור את החלקים מהמאגר לתוך הריבועים הריקים.<br><br>🔢 <b>מספרים</b> נכנסים לתאים כחולים<br>➕ <b>פעולות</b> נכנסות לתאים צהובים<br><br>המטרה: כל שורה חייבת לתת את התוצאה המסומנת!<br><br>💡 <b>הקושי עולה בהדרגה</b> ככל שתתקדם.</div>',
-          confirmButtonText: 'יאללה נבנה!',
-          confirmButtonColor: '#7c3aed',
-          customClass: { popup: 'rounded-3xl' },
-        });
-        localStorage.setItem(ONBOARD_KEY, '1');
-      }
-    } catch {}
-  }, []);
 
   // ─── Slot type helper ───────────────────────────────────────────────────────
   // Works for both 3-slot (num op num) and 9-slot (num op num op num op num op num)
@@ -423,6 +407,7 @@ export default function Equations() {
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
     <div ref={containerRef} className={`screen-enter flex flex-col items-center p-3 gap-3 flex-1 min-h-[calc(100dvh-80px)] ${errorFlash ? 'error-flash' : ''}`}>
+      <GameTutorial gameName="equations" />
 
       {/* Hearts — only L1–L4 */}
       {!isLvl5 && (

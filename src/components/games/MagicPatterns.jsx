@@ -6,8 +6,6 @@ import GameTutorial from '../shared/GameTutorial';
 import { vibe } from '../../utils/math';
 import Swal from 'sweetalert2';
 
-const ONBOARD_KEY = 'onboard_magicPatterns';
-
 // ── SVG Shape Icons ───────────────────────────────────────────────────────────
 function ShapeIcon({ shape, className = 'w-full h-full' }) {
   if (shape === 'sq') return <svg viewBox="0 0 24 24" className={className}><rect x="2" y="2" width="20" height="20" rx="4" fill="currentColor" /></svg>;
@@ -525,25 +523,6 @@ export default function MagicPatterns() {
 
   useEffect(() => { newQuestion(); }, [newQuestion]);
 
-  // ── Onboarding ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem(ONBOARD_KEY)) {
-        Swal.fire({
-          title: 'תבניות הקסם 🪄',
-          html: `<div class="text-right text-sm leading-relaxed">
-            ראה את <b>המקרא</b> למעלה — צורות צבעוניות מייצגות מספרים.<br><br>
-            <b>גרור</b> קלפים מהבנק למטה אל התיבות הריקות, או <b>לחץ</b> על קלף ואז על תיבה.<br><br>
-            🎯 השלם את כל התיבות כדי לנצח!
-          </div>`,
-          confirmButtonText: 'יאללה!',
-          confirmButtonColor: '#ec4899',
-          customClass: { popup: 'rounded-3xl' },
-        });
-        localStorage.setItem(ONBOARD_KEY, '1');
-      }
-    } catch {}
-  }, []);
 
   // ── tryPlace — attempt placing a bank card into a slot ──────────────────────
   const tryPlace = useCallback((cardId, cardValue, slotId) => {

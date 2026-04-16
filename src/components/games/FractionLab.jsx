@@ -6,10 +6,9 @@ import FeedbackOverlay from '../shared/FeedbackOverlay';
 import Hearts from '../shared/Hearts';
 import { vibe } from '../../utils/math';
 import Swal from 'sweetalert2';
+import GameTutorial from '../shared/GameTutorial';
 
 function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
-
-const ONBOARD_KEY = 'onboard_fractionLab';
 
 // Circle (pie) visual
 function CircleShape({ n, d }) {
@@ -203,21 +202,6 @@ export default function FractionLab() {
 
   useEffect(() => { newQuestion(); }, [newQuestion]);
 
-  // First-time onboarding
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem(ONBOARD_KEY)) {
-        Swal.fire({
-          title: 'מעבדת השברים 🍕',
-          html: '<div class="text-right text-sm leading-relaxed">בכל שאלה תצטרך לייצג שבר נכון.<br><br>🍕 <b>ויזואלי</b> — התאם את השבר לציור<br>🔗 <b>שווה ערך</b> — בנה שבר השווה לנתון<br>✂️ <b>צמצום</b> — פשט את השבר לצורה הפשוטה ביותר<br>📐 <b>שבר מדומה</b> — ייצג שבר הגדול מ-1<br><br>השתמש בכפתורי + ו- כדי לשנות את המונה והמכנה.</div>',
-          confirmButtonText: 'יאללה למעבדה!',
-          confirmButtonColor: '#f97316',
-          customClass: { popup: 'rounded-3xl' },
-        });
-        localStorage.setItem(ONBOARD_KEY, '1');
-      }
-    } catch {}
-  }, []);
 
   const showHint = () => {
     vibe(20);
@@ -291,6 +275,7 @@ export default function FractionLab() {
 
   return (
     <div className="screen-enter flex flex-col items-center p-3 flex-1">
+      <GameTutorial gameName="fractionLab" />
       <div className="w-full max-w-md flex flex-col md:flex-row gap-4 items-stretch">
 
         {/* Task card */}

@@ -6,15 +6,19 @@ import GameTutorial from '../shared/GameTutorial';
 import { vibe } from '../../utils/math';
 import Swal from 'sweetalert2';
 
-const ONBOARD_KEY = 'onboard_grid';
-
 // Grid constants
 const UNITS       = 2;   // 2×2 unit space
 const SUBDIVS     = 10;  // 10 cells per unit
 const TOTAL_CELLS = UNITS * SUBDIVS; // 20×20
-const CELL        = 20;  // px per cell (increased from 16 for better mobile touch targets)
-const GPIX        = TOTAL_CELLS * CELL; // 400px (was 320px)
 const AXIS_MARKS  = [0, 0.5, 1.0, 1.5, 2.0];
+
+// Responsive cell size: fits inside the screen with room for axes + padding
+function calcCell() {
+  // card max-w-md = 448px, padding p-5 = 20px×2, axis ml-5 = 20px, border = 8px → usable ≈ min(screenW, 448) - 68
+  const usable = Math.min(window.innerWidth, 448) - 68;
+  // snap to nearest multiple of TOTAL_CELLS so grid lines stay crisp
+  return Math.max(14, Math.floor(usable / TOTAL_CELLS));
+}
 
 const RECT_STYLES = [
   { border: 'border-blue-500',    bg: 'bg-blue-400/40',    text: 'text-blue-700 dark:text-blue-300' },
@@ -74,9 +78,17 @@ export default function DecimalAreaLab() {
   const [justLost,     setJustLost]     = useState(false);
   const [disabled,     setDisabled]     = useState(false);
   const [feedback,     setFeedback]     = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
+  const [cell,         setCell]         = useState(calcCell);
 
   const gridRef = useRef(null);
   const recentTargetsRef = useRef([]);
+
+  // Recalc cell size on resize
+  useEffect(() => {
+    const onResize = () => setCell(calcCell());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   // ── Init level ──────────────────────────────────────────────────────────────
   const newLevel = useCallback(() => {
@@ -94,33 +106,15 @@ export default function DecimalAreaLab() {
 
   useEffect(() => { newLevel(); }, [newLevel]);
 
-  // ── Onboarding ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem(ONBOARD_KEY)) {
-        Swal.fire({
-          title: 'מעבדת השטחים 📐',
-          html: `<div class="text-right text-sm leading-relaxed">
-            <b>גרור</b> על הרשת כדי לצייר מלבנים צבעוניים.<br><br>
-            כל מלבן מציג את שטחו (בעשרוניים). הצטרף לשטח היעד!<br><br>
-            📏 לחץ <b>בדוק תוצאה</b> כשסיימת.
-          </div>`,
-          confirmButtonText: 'יאללה!',
-          confirmButtonColor: '#0d9488',
-          customClass: { popup: 'rounded-3xl' },
-        });
-        localStorage.setItem(ONBOARD_KEY, '1');
-      }
-    } catch {}
-  }, []);
 
   // ── Coordinate helper ────────────────────────────────────────────────────────
   const getCoords = useCallback((e) => {
+    const gpix = cell * TOTAL_CELLS;
     const rect = gridRef.current.getBoundingClientRect();
-    const x = Math.max(0, Math.min(e.clientX - rect.left, GPIX));
-    const y = Math.max(0, Math.min(e.clientY - rect.top,  GPIX));
-    return { cx: Math.round(x / CELL), cy: Math.round(y / CELL) };
-  }, []);
+    const x = Math.max(0, Math.min(e.clientX - rect.left, gpix));
+    const y = Math.max(0, Math.min(e.clientY - rect.top,  gpix));
+    return { cx: Math.round(x / cell), cy: Math.round(y / cell) };
+  }, [cell]);
 
   // ── Pointer handlers ─────────────────────────────────────────────────────────
   const onPointerDown = useCallback((e) => {
@@ -233,8 +227,9 @@ export default function DecimalAreaLab() {
   const normDrawing = drawing ? normalizeRect(drawing) : null;
   const totalArea   = Math.round(normPlaced.reduce((s, r) => s + r.area, 0) * 100) / 100;
 
+  const gpix = cell * TOTAL_CELLS;
   const gridBg = {
-    width: GPIX, height: GPIX, direction: 'ltr', touchAction: 'none',
+    width: gpix, height: gpix, direction: 'ltr', touchAction: 'none',
     backgroundImage: [
       'linear-gradient(to right, #94a3b8 1.5px, transparent 1.5px)',
       'linear-gradient(to bottom, #94a3b8 1.5px, transparent 1.5px)',
@@ -242,10 +237,10 @@ export default function DecimalAreaLab() {
       'linear-gradient(to bottom, #cbd5e1 1px, transparent 1px)',
     ].join(', '),
     backgroundSize: [
-      `${CELL * SUBDIVS}px ${CELL * SUBDIVS}px`,
-      `${CELL * SUBDIVS}px ${CELL * SUBDIVS}px`,
-      `${CELL}px ${CELL}px`,
-      `${CELL}px ${CELL}px`,
+      `${cell * SUBDIVS}px ${cell * SUBDIVS}px`,
+      `${cell * SUBDIVS}px ${cell * SUBDIVS}px`,
+      `${cell}px ${cell}px`,
+      `${cell}px ${cell}px`,
     ].join(', '),
   };
 
@@ -275,7 +270,7 @@ export default function DecimalAreaLab() {
           <div className="relative mt-4 ml-5">
             {/* X-axis */}
             {levelData.showAxis && (
-              <div className="absolute -top-5 left-0" style={{ width: GPIX }} dir="ltr">
+              <div className="absolute -top-5 left-0" style={{ width: gpix }} dir="ltr">
                 {AXIS_MARKS.map((m) => (
                   <span key={m} className="absolute text-[10px] font-mono font-bold text-slate-400 -translate-x-1/2"
                     style={{ left: `${(m / UNITS) * 100}%` }}>
@@ -286,7 +281,7 @@ export default function DecimalAreaLab() {
             )}
             {/* Y-axis */}
             {levelData.showAxis && (
-              <div className="absolute top-0 -left-5" style={{ height: GPIX }} dir="ltr">
+              <div className="absolute top-0 -left-5" style={{ height: gpix }} dir="ltr">
                 {AXIS_MARKS.map((m) => (
                   <span key={m} className="absolute text-[10px] font-mono font-bold text-slate-400 -translate-y-1/2"
                     style={{ top: `${(m / UNITS) * 100}%` }}>
@@ -312,7 +307,7 @@ export default function DecimalAreaLab() {
                 return (
                   <div key={idx}
                     className={`absolute border-2 ${s.border} ${s.bg}`}
-                    style={{ left: r.minX * CELL, top: r.minY * CELL, width: r.w * CELL, height: r.h * CELL, pointerEvents: 'none' }}>
+                    style={{ left: r.minX * cell, top: r.minY * cell, width: r.w * cell, height: r.h * cell, pointerEvents: 'none' }}>
                     <span className={`absolute inset-0 flex items-center justify-center font-black text-xs drop-shadow ${s.text}`}>
                       {r.area.toFixed(2)}
                     </span>
@@ -322,7 +317,7 @@ export default function DecimalAreaLab() {
               {/* Live drawing rect */}
               {isDrawing && normDrawing && normDrawing.w > 0 && normDrawing.h > 0 && (
                 <div className="absolute border-2 border-dashed border-slate-600 bg-slate-400/30"
-                  style={{ left: normDrawing.minX * CELL, top: normDrawing.minY * CELL, width: normDrawing.w * CELL, height: normDrawing.h * CELL, pointerEvents: 'none' }}>
+                  style={{ left: normDrawing.minX * cell, top: normDrawing.minY * cell, width: normDrawing.w * cell, height: normDrawing.h * cell, pointerEvents: 'none' }}>
                   <span className="absolute inset-0 flex items-center justify-center font-black text-xs text-slate-600 dark:text-slate-300">
                     {normDrawing.area.toFixed(2)}
                   </span>

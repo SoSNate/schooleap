@@ -6,8 +6,6 @@ import GameTutorial from '../shared/GameTutorial';
 import { vibe } from '../../utils/math';
 import Swal from 'sweetalert2';
 
-const ONBOARD_KEY = 'onboard_balance';
-
 /* Render pan expression with styled blocks for numbers and variables */
 function PanContent({ text }) {
   // Split on 🟦 and operators to render styled blocks
@@ -173,21 +171,6 @@ export default function Balance() {
     initGame();
   }, [initGame]);
 
-  // First-time onboarding
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem(ONBOARD_KEY)) {
-        Swal.fire({
-          title: 'שומרים על איזון ⚖️',
-          html: '<div class="text-right text-sm leading-relaxed">על המאזניים מוצגת משוואה עם נעלם ?.<br><br>השתמש בכפתורי + ו- כדי לבחור ערך לנעלם, ואז לחץ "בדוק!".<br><br>⚖️ כשהמאזניים מאוזנים לגמרי — ניצחת!</div>',
-          confirmButtonText: 'יאללה נאזן!',
-          confirmButtonColor: '#10b981',
-          customClass: { popup: 'rounded-3xl' },
-        });
-        localStorage.setItem(ONBOARD_KEY, '1');
-      }
-    } catch {}
-  }, []);
 
   const showHint = () => {
     vibe(20);

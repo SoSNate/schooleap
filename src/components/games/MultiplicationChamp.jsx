@@ -4,8 +4,7 @@ import FeedbackOverlay from '../shared/FeedbackOverlay';
 import Fraction from '../shared/Fraction';
 import { vibe } from '../../utils/math';
 import Swal from 'sweetalert2';
-
-const ONBOARD_KEY = 'onboard_multichamp';
+import GameTutorial from '../shared/GameTutorial';
 
 // Level configs
 // cols × rows = grid size, maxProduct = upper bound for generated target
@@ -194,21 +193,6 @@ export default function MultiplicationChamp() {
     }
   }, [gameOver]);
 
-  // Onboarding
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem(ONBOARD_KEY)) {
-        Swal.fire({
-          title: 'אלוף הכפל ✖️',
-          html: '<div class="text-right text-sm leading-relaxed">בחר <b>שני מספרים</b> (או שברים) שמכפלתם שווה למטרה המוצגת.<br><br>⏱️ יש לך זמן מוגבל — מצא כמה שיותר זוגות!<br>🏆 צבור ניקוד וטפס ברמות!</div>',
-          confirmButtonText: 'קדימה!',
-          confirmButtonColor: '#ca8a04',
-          customClass: { popup: 'rounded-3xl' },
-        });
-        localStorage.setItem(ONBOARD_KEY, '1');
-      }
-    } catch {}
-  }, []);
 
   const handleTileClick = (idx) => {
     if (gameOver || flash) return;
@@ -269,6 +253,7 @@ export default function MultiplicationChamp() {
 
   return (
     <div className={`screen-enter flex flex-col items-center p-4 flex-1 min-h-[calc(100dvh-80px)] ${flash === 'wrong' ? 'error-flash' : ''}`}>
+      <GameTutorial gameName="multChamp" />
       <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-4 md:p-6 w-full max-w-md shadow-xl flex flex-col gap-4 border-2 border-lime-300 dark:border-lime-700/60 border-b-4 border-b-lime-400 dark:border-b-lime-600 transition-colors">
 
         {/* Header: score + timer */}
@@ -322,7 +307,7 @@ export default function MultiplicationChamp() {
 
         {/* Tile grid — dynamic cols per level */}
         <div
-          className="grid gap-2"
+          className="grid gap-1.5"
           style={{ gridTemplateColumns: `repeat(${cfg.cols}, minmax(0, 1fr))` }}
         >
           {round.tiles.map((tile, idx) => {
@@ -336,7 +321,7 @@ export default function MultiplicationChamp() {
                 onClick={() => handleTileClick(idx)}
                 disabled={gameOver}
                 className={`
-                  aspect-square rounded-2xl font-black flex items-center justify-center transition-all active:scale-90 shadow-sm
+                  ${cfg.cols === 2 ? 'h-12' : 'h-14'} rounded-xl font-black flex items-center justify-center transition-all active:scale-90 shadow-sm
                   ${isCorrectFlash ? 'bg-green-400 dark:bg-green-500 text-white scale-105 border-2 border-green-600' :
                     isWrongFlash ? 'bg-red-400 dark:bg-red-500 text-white border-2 border-red-600' :
                     isSel ? 'bg-lime-400 dark:bg-lime-500 text-white border-2 border-lime-600 scale-105' :
@@ -346,7 +331,7 @@ export default function MultiplicationChamp() {
                 {round.isFraction ? (
                   <FracDisplay n={tile.n} d={tile.d} size="sm" />
                 ) : (
-                  <span className={cfg.cols === 2 ? 'text-3xl' : 'text-xl'}>{tile}</span>
+                  <span className="text-xl">{tile}</span>
                 )}
               </button>
             );

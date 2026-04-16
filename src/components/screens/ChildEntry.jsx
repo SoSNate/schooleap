@@ -15,19 +15,18 @@ function PaywallScreen() {
       style={{ background: 'radial-gradient(ellipse at 50% 60%, #0f172a 0%, #020617 100%)' }}
     >
       <style>{`@keyframes float3{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}`}</style>
-      <div className="text-8xl" style={{ animation: 'float3 2.5s ease-in-out infinite' }}>⛽</div>
+      <div className="text-8xl" style={{ animation: 'float3 2.5s ease-in-out infinite' }}>🛸</div>
       <div className="space-y-3 max-w-xs">
         <h2 className="text-2xl font-black text-white leading-tight">
-          אופס! הדלק בחללית נגמר 🚀
+          בעיה במשיכת אישורים ממערכת ההורים
         </h2>
         <p className="text-slate-400 text-base leading-relaxed">
-          בקש מאמא או אבא להטעין אותה<br />
-          (לחדש מנוי) כדי להמשיך במסע!
+          לא הצלחנו לאמת את הגישה שלך.<br />
+          בקש מאמא או אבא לבדוק את המערכת.
         </p>
       </div>
-      <div className="text-6xl animate-bounce">🛸</div>
-      <div className="bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm text-slate-400">
-        מנוי פעיל = ⭐ כוכבים, 🎮 משחקים, 🏆 הישגים
+      <div className="bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm text-slate-400 max-w-xs">
+        🔒 הגישה למשחקים תפתח בקרוב
       </div>
     </div>
   );

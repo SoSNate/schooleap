@@ -223,15 +223,17 @@ body {
   position: absolute; top: calc(100% + 62px); left: 50%;
   transform: translateX(-50%);
   transition: transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
-  min-width: 80px; width: max-content; max-width: min(210px, 42vw); height: 50px;
+  min-width: 80px; width: max-content; max-width: min(220px, 44vw); height: 50px;
   border-radius: 0 0 2.5rem 2.5rem;
   display: flex; align-items: center;
   justify-content: center; text-align: center;
-  font-size: clamp(0.8rem, 2.8vw, 0.95rem); font-weight: 900;
+  font-size: clamp(0.75rem, 2.6vw, 0.95rem); font-weight: 900;
   box-shadow: 0 8px 20px rgba(0,0,0,0.18), inset 0 -3px 8px rgba(0,0,0,0.1);
   white-space: nowrap; padding: 0 10px; border: 2px solid;
-  direction: ltr; z-index: 3; overflow: visible;
+  direction: ltr; z-index: 3; overflow: hidden;
+  background-color: #ecfdf5; /* solid emerald-50 fallback */
 }
+.dark .pan-tray { background-color: #1e293b; /* solid slate-800 fallback */ }
 /* Variable box style — coin/circle feel — נעלם ? */
 .weight-var {
   display: inline-flex; align-items: center; justify-content: center;

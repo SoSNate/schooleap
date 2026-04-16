@@ -19,7 +19,7 @@ export default function Header() {
         <div className="w-10 h-10 flex-shrink-0">
           <DotLottieReact src={anims.logo} autoplay loop speed={1.2} />
         </div>
-        <h1 className="font-black text-lg md:text-xl tracking-tight">כיתת החירום</h1>
+        <h1 className="font-black text-lg md:text-xl tracking-tight">חשבונאוטיקה</h1>
       </div>
       <div className="flex items-center gap-2 md:gap-3">
         <div className="bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 px-3 py-1 rounded-full text-xs font-bold border border-amber-100 dark:border-amber-800/50 whitespace-nowrap flex items-center gap-1 transition-colors">

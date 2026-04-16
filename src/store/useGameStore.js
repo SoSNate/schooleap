@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { getWeekId, emptyWeek, getGameShort } from '../utils/math';
+import { supabase } from '../lib/supabase';
+
+const CHILD_TOKEN_KEY = 'hasbaonautica_child_token';
 
 const useGameStore = create(
   persist(
@@ -123,6 +126,21 @@ const useGameStore = create(
       },
 
       finishAnimation: () => set({ isAnimating: false }),
+
+      reportGameEvent: async (game, level, success) => {
+        const token = localStorage.getItem(CHILD_TOKEN_KEY);
+        if (!token) return;
+        try {
+          await supabase.from('game_events').insert({
+            child_token: token,
+            game_name: game,
+            level,
+            success,
+          });
+        } catch (e) {
+          console.error('[reportGameEvent]', e);
+        }
+      },
 
       handleGameFail: (game) => {
         const s = get();

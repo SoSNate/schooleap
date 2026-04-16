@@ -12,7 +12,7 @@ import { supabase } from '../../lib/supabase';
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
-const APP_URL      = 'https://hasbaonautica.vercel.app';
+const APP_URL      = 'https://schooleap.vercel.app';
 const MORNING_URL  = 'https://mrng.to/BSq146MiEt';
 
 const PLANS = [

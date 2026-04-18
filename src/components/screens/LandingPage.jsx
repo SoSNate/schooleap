@@ -165,27 +165,31 @@ export default function LandingPage() {
           <Pill emoji="🔗" text="קישור קסם ייעודי לילד" />
         </div>
 
-        {/* CTA — כניסת הורים */}
-        <div className="w-full max-w-xs flex flex-col items-center gap-3">
+        {/* CTA — בחירת תפקיד (הורה / מורה) */}
+        <div className="w-full max-w-lg flex flex-col items-center gap-4">
+          {/* כפתור 1: הורים */}
           <button
             onClick={handleEnter}
             className="glow-btn w-full flex items-center justify-center gap-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 px-8 rounded-2xl text-lg transition-all active:scale-95"
           >
-            <span>כניסת הורים</span>
+            <span>👨‍👩‍👧 כניסת הורים</span>
             <span className="text-xl">→</span>
           </button>
 
-          {/* Trust signals */}
-          <div className="flex flex-wrap justify-center gap-x-3 gap-y-1">
-            <span className="flex items-center gap-1 text-xs font-bold text-green-400">
-              <span>✓</span> 14 יום ניסיון חינם
-            </span>
-            <span className="flex items-center gap-1 text-xs font-bold text-slate-400">
-              <span>✓</span> ללא כרטיס אשראי
-            </span>
-            <span className="flex items-center gap-1 text-xs font-bold text-slate-400">
-              <span>✓</span> ללא התחייבות
-            </span>
+          {/* כפתור 2: מורים */}
+          <button
+            onClick={() => navigate('/teacher')}
+            className="w-full flex items-center justify-center gap-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 px-8 rounded-2xl text-lg transition-all active:scale-95"
+          >
+            <span>🎓 כניסת מורים</span>
+            <span className="text-xl">→</span>
+          </button>
+
+          {/* Trust signals — הורים */}
+          <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs font-bold">
+            <span className="text-green-400">✓ 14 יום ניסיון חינם</span>
+            <span className="text-slate-400">✓ ללא כרטיס אשראי</span>
+            <span className="text-slate-400">✓ ללא התחייבות</span>
           </div>
 
           <p className="text-slate-600 text-xs">

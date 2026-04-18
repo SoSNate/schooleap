@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage      from './components/screens/LandingPage';
 import ParentDashboard  from './components/screens/ParentDashboard';
 import TeacherDashboard from './components/screens/TeacherDashboard';
+import AdminDashboard   from './components/screens/AdminDashboard';
 import JoinClass        from './components/screens/JoinClass';
 import ChildEntry       from './components/screens/ChildEntry';
 import GameApp          from './GameApp';
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="/"            element={<LandingPage />} />
         <Route path="/parent"      element={<ParentDashboard />} />
         <Route path="/teacher"     element={<TeacherDashboard />} />
+        <Route path="/admin"       element={<AdminDashboard />} />
         <Route path="/join"        element={<JoinClass />} />
         <Route path="/play/:token" element={<ChildEntry />} />
         <Route path="/play"        element={

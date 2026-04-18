@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { LogOut, GraduationCap, ShieldAlert } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import TeacherSalesPage from './TeacherSalesPage';
 import ClassEngagementTable from '../teacher/ClassEngagementTable';
 import ClassSkillsCard      from '../teacher/ClassSkillsCard';
 import StudentDetailDrawer  from '../teacher/StudentDetailDrawer';
@@ -26,7 +27,7 @@ export default function TeacherDashboard() {
     try {
       const { data: prof } = await supabase
         .from('profiles')
-        .select('id, email, role, max_children_allowed, classroom_code')
+        .select('id, email, role, max_children_allowed, classroom_code, teacher_status')
         .eq('id', u.id)
         .maybeSingle();
       setProfile(prof || null);
@@ -135,21 +136,9 @@ export default function TeacherDashboard() {
     );
   }
 
-  // מחובר אבל לא מורה/אדמין
-  if (profile && profile.role !== 'teacher' && profile.role !== 'admin') {
-    return (
-      <div dir="rtl" className="min-h-[100dvh] flex items-center justify-center p-6 bg-slate-50">
-        <div className="bg-white rounded-3xl shadow-lg p-8 max-w-sm w-full text-center space-y-4 border border-slate-200">
-          <ShieldAlert className="mx-auto text-amber-500" size={40} />
-          <h2 className="text-xl font-black text-slate-800">אין הרשאת גישה</h2>
-          <p className="text-slate-500 text-sm">
-            המשתמש <span className="font-bold text-slate-700">{user.email}</span> אינו רשום כמורה במערכת.
-          </p>
-          <p className="text-slate-400 text-xs">פנה למנהל המערכת לקבלת הרשאה.</p>
-          <button onClick={handleLogout} className="text-sm font-bold text-indigo-600 hover:text-indigo-800">יציאה</button>
-        </div>
-      </div>
-    );
+  // מחובר אבל לא מורה מאושר → דף מכירה
+  if (profile && (profile.role !== 'teacher' && profile.role !== 'admin')) {
+    return <TeacherSalesPage user={user} onLogout={handleLogout} />;
   }
 
   return (

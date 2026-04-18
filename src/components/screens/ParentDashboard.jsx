@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { Navigate } from 'react-router-dom';
 import { Info, Plus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import InstallPrompt, { captureInstallEvent, shouldAutoShowInstallPrompt } from '../shared/InstallPrompt';
@@ -178,7 +179,7 @@ export default function ParentDashboard() {
     try {
       const { data: prof } = await supabase
         .from('profiles')
-        .select('subscription_status, subscription_expires_at, applied_coupon')
+        .select('subscription_status, subscription_expires_at, applied_coupon, role')
         .eq('id', u.id)
         .maybeSingle();
       if (prof) setProfile(prof);
@@ -311,7 +312,7 @@ export default function ParentDashboard() {
       setCouponMsg({ ok: true, text: '✅ הקופון הופעל בהצלחה!' });
       setCouponCode('');
       const { data: prof } = await supabase
-        .from('profiles').select('subscription_status, subscription_expires_at, applied_coupon')
+        .from('profiles').select('subscription_status, subscription_expires_at, applied_coupon, role')
         .eq('id', user.id).maybeSingle();
       if (prof) setProfile(prof);
     }
@@ -446,6 +447,11 @@ export default function ParentDashboard() {
         </div>
       </div>
     );
+  }
+
+  // ─── Render: redirect teachers/admins to their dashboard ───────────────
+  if (profile?.role === 'teacher' || profile?.role === 'admin') {
+    return <Navigate to="/teacher" replace />;
   }
 
   // ─── Render: paywall (trial expired) ────────────────────────────────────

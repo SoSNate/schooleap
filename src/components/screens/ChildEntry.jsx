@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import useGameStore from '../../store/useGameStore';
@@ -50,43 +50,40 @@ function LoadingScreen() {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ChildEntry() {
-  const { token } = useParams();
-  const navigate  = useNavigate();
-  const loadProgress = useGameStore((s) => s.loadProgress);
-  const [paywalled, setPaywalled] = useState(false);
+  const { token }          = useParams();
+  const navigate           = useNavigate();
+  const loadProgress       = useGameStore((s) => s.loadProgress);
+  const setSubscription    = useGameStore((s) => s.setSubscription);
+  const subscription       = useGameStore((s) => s.subscription);
 
   useEffect(() => {
     if (!token) { navigate('/'); return; }
 
-    // שמור טוקן מקומית (cache)
     localStorage.setItem(TOKEN_KEY, token);
-
-    // mounted flag — prevents setState on unmounted component
     let mounted = true;
 
     (async () => {
       try {
-        // ── 1. בדוק סטטוס מנוי ────────────────────────────────────────────
+        // ── 1. בדוק סטטוס מנוי → שמור בstore ────────────────────────────
         const { data: subRows, error: subErr } = await supabase
           .rpc('get_child_subscription', { p_token: token });
 
         if (!mounted) return;
 
-        if (!subErr && subRows && subRows.length > 0) {
+        if (!subErr && subRows?.length > 0) {
           const { subscription_status, subscription_expires_at } = subRows[0];
-          const expired = subscription_expires_at
-            ? new Date(subscription_expires_at) < new Date()
-            : false;
-
-          const blocked =
-            subscription_status === 'expired'  ||
-            subscription_status === 'canceled' ||
-            (subscription_status === 'trial' && expired);
-
-          if (blocked) {
-            if (mounted) setPaywalled(true);
+          // setSubscription מחשב blocked בעצמו ושומר בstore
+          setSubscription({ status: subscription_status, expiresAt: subscription_expires_at });
+          if (subscription_status === 'expired'  ||
+              subscription_status === 'canceled' ||
+              (subscription_status === 'trial' && subscription_expires_at &&
+               new Date(subscription_expires_at) < new Date())) {
+            // נשאר במסך PaywallScreen — GameApp יקרא subscription.blocked מהstore
             return;
           }
+        } else {
+          // שגיאה / אין נתונים — mark as checked+unblocked (fail-open)
+          setSubscription({ status: 'trial', expiresAt: null });
         }
 
         // ── 2. טען היסטוריית משחקים מ-DB ─────────────────────────────────
@@ -94,22 +91,23 @@ export default function ChildEntry() {
           .rpc('get_child_events', { p_token: token });
 
         if (!mounted) return;
-
-        if (events && events.length > 0) {
-          loadProgress(events); // מחשב מחדש רמות וכוכבים
-        }
+        if (events?.length > 0) loadProgress(events);
 
         // ── 3. כנס למשחק ─────────────────────────────────────────────────
         if (mounted) navigate('/play', { replace: true });
       } catch (e) {
         console.error('[ChildEntry]', e);
-        if (mounted) navigate('/play', { replace: true }); // fail-open
+        // fail-open: שגיאת רשת לא חוסמת
+        if (mounted) {
+          setSubscription({ status: 'trial', expiresAt: null });
+          navigate('/play', { replace: true });
+        }
       }
     })();
 
     return () => { mounted = false; };
   }, [token]); // eslint-disable-line
 
-  if (paywalled) return <PaywallScreen />;
+  if (subscription.checked && subscription.blocked) return <PaywallScreen />;
   return <LoadingScreen />;
 }

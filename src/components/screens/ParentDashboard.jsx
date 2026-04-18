@@ -1,180 +1,30 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import {
-  RadarChart, PolarGrid, PolarAngleAxis, Radar,
-  ResponsiveContainer, Tooltip,
-} from 'recharts';
-import {
-  LayoutDashboard, Trophy, Brain, Gift, Plus, Check,
-  Rocket, ShieldCheck, Clock, Sparkles, ChevronLeft,
-  GraduationCap, Info, Share2, Mail, CreditCard, Trash2,
-} from 'lucide-react';
+import { Info, Plus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import InstallPrompt, { captureInstallEvent, shouldAutoShowInstallPrompt } from '../shared/InstallPrompt';
+import { APP_URL, buildNotifications, buildRadarData } from '../dashboard/constants';
+import DashboardNav       from '../dashboard/DashboardNav';
+import MagicLinkCard      from '../dashboard/MagicLinkCard';
+import TrialCard          from '../dashboard/TrialCard';
+import NotificationsCard  from '../dashboard/NotificationsCard';
+import SkillRadarCard     from '../dashboard/SkillRadarCard';
+import GoalsSection       from '../dashboard/GoalsSection';
+import GoalModal          from '../dashboard/GoalModal';
+import PricingView        from '../dashboard/PricingView';
+import UpgradeNudge       from '../dashboard/UpgradeNudge';
 
-// ─── Config ─────────────────────────────────────────────────────────────────
-
-const APP_URL = 'https://schooleap.vercel.app';
-
-const PLAN_URLS = {
-  '1m':  'https://mrng.to/5MeNM9EHv5',
-  '3m':  'https://mrng.to/JbLqveBkPU',
-  'vip': 'https://wa.me/972535303607?text=' +
-         encodeURIComponent('שלום, אני מעוניין בפרטים על מסלול ה-VIP של חשבונאוטיקה'),
-};
-
-const PLANS = [
-  {
-    id: '1m',
-    title: 'מנוי חודשי',
-    price: 100,
-    period: 'חודש אחד',
-    type: 'payment',
-    desc: 'תרגול ממוקד לריענון נושאים ספציפיים.',
-    features: [
-      'גישה מלאה לכל השלבים והמשחקים',
-      'דוח התקדמות בדשבורד ההורים',
-      'תמיכה במייל',
-    ],
-  },
-  {
-    id: '3m',
-    title: 'גשר הקיץ',
-    price: 200,
-    period: '3 חודשים',
-    type: 'payment',
-    popular: true,
-    desc: 'המסלול האופטימלי להכנה מלאה לחטיבת הביניים.',
-    features: [
-      'כל יכולות המנוי החודשי',
-      'זיהוי קשיים — AI מנתח דפוסי שגיאות',
-      'התראות חכמות על נושאים שדורשים תשומת לב',
-    ],
-  },
-  {
-    id: 'vip',
-    title: 'VIP — מורה פרטי',
-    price: 1500,
-    period: 'חבילה אחת',
-    type: 'contact',
-    desc: '10 שיעורים אישיים של שעה + בניית מערכת למידה ייעודית לילד.',
-    features: [
-      '10 מפגשים בני שעה עם המורה (וידאו/פגישה)',
-      'בניית תכנית למידה אישית לילד',
-      'גישה מלאה לחשבונאוטיקה לכל תקופת החבילה',
-      'הערכה פדגוגית כתובה + מעקב רציף',
-    ],
-  },
-];
-
-const GAME_LABELS = {
-  equations:     'כאן בונים בכיף',
-  balance:       'שומרים על איזון',
-  tank:          'חצי הכוס המלאה',
-  decimal:       'תפוס את הנקודה',
-  fractionLab:   'מעבדת השברים',
-  magicPatterns: 'תבניות הקסם',
-  grid:          'מעבדת השטחים',
-  word:          'שאלות מילוליות',
-  multChamp:     'אלוף הכפל',
-};
-
-const SKILL_MAP = {
-  equations:     'אריתמטיקה',
-  balance:       'לוגיקה',
-  tank:          'שברים',
-  decimal:       'עשרוניים',
-  fractionLab:   'שברים',
-  magicPatterns: 'לוגיקה',
-  grid:          'שטחים',
-  word:          'הבנת הנקרא',
-  multChamp:     'כפל/חילוק',
-};
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function formatDate(iso) {
-  if (!iso) return '';
-  return new Date(iso).toLocaleDateString('he-IL', {
-    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-  });
-}
-
-function buildRadarData(events) {
-  const skillTotals = {};
-  const skillCounts = {};
-  events.forEach(e => {
-    const skill = SKILL_MAP[e.game_name];
-    if (!skill) return;
-    if (!skillTotals[skill]) { skillTotals[skill] = 0; skillCounts[skill] = 0; }
-    skillTotals[skill] += e.success ? 100 : 30;
-    skillCounts[skill]++;
-  });
-  const skills = ['אריתמטיקה', 'לוגיקה', 'שברים', 'עשרוניים', 'כפל/חילוק', 'שטחים', 'הבנת הנקרא'];
-  return skills.map(s => ({
-    subject: s,
-    value: skillCounts[s] ? Math.round(skillTotals[s] / skillCounts[s]) : 20,
-  }));
-}
-
-function buildNotifications(events) {
-  if (!events || events.length === 0) return [];
-  const notes = [];
-  const last = events[0];
-  const gameLabel = GAME_LABELS[last.game_name] || last.game_name;
-  notes.push({
-    id: 'last',
-    icon: '🕹️',
-    text: `פעילות אחרונה: ${gameLabel} רמה ${last.level} — ${last.success ? '✅ הצליח' : '❌ נכשל'}`,
-    time: formatDate(last.created_at),
-    color: last.success ? 'text-green-700 bg-green-50' : 'text-red-700 bg-red-50',
-  });
-  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const thisWeek = events.filter(e => new Date(e.created_at) > weekAgo);
-  if (thisWeek.length > 0) {
-    const wins = thisWeek.filter(e => e.success).length;
-    notes.push({
-      id: 'week',
-      icon: '📊',
-      text: `השבוע: ${thisWeek.length} משחקים, ${wins} הצלחות (${Math.round(wins / thisWeek.length * 100)}%)`,
-      time: '',
-      color: 'text-indigo-700 bg-indigo-50',
-    });
-  }
-  const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000;
-  if (new Date(last.created_at) < threeDaysAgo) {
-    notes.push({
-      id: 'inactive',
-      icon: '💤',
-      text: 'הילד לא שיחק ב-3 הימים האחרונים. שלח לו שוב את הקישור!',
-      time: '',
-      color: 'text-amber-700 bg-amber-50',
-    });
-  }
-  const maxLevel = Math.max(...events.map(e => e.level));
-  if (maxLevel >= 3) {
-    notes.push({
-      id: 'maxlvl',
-      icon: '🏆',
-      text: `הילד הגיע לרמה ${maxLevel}! כל הכבוד!`,
-      time: '',
-      color: 'text-yellow-700 bg-yellow-50',
-    });
-  }
-  return notes;
-}
-
-// ─── Empty State ─────────────────────────────────────────────────────────────
+// ─── EmptyState (shown before a child exists) ─────────────────────────────────
 
 function EmptyState({ onAdd, loading }) {
-  const [name, setName] = useState('');
-  const [open, setOpen] = useState(false);
+  const [name,    setName]    = useState('');
+  const [open,    setOpen]    = useState(false);
   const [nameErr, setNameErr] = useState('');
 
   function submit(e) {
     e.preventDefault();
     if (!name.trim()) { setNameErr('נדרש שם לאסטרונאוט'); return; }
     setNameErr('');
-    onAdd(name.trim()); // NOT NULL בDB — חייב לשלוח שם
+    onAdd(name.trim());
   }
 
   return (
@@ -183,7 +33,6 @@ function EmptyState({ onAdd, loading }) {
       className="min-h-[100dvh] flex flex-col items-center justify-center relative overflow-hidden px-6"
       style={{ background: 'radial-gradient(ellipse at 50% 60%, #0f172a 0%, #020617 100%)' }}
     >
-      {/* Stars */}
       <style>{`
         @keyframes twinkle2 { 0%,100%{opacity:0} 50%{opacity:.9} }
         @keyframes float2   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
@@ -198,29 +47,24 @@ function EmptyState({ onAdd, loading }) {
       ))}
 
       <div className="relative z-10 flex flex-col items-center text-center max-w-md w-full gap-8">
-        {/* Rocket */}
         <div className="relative" style={{ animation: 'float2 3s ease-in-out infinite' }}>
           <div className="text-7xl">🚀</div>
           <div className="absolute inset-0 rounded-full border border-indigo-500/40"
             style={{ animation: 'pulse-ring 2s ease-out infinite' }} />
         </div>
 
-        {/* Text */}
         <div className="space-y-3">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/20 border border-indigo-400/30 rounded-full">
             <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
             <span className="text-indigo-300 text-[10px] font-black uppercase tracking-widest">Mission Control — מוכן להמראה</span>
           </div>
-          <h2 className="text-3xl font-black text-white leading-tight">
-            הכן אסטרונאוט למשימה
-          </h2>
+          <h2 className="text-3xl font-black text-white leading-tight">הכן אסטרונאוט למשימה</h2>
           <p className="text-slate-400 text-sm leading-relaxed">
             צור פרופיל לילד שלך כדי לקבל קישור קסם,<br />
             לעקוב אחר התקדמותו ולהגדיר יעדים ופרסים.
           </p>
         </div>
 
-        {/* Add child button / form */}
         {!open ? (
           <button
             onClick={() => setOpen(true)}
@@ -259,7 +103,6 @@ function EmptyState({ onAdd, loading }) {
           </form>
         )}
 
-        {/* Features */}
         <div className="grid grid-cols-3 gap-3 text-center w-full">
           {[
             { emoji: '🔗', label: 'קישור קסם' },
@@ -277,29 +120,29 @@ function EmptyState({ onAdd, loading }) {
   );
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// ─── ParentDashboard ──────────────────────────────────────────────────────────
 
 export default function ParentDashboard() {
-  const [user, setUser]           = useState(null);
-  const [profile, setProfile]     = useState(null); // מ-profiles: subscription_status, subscription_expires_at
-  const [child, setChild]         = useState(null);
-  const [childExists, setChildExists] = useState(null);
-  const [events, setEvents]       = useState([]);
-  const [goals, setGoals]         = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [addingChild, setAddingChild] = useState(false);
-  const [copied, setCopied]       = useState(false);
-  const [error, setError]         = useState(null);
-  const [view, setView]           = useState('dashboard');
-  const [showGoalModal, setShowGoalModal] = useState(false);
-  const [couponCode, setCouponCode] = useState('');
-  const [couponMsg, setCouponMsg]   = useState(null);
+  const [user,           setUser]           = useState(null);
+  const [profile,        setProfile]        = useState(null);
+  const [child,          setChild]          = useState(null);
+  const [childExists,    setChildExists]    = useState(null);
+  const [events,         setEvents]         = useState([]);
+  const [goals,          setGoals]          = useState([]);
+  const [loading,        setLoading]        = useState(true);
+  const [addingChild,    setAddingChild]    = useState(false);
+  const [copied,         setCopied]         = useState(false);
+  const [error,          setError]          = useState(null);
+  const [view,           setView]           = useState('dashboard');
+  const [showGoalModal,  setShowGoalModal]  = useState(false);
+  const [couponCode,     setCouponCode]     = useState('');
+  const [couponMsg,      setCouponMsg]      = useState(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-  const [goalForm, setGoalForm]     = useState({ title: '', reward: '', target_hours: '' });
-  const [goalSaving, setGoalSaving] = useState(false);
-  const [goalError,  setGoalError]  = useState('');
+  const [goalForm,       setGoalForm]       = useState({ title: '', reward: '', target_hours: '' });
+  const [goalSaving,     setGoalSaving]     = useState(false);
+  const [goalError,      setGoalError]      = useState('');
 
-  // ─── Fetch events ──────────────────────────────────────────────────────
+  // ─── Fetch events ────────────────────────────────────────────────────────
   const fetchEvents = useCallback(async (childToken) => {
     try {
       const { data, error: err } = await supabase
@@ -315,7 +158,7 @@ export default function ParentDashboard() {
     }
   }, []);
 
-  // ─── Fetch goals ───────────────────────────────────────────────────────
+  // ─── Fetch goals ─────────────────────────────────────────────────────────
   const fetchGoals = useCallback(async (parentId) => {
     try {
       const { data, error: err } = await supabase
@@ -330,10 +173,9 @@ export default function ParentDashboard() {
     }
   }, []);
 
-  // ─── Load child + profile ──────────────────────────────────────────────
+  // ─── Load child + profile ────────────────────────────────────────────────
   const loadChild = useCallback(async (u) => {
     try {
-      // טען profile (subscription_status, subscription_expires_at)
       const { data: prof } = await supabase
         .from('profiles')
         .select('subscription_status, subscription_expires_at, applied_coupon')
@@ -341,7 +183,6 @@ export default function ParentDashboard() {
         .maybeSingle();
       if (prof) setProfile(prof);
 
-      // טען ילד
       const { data, error: err } = await supabase
         .from('children')
         .select('*')
@@ -349,18 +190,11 @@ export default function ParentDashboard() {
         .maybeSingle();
       if (err) throw err;
 
-      if (!data) {
-        setChildExists(false);
-        setChild(null);
-        return;
-      }
+      if (!data) { setChildExists(false); setChild(null); return; }
 
       setChildExists(true);
       setChild(data);
-      await Promise.all([
-        fetchEvents(data.magic_token),
-        fetchGoals(u.id),
-      ]);
+      await Promise.all([fetchEvents(data.magic_token), fetchGoals(u.id)]);
     } catch (e) {
       setError('שגיאה בטעינת הנתונים. נסה לרענן את הדף.');
       console.error('[ParentDashboard] loadChild:', e);
@@ -368,30 +202,92 @@ export default function ParentDashboard() {
     }
   }, [fetchEvents, fetchGoals]);
 
-  // ─── Add child (called from EmptyState) ───────────────────────────────
-  async function handleApplyCoupon() {
-    if (!couponCode.trim()) return;
-    const { data, error: err } = await supabase.rpc('apply_coupon', { p_code: couponCode.trim().toUpperCase() });
-    if (err || data !== 'success') {
-      setCouponMsg({ ok: false, text: 'קוד לא תקף או לא פעיל' });
-    } else {
-      setCouponMsg({ ok: true, text: '✅ הקופון הופעל בהצלחה!' });
-      setCouponCode('');
-      // רענן profile
-      const { data: prof } = await supabase
-        .from('profiles').select('subscription_status, subscription_expires_at, applied_coupon')
-        .eq('id', user.id).maybeSingle();
-      if (prof) setProfile(prof);
+  // ─── Realtime: live event updates when child plays ───────────────────────
+  useEffect(() => {
+    if (!child?.magic_token) return;
+    const channel = supabase
+      .channel(`child-events-${child.magic_token}`)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'game_events',
+        filter: `child_token=eq.${child.magic_token}`,
+      }, (payload) => {
+        setEvents((prev) => [payload.new, ...prev].slice(0, 100));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [child?.magic_token]);
+
+  // ─── Auth listener ───────────────────────────────────────────────────────
+  useEffect(() => {
+    captureInstallEvent();
+    let settled = false;
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (settled) return;
+      const u = session?.user ?? null;
+      setUser(u);
+      try { if (u) await loadChild(u); }
+      finally { setLoading(false); settled = true; }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        settled = true;
+        const u = session?.user ?? null;
+        setUser(u);
+        try { if (u) await loadChild(u); }
+        finally { setLoading(false); }
+      }
+    );
+    return () => subscription.unsubscribe();
+  }, [loadChild]);
+
+  // ─── Handlers ────────────────────────────────────────────────────────────
+  async function handleLogin() {
+    setError(null);
+    try {
+      const { error: authErr } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/parent` },
+      });
+      if (authErr) throw authErr;
+    } catch (e) {
+      setError('הכניסה נכשלה. נסה שוב.');
+      console.error('[ParentDashboard] signInWithOAuth:', e);
     }
   }
 
+  async function handleLogout() {
+    try { await supabase.auth.signOut(); }
+    catch (e) { console.error('[ParentDashboard] signOut:', e); }
+  }
+
+  async function handleCopy() {
+    if (!child?.magic_token) return;
+    const link = `${APP_URL}/play/${child.magic_token}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    } catch {
+      setError(`העתק ידנית: ${link}`);
+    }
+  }
+
+  function handleWhatsApp() {
+    if (!child?.magic_token) return;
+    const link = `${APP_URL}/play/${child.magic_token}`;
+    const msg = encodeURIComponent(`היי! זה הקישור שלך לחשבונאוטיקה 🚀\n${link}`);
+    window.open(`https://wa.me/?text=${msg}`, '_blank');
+  }
+
   async function handleAddChild(name) {
-    if (!user || !name) return; // name NOT NULL בDB
+    if (!user || !name) return;
     setAddingChild(true);
     try {
       const { data, error: err } = await supabase
         .from('children')
-        .insert({ parent_id: user.id, name }) // magic_token יוצר DB אוטומטית
+        .insert({ parent_id: user.id, name })
         .select()
         .single();
       if (err) throw err;
@@ -406,115 +302,27 @@ export default function ParentDashboard() {
     }
   }
 
-  // ─── Realtime: auto-refresh events when child plays ───────────────────
-  // The parent dashboard would otherwise show stale data until manual refresh.
-  // This subscribes to new rows in game_events filtered by the child's token.
-  useEffect(() => {
-    if (!child?.magic_token) return;
-
-    const channel = supabase
-      .channel(`child-events-${child.magic_token}`)
-      .on(
-        'postgres_changes',
-        {
-          event:  'INSERT',
-          schema: 'public',
-          table:  'game_events',
-          filter: `child_token=eq.${child.magic_token}`,
-        },
-        (payload) => {
-          setEvents((prev) => [payload.new, ...prev].slice(0, 100));
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [child?.magic_token]);
-
-  // ─── Auth listener + F5 fix ────────────────────────────────────────────
-  useEffect(() => {
-    captureInstallEvent(); // trap beforeinstallprompt for PWA install
-    let settled = false;
-
-    // קריאה מיידית ל-getSession — מתקנת F5 כשה-listener מגיע מאוחר
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (settled) return; // onAuthStateChange כבר טיפל
-      const u = session?.user ?? null;
-      setUser(u);
-      try {
-        if (u) await loadChild(u);
-      } finally {
-        setLoading(false);
-        settled = true;
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        settled = true;
-        const u = session?.user ?? null;
-        setUser(u);
-        try {
-          if (u) await loadChild(u);
-        } finally {
-          setLoading(false);
-        }
-      }
-    );
-    return () => subscription.unsubscribe();
-  }, [loadChild]);
-
-  // ─── Google login ──────────────────────────────────────────────────────
-  async function handleLogin() {
-    setError(null);
-    try {
-      const { error: authErr } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: `${window.location.origin}/parent` }, // דינמי — עובד הן בלוקאל והן בוורסל
-      });
-      if (authErr) throw authErr;
-    } catch (e) {
-      setError('הכניסה נכשלה. נסה שוב.');
-      console.error('[ParentDashboard] signInWithOAuth:', e);
+  async function handleApplyCoupon() {
+    if (!couponCode.trim()) return;
+    const { data, error: err } = await supabase.rpc('apply_coupon', { p_code: couponCode.trim().toUpperCase() });
+    if (err || data !== 'success') {
+      setCouponMsg({ ok: false, text: 'קוד לא תקף או לא פעיל' });
+    } else {
+      setCouponMsg({ ok: true, text: '✅ הקופון הופעל בהצלחה!' });
+      setCouponCode('');
+      const { data: prof } = await supabase
+        .from('profiles').select('subscription_status, subscription_expires_at, applied_coupon')
+        .eq('id', user.id).maybeSingle();
+      if (prof) setProfile(prof);
     }
   }
 
-  // ─── Copy magic link ───────────────────────────────────────────────────
-  async function handleCopy() {
-    if (!child?.magic_token) return;
-    const link = `${APP_URL}/play/${child.magic_token}`;
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 3000);
-    } catch {
-      setError(`העתק ידנית: ${link}`);
-    }
-  }
-
-  // ─── WhatsApp share ────────────────────────────────────────────────────
-  function handleWhatsApp() {
-    if (!child?.magic_token) return;
-    const link = `${APP_URL}/play/${child.magic_token}`;
-    const msg = encodeURIComponent(`היי! זה הקישור שלך לחשבונאוטיקה 🚀\n${link}`);
-    window.open(`https://wa.me/?text=${msg}`, '_blank');
-  }
-
-  // ─── Logout ────────────────────────────────────────────────────────────
-  async function handleLogout() {
-    try { await supabase.auth.signOut(); }
-    catch (e) { console.error('[ParentDashboard] signOut:', e); }
-  }
-
-  // ─── Add goal ──────────────────────────────────────────────────────────
   async function handleAddGoal(e) {
     e.preventDefault();
     setGoalError('');
-
-    // ── Validation with visible feedback ──
-    if (!goalForm.title.trim()) { setGoalError('חסר שם יעד — מה הילד צריך לעשות?'); return; }
+    if (!goalForm.title.trim())  { setGoalError('חסר שם יעד — מה הילד צריך לעשות?'); return; }
     if (!goalForm.reward.trim()) { setGoalError('חסר פרס — מה יקבל בהגיעו ליעד?'); return; }
-    if (!user) { setGoalError('שגיאת התחברות — רענן את הדף ונסה שוב'); return; }
+    if (!user)                   { setGoalError('שגיאת התחברות — רענן את הדף ונסה שוב'); return; }
 
     setGoalSaving(true);
     const targetHours = goalForm.target_hours ? Number(goalForm.target_hours) : null;
@@ -536,14 +344,12 @@ export default function ParentDashboard() {
       setShowGoalModal(false);
     } catch (err) {
       console.error('[ParentDashboard] addGoal:', err);
-      // ← shows inside the modal, not outside
       setGoalError('שגיאה בשמירה: ' + (err?.message ?? 'נסה שוב'));
     } finally {
       setGoalSaving(false);
     }
   }
 
-  // ─── Delete goal ───────────────────────────────────────────────────────
   async function handleDeleteGoal(id) {
     try {
       await supabase.from('goals').delete().eq('id', id);
@@ -553,19 +359,27 @@ export default function ParentDashboard() {
     }
   }
 
-  // ─── Derived ───────────────────────────────────────────────────────────
+  function openGoalModal() {
+    setGoalError('');
+    setGoalForm({ title: '', reward: '', target_hours: '' });
+    setShowGoalModal(true);
+  }
+
+  function closeGoalModal() {
+    setShowGoalModal(false);
+    setGoalForm({ title: '', reward: '', target_hours: '' });
+  }
+
+  // ─── Derived values ──────────────────────────────────────────────────────
   const magicLink     = child?.magic_token ? `${APP_URL}/play/${child.magic_token}` : null;
   const notifications = buildNotifications(events);
   const radarData     = useMemo(() => buildRadarData(events), [events]);
 
-  // Trial check — 14 days from created_at in children table
-  // trial/active status מה-profiles table (לפי SQL)
   const trialActive = useMemo(() => {
-    if (!profile) return true; // טרם נטען — אל תחסום
+    if (!profile) return true;
     const status = profile.subscription_status;
     if (status === 'active' || status === 'vip') return true;
     if (status === 'expired' || status === 'canceled') return false;
-    // trial — בדוק תאריך
     if (!profile.subscription_expires_at) return true;
     return new Date(profile.subscription_expires_at) > new Date();
   }, [profile]);
@@ -576,15 +390,14 @@ export default function ParentDashboard() {
     return Math.max(0, Math.ceil(diff / (24 * 60 * 60 * 1000)));
   }, [profile]);
 
-  // Total days in current plan (for progress bar denominator)
   const planTotalDays = useMemo(() => {
     const status = profile?.subscription_status;
-    if (status === 'vip') return 36500; // 100 years
-    if (status === 'active') return 30;  // default paid plan
-    return 14; // trial
+    if (status === 'vip') return 36500;
+    if (status === 'active') return 30;
+    return 14;
   }, [profile]);
 
-  // ─── Loading ───────────────────────────────────────────────────────────
+  // ─── Render: loading ─────────────────────────────────────────────────────
   if (loading) {
     return (
       <div dir="rtl" className="min-h-[100dvh] flex items-center justify-center"
@@ -597,7 +410,7 @@ export default function ParentDashboard() {
     );
   }
 
-  // ─── Not logged in ─────────────────────────────────────────────────────
+  // ─── Render: not logged in ───────────────────────────────────────────────
   if (!user) {
     return (
       <div dir="rtl" className="min-h-[100dvh] flex items-center justify-center p-8 relative overflow-hidden"
@@ -635,7 +448,7 @@ export default function ParentDashboard() {
     );
   }
 
-  // ─── Paywall (trial expired) ────────────────────────────────────────────
+  // ─── Render: paywall (trial expired) ────────────────────────────────────
   if (!trialActive) {
     return (
       <div dir="rtl" className="min-h-[100dvh] bg-slate-50 p-4 flex flex-col items-center justify-center gap-6">
@@ -655,179 +468,33 @@ export default function ParentDashboard() {
           >
             חדש מנוי עכשיו →
           </button>
-          <button onClick={handleLogout} className="text-xs text-slate-400 hover:text-red-500">
-            יציאה
-          </button>
+          <button onClick={handleLogout} className="text-xs text-slate-400 hover:text-red-500">יציאה</button>
         </div>
       </div>
     );
   }
 
-  // ─── Empty state (no child yet) ────────────────────────────────────────
+  // ─── Render: empty state (no child yet) ─────────────────────────────────
   if (childExists === false) {
     return <EmptyState onAdd={handleAddChild} loading={addingChild} />;
   }
 
-  // ─── Pricing view ──────────────────────────────────────────────────────
+  // ─── Render: pricing view ────────────────────────────────────────────────
   if (view === 'pricing') {
-    return (
-      <div dir="rtl" className="min-h-[100dvh] bg-[#FDFDFF] text-slate-900">
-        {/* Nav */}
-        <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 px-4 py-3">
-          <div className="max-w-5xl mx-auto flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <div className="bg-indigo-600 p-1.5 rounded-lg text-white">
-                <GraduationCap size={18} />
-              </div>
-              <span className="font-black text-lg">חשבונאוטיקה</span>
-            </div>
-            <button
-              onClick={() => setView('dashboard')}
-              className="flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors"
-            >
-              <ChevronLeft size={16} /> חזור לדשבורד
-            </button>
-          </div>
-        </nav>
-
-        <div className="max-w-5xl mx-auto p-4 md:p-10">
-          {/* Hero */}
-          <div className="text-center max-w-2xl mx-auto mb-12">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest mb-5">
-              <Sparkles size={12} /> הקיץ הזה הופך למקפצה
-            </div>
-            <h2 className="text-3xl md:text-4xl font-black mb-4 leading-tight">גשר פדגוגי לכיתה ז'</h2>
-            <p className="text-slate-500 leading-relaxed text-sm">
-              המעבר לחטיבה הוא צומת מרגש אך מאתגר. חשבונאוטיקה מאפשרת לילדך לרענן את כל הידע
-              המתמטי שנצבר מכיתה א' ועד ו' — בדרך חווייתית, כדי להגיע לכיתה ז' בטוח ומלא ביטחון.
-            </p>
-          </div>
-
-          {/* Plans grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-16">
-            {PLANS.map(plan => (
-              <div
-                key={plan.id}
-                className={`bg-white rounded-[2rem] p-6 border-2 transition-all relative overflow-hidden hover:-translate-y-1 ${
-                  plan.popular ? 'border-indigo-600 shadow-xl shadow-indigo-100' : 'border-slate-100 shadow-sm'
-                }`}
-              >
-                {plan.popular && (
-                  <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[9px] font-black px-4 py-1.5 rounded-bl-xl">
-                    הבחירה הפופולרית
-                  </div>
-                )}
-                <h3 className="text-lg font-black mb-1 mt-2">{plan.title}</h3>
-                <p className="text-xs text-slate-400 mb-5 leading-snug">{plan.desc}</p>
-                <div className="mb-5">
-                  <span className="text-3xl font-black">₪{plan.price}</span>
-                  <span className="text-slate-400 text-xs mr-1">/ {plan.period}</span>
-                </div>
-                <ul className="space-y-3 mb-6">
-                  {plan.features.map((f, i) => (
-                    <li key={i} className="flex items-start gap-2 text-xs font-bold text-slate-600 leading-snug">
-                      <div className="p-0.5 bg-green-100 text-green-600 rounded-full shrink-0 mt-0.5">
-                        <Check size={10} />
-                      </div>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <a
-                  href={PLAN_URLS[plan.id]}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`block w-full py-3 rounded-xl font-black text-center text-sm transition-all active:scale-95 ${
-                    plan.id === 'vip'
-                      ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-100'
-                      : plan.popular
-                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'
-                        : 'bg-slate-900 text-white'
-                  }`}
-                >
-                  {plan.id === 'vip' ? '📞 צור קשר — WhatsApp' : 'בחר במסלול זה'}
-                </a>
-              </div>
-            ))}
-          </div>
-
-          {/* Why us */}
-          <div className="bg-slate-900 rounded-[2.5rem] p-8 md:p-10 text-white relative overflow-hidden">
-            <div className="absolute right-0 bottom-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl translate-x-24 translate-y-24" />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center relative z-10">
-              <div>
-                <h3 className="text-2xl font-black mb-6">למה הורים בוחרים בנו?</h3>
-                <div className="space-y-5">
-                  <Reason icon={<Rocket />} title="סגירת פערי יסודי" text="עוברים על כל הנושאים הקריטיים מכיתה א' ועד ו' ומוודאים שאין חורים לפני המעבר לחטיבה." />
-                  <Reason icon={<Brain />} title="שיפור שטף חשיבה" text="המערכת עובדת על אוטומציה של פתרון בעיות, מה שמאפשר לילד להתפנות לנושאים המורכבים בחטיבה." />
-                  <Reason icon={<ShieldCheck />} title="שקט נפשי להורה" text="דוחות מפורטים בזמן אמת — תדעו בדיוק איפה הילד עומד ואיך הוא מתקדם." />
-                </div>
-              </div>
-              <div className="bg-white/5 backdrop-blur-md rounded-[2rem] p-7 border border-white/10 text-center">
-                <div className="w-16 h-16 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-5 text-indigo-400">
-                  <Clock size={32} />
-                </div>
-                <h4 className="text-xl font-black mb-3">10 דקות ביום</h4>
-                <p className="text-indigo-100/70 text-sm leading-relaxed mb-6">
-                  זה כל מה שצריך. תרגול קצר, ממוקד וחווייתי בכל יום בחופש הגדול יוצר
-                  שינוי אדיר בביטחון העצמי של הילד מול המספרים.
-                </p>
-                <button
-                  onClick={() => setView('dashboard')}
-                  className="bg-white text-slate-900 px-6 py-3 rounded-xl font-black text-sm hover:bg-indigo-50 transition-all"
-                >
-                  חזור לדשבורד
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <PricingView onBack={() => setView('dashboard')} />;
   }
 
-  // ─── Dashboard view ────────────────────────────────────────────────────
+  // ─── Render: main dashboard ──────────────────────────────────────────────
   return (
     <div dir="rtl" className="min-h-[100dvh] bg-[#FDFDFF] text-slate-900">
 
-      {/* Nav */}
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 px-4 py-3">
-        <div className="max-w-5xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="bg-indigo-600 p-1.5 rounded-lg text-white">
-              <GraduationCap size={18} />
-            </div>
-            <span className="font-black text-lg">חשבונאוטיקה</span>
-          </div>
-          <div className="flex items-center gap-3">
-            {profile?.subscription_status === 'vip' ? (
-              <span className="text-xs font-bold text-violet-600 bg-violet-50 px-3 py-1 rounded-full border border-violet-100">
-                ✨ VIP
-              </span>
-            ) : profile?.subscription_status === 'active' ? (
-              <span className="text-xs font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-100">
-                ✅ מנוי פעיל — {trialDaysLeft} ימים
-              </span>
-            ) : trialDaysLeft > 0 ? (
-              <span className="text-xs font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-100">
-                ניסיון — {trialDaysLeft} ימים נותרו
-              </span>
-            ) : null}
-            <button
-              onClick={() => setView('pricing')}
-              className="bg-indigo-600 text-white px-4 py-1.5 rounded-xl font-bold text-xs shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all"
-            >
-              שדרג
-            </button>
-            <button
-              onClick={handleLogout}
-              className="text-xs text-slate-400 hover:text-red-500 transition-colors"
-            >
-              יציאה
-            </button>
-          </div>
-        </div>
-      </nav>
+      <DashboardNav
+        user={user}
+        profile={profile}
+        trialDaysLeft={trialDaysLeft}
+        onLogout={handleLogout}
+        onPricing={() => setView('pricing')}
+      />
 
       <div className="max-w-5xl mx-auto p-4 md:p-8 space-y-8 pb-16">
 
@@ -847,7 +514,7 @@ export default function ParentDashboard() {
           </div>
         )}
 
-        {/* Coupon banner — visible on all screen sizes, only when not active/vip */}
+        {/* Coupon banner */}
         {profile && profile.subscription_status !== 'active' && profile.subscription_status !== 'vip' && (
           <div className="bg-gradient-to-l from-indigo-50 to-violet-50 border-2 border-indigo-200 rounded-[2rem] p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="flex-1">
@@ -881,82 +548,18 @@ export default function ParentDashboard() {
 
           {/* Left column */}
           <div className="lg:col-span-8 space-y-6">
+            <MagicLinkCard
+              magicLink={magicLink}
+              onCopy={handleCopy}
+              copied={copied}
+              onWhatsApp={handleWhatsApp}
+            />
 
-            {/* Magic link card */}
-            <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm space-y-3">
-              <p className="text-sm font-black text-slate-700">🔗 קישור קסם לילד</p>
-              {magicLink ? (
-                <>
-                  <p className="text-xs text-slate-400 break-all font-mono bg-slate-50 rounded-xl px-3 py-2 border border-slate-100 select-all">
-                    {magicLink}
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleCopy}
-                      className={`flex-1 py-2.5 rounded-xl font-black text-white text-sm transition-all active:scale-95 ${
-                        copied ? 'bg-green-500' : 'bg-indigo-500 hover:bg-indigo-600'
-                      }`}
-                    >
-                      {copied ? '✅ הועתק!' : '📋 העתק קישור'}
-                    </button>
-                    <button
-                      onClick={handleWhatsApp}
-                      className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white px-4 py-2.5 rounded-xl font-black text-sm transition-all active:scale-95"
-                    >
-                      <Share2 size={14} /> וואטסאפ
-                    </button>
-                  </div>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    שלח את הקישור לילד דרך וואטסאפ — הוא יכנס ישירות למשחקים ללא סיסמה.
-                  </p>
-                </>
-              ) : (
-                <p className="text-xs text-slate-400 animate-pulse">יוצר קישור...</p>
-              )}
-            </div>
-
-            {/* Notifications */}
-            <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-black text-slate-700">🔔 עדכונים ופעילות</p>
-                <button
-                  onClick={() => child && fetchEvents(child.magic_token)}
-                  className="text-xs text-indigo-500 hover:text-indigo-700 font-bold"
-                >
-                  רענן
-                </button>
-              </div>
-              {notifications.length === 0 ? (
-                <div className="text-center py-6 space-y-2">
-                  <p className="text-3xl">🎮</p>
-                  <p className="text-sm text-slate-400">עדיין אין פעילות.<br />שלח את הקישור לילד שיתחיל לשחק!</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {notifications.map(n => (
-                    <div key={n.id} className={`rounded-2xl px-4 py-3 text-sm font-bold ${n.color}`}>
-                      <span>{n.icon} {n.text}</span>
-                      {n.time && <p className="text-xs font-normal opacity-70 mt-0.5">{n.time}</p>}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {events.length > 0 && (
-                <details className="mt-1">
-                  <summary className="text-xs text-slate-400 cursor-pointer hover:text-slate-600 font-bold">
-                    יומן משחקים ({events.length} פעילויות אחרונות)
-                  </summary>
-                  <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
-                    {events.map(e => (
-                      <div key={e.id} className="flex items-center justify-between text-xs text-slate-500 bg-slate-50 rounded-xl px-3 py-1.5">
-                        <span>{e.success ? '✅' : '❌'} {GAME_LABELS[e.game_name] || e.game_name} רמה {e.level}</span>
-                        <span className="text-slate-400 text-[10px]">{formatDate(e.created_at)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </details>
-              )}
-            </div>
+            <NotificationsCard
+              notifications={notifications}
+              events={events}
+              onRefresh={() => child && fetchEvents(child.magic_token)}
+            />
 
             {/* PWA Install */}
             <div className="bg-white rounded-[2rem] p-5 border border-slate-100 shadow-sm">
@@ -969,141 +572,27 @@ export default function ParentDashboard() {
               <p className="text-xs text-slate-400 text-center mt-2">גישה מהירה ללוח הבקרה מהמסך הראשי</p>
             </div>
 
-            {/* Radar chart */}
             {events.length > 0 && (
-              <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm">
-                <h3 className="text-sm font-black text-slate-700 mb-5 flex items-center gap-2">
-                  <Brain className="text-indigo-600" size={16} /> מפת מיומנויות
-                </h3>
-                <div className="h-64 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
-                      <PolarGrid stroke="#f1f5f9" />
-                      <PolarAngleAxis
-                        dataKey="subject"
-                        tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
-                      />
-                      <Radar
-                        name="רמה"
-                        dataKey="value"
-                        stroke="#4f46e5"
-                        fill="#6366f1"
-                        fillOpacity={0.25}
-                        strokeWidth={2}
-                      />
-                      <Tooltip
-                        formatter={(v) => [`${v}%`, 'רמת מיומנות']}
-                        contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
-                      />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+              <SkillRadarCard radarData={radarData} />
             )}
 
-            {/* Goals / rewards */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-black text-slate-700 flex items-center gap-2 px-1">
-                <Trophy className="text-amber-500" size={16} /> הסכם הפרסים
-              </h3>
-
-              {/* Reward system explainer */}
-              <div className="bg-amber-50 border border-amber-200 rounded-[1.5rem] p-4 space-y-2">
-                <p className="text-xs font-black text-amber-800 flex items-center gap-1.5">
-                  <Trophy size={13} className="text-amber-600" /> כיצד עובד מערכת התגמול?
-                </p>
-                <p className="text-xs text-amber-700 leading-relaxed">
-                  אנחנו מאמינים שילד לומד טוב יותר כשיש לו מטרה ברורה. קבעו עם ילדכם יעד זמן למידה —
-                  למשל 20 שעות של פתרון תרגילים בחודש — ופרס מוסכם שיקבל בהגיעו ליעד.
-                </p>
-                <p className="text-xs text-amber-700 leading-relaxed">
-                  המערכת תציג לילד פרוגרס-בר עם ספירה לאחור לקראת הפרס. <strong>שימו לב:</strong> זמן למידה
-                  נמדד לפי תרגילים שפותרו בפועל — לא לפי זמן שהאפליקציה פתוחה.
-                </p>
-                <p className="text-xs text-slate-500 italic">
-                  💡 הפרוגרס-בר יוצג לילד רק אם הגדרתם הסכם — אחרת הממשק שלו נשאר נקי ומינימליסטי.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {goals.map(g => (
-                  <div key={g.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative group">
-                    <button
-                      onClick={() => handleDeleteGoal(g.id)}
-                      className="absolute top-3 left-3 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-all"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                    <h4 className="font-bold text-sm mb-1">{g.title}</h4>
-                    <p className="text-xs text-pink-600 font-bold flex items-center gap-1.5">
-                      <Gift size={12} /> {g.reward}
-                    </p>
-                  </div>
-                ))}
-                <button
-                  onClick={() => { setShowGoalModal(true); setGoalError(''); setGoalForm({ title: '', reward: '', target_hours: '' }); }}
-                  className="border-2 border-dashed border-slate-200 rounded-2xl p-5 text-slate-400 hover:border-indigo-400 hover:text-indigo-500 transition-all flex flex-col items-center justify-center gap-2 min-h-[80px]"
-                >
-                  <Plus size={20} />
-                  <span className="font-bold text-xs">הוסף הסכם חדש</span>
-                </button>
-              </div>
-            </div>
+            <GoalsSection
+              goals={goals}
+              onAdd={openGoalModal}
+              onDelete={handleDeleteGoal}
+            />
           </div>
 
           {/* Right sidebar */}
           <div className="lg:col-span-4 space-y-5">
+            <UpgradeNudge onPricing={() => setView('pricing')} />
 
-            {/* Upgrade nudge */}
-            <div
-              onClick={() => setView('pricing')}
-              className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-6 rounded-[2rem] text-white shadow-xl relative overflow-hidden cursor-pointer hover:-translate-y-0.5 transition-all"
-            >
-              <Sparkles className="absolute -right-2 -top-2 w-14 h-14 opacity-10" />
-              <h3 className="text-lg font-black mb-1">שדרגו ל-PRO</h3>
-              <p className="text-indigo-100 text-xs mb-4 leading-relaxed">
-                פתחו את כל יכולות "גשר הקיץ" והכינו את הילד לחטיבה בצורה מקצועית.
-              </p>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-widest">צפה בתפריט</span>
-                <ChevronLeft size={18} />
-              </div>
-            </div>
-
-            {/* Trial status */}
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm space-y-3">
-              <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest">
-                {profile?.subscription_status === 'vip' ? 'סטטוס VIP' : profile?.subscription_status === 'active' ? 'מנוי פעיל' : 'סטטוס ניסיון'}
-              </h4>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-slate-700">
-                  {profile?.subscription_status === 'vip' ? 'גישה ללא הגבלה' : 'ימים שנותרו'}
-                </span>
-                <span className={`text-lg font-black ${profile?.subscription_status === 'vip' ? 'text-violet-500' : trialDaysLeft <= 3 ? 'text-red-500' : 'text-indigo-600'}`}>
-                  {profile?.subscription_status === 'vip' ? '∞' : trialDaysLeft}
-                </span>
-              </div>
-              <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all ${trialDaysLeft <= 3 ? 'bg-red-400' : 'bg-indigo-500'}`}
-                  style={{ width: `${Math.min(100, (trialDaysLeft / planTotalDays) * 100)}%` }}
-                />
-              </div>
-              <button
-                onClick={() => setView('pricing')}
-                className="w-full py-2.5 bg-indigo-50 text-indigo-600 rounded-xl font-black text-xs hover:bg-indigo-100 transition-all"
-              >
-                <CreditCard size={12} className="inline ml-1" />
-                בחר מסלול
-              </button>
-            </div>
-
-            {/* Applied coupon indicator */}
-            {profile?.applied_coupon && (
-              <div className="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm">
-                <p className="text-xs text-slate-400">קופון פעיל: <span className="font-bold text-indigo-600">{profile.applied_coupon}</span></p>
-              </div>
-            )}
+            <TrialCard
+              profile={profile}
+              trialDaysLeft={trialDaysLeft}
+              planTotalDays={planTotalDays}
+              onPricing={() => setView('pricing')}
+            />
 
             {/* Pedagogical insight */}
             <div className="bg-indigo-50 p-5 rounded-[2rem] border border-indigo-100">
@@ -1125,92 +614,19 @@ export default function ParentDashboard() {
         </div>
       </div>
 
-      {/* Goal modal */}
       {showInstallPrompt && (
         <InstallPrompt forceShow onClose={() => setShowInstallPrompt(false)} />
       )}
 
-      {showGoalModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-[2rem] p-8 w-full max-w-sm shadow-2xl">
-            <h3 className="text-xl font-black mb-5">יצירת הסכם פרס</h3>
-            <form onSubmit={handleAddGoal} className="space-y-4">
-              <div>
-                <label className="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-widest">מה היעד?</label>
-                <input
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                  placeholder="סיים 10 משחקים ברמה 3"
-                  value={goalForm.title}
-                  onChange={e => setGoalForm(f => ({ ...f, title: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-widest">מה הפרס?</label>
-                <input
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                  placeholder="גלידה בערב 🍦"
-                  value={goalForm.reward}
-                  onChange={e => setGoalForm(f => ({ ...f, reward: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-widest">יעד שעות למידה (אופציונלי)</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="200"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
-                  placeholder="למשל: 20 שעות בחודש"
-                  value={goalForm.target_hours}
-                  onChange={e => setGoalForm(f => ({ ...f, target_hours: e.target.value }))}
-                />
-                <p className="text-[10px] text-slate-400 mt-1 leading-snug">
-                  אם תגדירו יעד, הילד יראה פרוגרס-בר לקראת הפרס. ללא יעד — הפרס נשמר בדשבורד בלבד.
-                </p>
-              </div>
-              {/* ── In-modal error feedback ── */}
-              {goalError && (
-                <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-2.5 text-sm text-rose-600 font-bold">
-                  ⚠️ {goalError}
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="submit"
-                  disabled={goalSaving}
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white py-3 rounded-xl font-black text-sm shadow-lg shadow-indigo-100 active:scale-95 transition-all"
-                >
-                  {goalSaving ? '⏳ שומר...' : 'אשר חוזה ✅'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setShowGoalModal(false); setGoalForm({ title: '', reward: '', target_hours: '' }); }}
-                  className="px-5 py-3 text-slate-400 font-bold text-sm hover:text-slate-600"
-                >
-                  ביטול
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Sub-component ────────────────────────────────────────────────────────────
-
-function Reason({ icon, title, text }) {
-  return (
-    <div className="flex gap-3 group">
-      <div className="bg-white/10 p-2.5 rounded-xl text-indigo-400 h-fit group-hover:bg-indigo-500 group-hover:text-white transition-all">
-        {icon}
-      </div>
-      <div>
-        <h5 className="font-bold text-sm mb-0.5">{title}</h5>
-        <p className="text-indigo-100/60 text-xs leading-relaxed">{text}</p>
-      </div>
+      <GoalModal
+        open={showGoalModal}
+        form={goalForm}
+        onChange={(field, value) => setGoalForm(f => ({ ...f, [field]: value }))}
+        onSubmit={handleAddGoal}
+        onClose={closeGoalModal}
+        saving={goalSaving}
+        error={goalError}
+      />
     </div>
   );
 }

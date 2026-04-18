@@ -14,6 +14,14 @@ const useGameStore = create(
       darkMode: false,
       currentScreen: 'menu',
 
+      // Subscription — NOT persisted (rechecked fresh on each child session)
+      subscription: {
+        status: null,      // 'trial'|'active'|'vip'|'expired'|'canceled'|null
+        expiresAt: null,   // ISO string or null
+        checked: false,    // true once the RPC has returned
+        blocked: false,    // true if the child should see the paywall
+      },
+
       // Per-game state
       equations: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
       balance: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
@@ -34,6 +42,20 @@ const useGameStore = create(
       // === Actions ===
 
       setScreen: (screen) => set({ currentScreen: screen }),
+
+      // ─── Subscription actions ────────────────────────────────────────────
+      setSubscription: ({ status, expiresAt }) => {
+        const expired = expiresAt ? new Date(expiresAt) < new Date() : false;
+        const blocked =
+          status === 'expired'  ||
+          status === 'canceled' ||
+          (status === 'trial' && expired);
+        set({ subscription: { status, expiresAt, checked: true, blocked } });
+      },
+
+      clearSubscription: () => set({
+        subscription: { status: null, expiresAt: null, checked: false, blocked: false },
+      }),
 
       toggleDarkMode: () => {
         const next = !get().darkMode;

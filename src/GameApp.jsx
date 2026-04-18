@@ -118,15 +118,18 @@ function GoalProgressBanner({ goal }) {
   useEffect(() => {
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token || !goal?.created_at) return;
-    // Fetch events created after the goal was set (current month window)
+    let mounted = true;
+
     supabase
       .rpc('get_child_events', { p_token: token })
       .then(({ data }) => {
-        if (!data) return;
+        if (!mounted || !data) return;
         const since = new Date(goal.created_at);
         setEventCount(data.filter((e) => new Date(e.created_at) >= since).length);
       })
       .catch(() => {});
+
+    return () => { mounted = false; };
   }, [goal]);
 
   // 1 event ≈ 2 minutes of active problem-solving
@@ -162,60 +165,40 @@ function GoalProgressBanner({ goal }) {
 // ─── GameApp ──────────────────────────────────────────────────────────────────
 
 export default function GameApp() {
-  const currentScreen = useGameStore((s) => s.currentScreen);
-  const initDarkMode  = useGameStore((s) => s.initDarkMode);
-  const [showOnboarding, setShowOnboarding]   = useState(false);
+  const currentScreen  = useGameStore((s) => s.currentScreen);
+  const initDarkMode   = useGameStore((s) => s.initDarkMode);
+  // Subscription result is set by ChildEntry via the store — no duplicate RPC needed
+  const subscription   = useGameStore((s) => s.subscription);
+
+  const [showOnboarding,   setShowOnboarding]   = useState(false);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-  const [goals, setGoals] = useState([]);
-  const [subChecked, setSubChecked] = useState(false);  // האם בדיקת מנוי הסתיימה
-  const [subBlocked, setSubBlocked] = useState(false);  // האם חסום
+  const [goals,            setGoals]            = useState([]);
 
   useEffect(() => {
     initDarkMode();
     captureInstallEvent();
+    let mounted = true;
 
     try {
       if (!localStorage.getItem(ONBOARD_KEY)) setShowOnboarding(true);
     } catch {}
 
     const installTimer = setTimeout(() => {
-      if (shouldAutoShowInstallPrompt()) setShowInstallPrompt(true);
+      if (shouldAutoShowInstallPrompt() && mounted) setShowInstallPrompt(true);
     }, 3500);
 
+    // Fetch goals only (subscription already checked by ChildEntry → stored in Zustand)
     const token = localStorage.getItem(TOKEN_KEY);
     if (token) {
-      // בדוק מנוי בכל כניסה ל-/play — סוגר את פירצת ה-localStorage
-      supabase.rpc('get_child_subscription', { p_token: token })
-        .then(({ data }) => {
-          if (data && data.length > 0) {
-            const { subscription_status, subscription_expires_at } = data[0];
-            const expired = subscription_expires_at
-              ? new Date(subscription_expires_at) < new Date()
-              : false;
-            const blocked =
-              subscription_status === 'expired'  ||
-              subscription_status === 'canceled' ||
-              (subscription_status === 'trial' && expired);
-            setSubBlocked(blocked);
-          }
-          setSubChecked(true);
-        })
-        .catch(() => {
-          // fail-closed: אם לא ניתן לאמת מנוי — חוסם גישה למשחקים
-          setSubBlocked(true);
-          setSubChecked(true);
-        });
-
       supabase.rpc('get_child_goals', { p_token: token })
-        .then(({ data }) => { if (data) setGoals(data); })
+        .then(({ data }) => { if (mounted && data) setGoals(data); })
         .catch(() => {});
-    } else {
-      setSubChecked(true);
     }
 
-    return () => clearTimeout(installTimer);
+    return () => { mounted = false; clearTimeout(installTimer); };
   }, []); // eslint-disable-line
 
+  // ── No token: accessed /play directly without a magic link ──────────────
   if (!localStorage.getItem(TOKEN_KEY)) {
     return (
       <div dir="rtl" className="min-h-[100dvh] flex items-center justify-center bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 p-8 text-center">
@@ -228,8 +211,8 @@ export default function GameApp() {
     );
   }
 
-  // מחכה לתשובה מסופאבייס לפני שמציג תוכן
-  if (!subChecked) {
+  // ── Waiting for ChildEntry to finish the subscription check ──────────────
+  if (!subscription.checked) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center"
         style={{ background: 'radial-gradient(ellipse at 50% 60%, #0f172a 0%, #020617 100%)' }}>
@@ -241,19 +224,17 @@ export default function GameApp() {
     );
   }
 
-  if (subBlocked) {
+  // ── Blocked by subscription check (paywall) ───────────────────────────────
+  if (subscription.blocked) {
     return (
       <div dir="rtl" className="min-h-[100dvh] flex flex-col items-center justify-center p-6 text-center gap-6"
         style={{ background: 'radial-gradient(ellipse at 50% 60%, #0f172a 0%, #020617 100%)' }}>
         <style>{`@keyframes float3{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}`}</style>
         <div className="text-8xl" style={{ animation: 'float3 2.5s ease-in-out infinite' }}>🛸</div>
         <div className="space-y-3 max-w-xs">
-          <h2 className="text-2xl font-black text-white leading-tight">
-            בעיה במשיכת אישורים ממערכת ההורים
-          </h2>
+          <h2 className="text-2xl font-black text-white leading-tight">בעיה במשיכת אישורים ממערכת ההורים</h2>
           <p className="text-slate-400 text-base leading-relaxed">
-            לא הצלחנו לאמת את הגישה שלך.<br />
-            בקש מאמא או אבא לבדוק את המערכת.
+            לא הצלחנו לאמת את הגישה שלך.<br />בקש מאמא או אבא לבדוק את המערכת.
           </p>
         </div>
         <div className="bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm text-slate-400 max-w-xs">

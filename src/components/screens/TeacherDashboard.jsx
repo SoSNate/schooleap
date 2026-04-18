@@ -1,38 +1,40 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
-import { LogOut, GraduationCap } from 'lucide-react';
+import { LogOut, GraduationCap, ShieldAlert } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import ClassEngagementTable from '../teacher/ClassEngagementTable';
 import ClassSkillsCard      from '../teacher/ClassSkillsCard';
 import StudentDetailDrawer  from '../teacher/StudentDetailDrawer';
-import AddStudentForm       from '../teacher/AddStudentForm';
+import ClassroomCodeCard    from '../teacher/ClassroomCodeCard';
 
 /**
  * /teacher — Teacher-only dashboard.
  * Guarded by DB-backed role check (profiles.role === 'teacher' | 'admin').
- * Shows class-wide engagement + per-student detail drawer.
+ * Students join the class themselves via /join?code=CLASSROOM_CODE.
  */
 export default function TeacherDashboard() {
-  const [user,     setUser]     = useState(null);
-  const [profile,  setProfile]  = useState(null);
-  const [students, setStudents] = useState([]);
-  const [allEvents,setAllEvents]= useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
-  const [selected, setSelected] = useState(null);
+  const [user,      setUser]      = useState(null);
+  const [profile,   setProfile]   = useState(null);
+  const [loginErr,  setLoginErr]  = useState(null);
+  const [students,  setStudents]  = useState([]);
+  const [allEvents, setAllEvents] = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState(null);
+  const [selected,  setSelected]  = useState(null);
 
   const loadData = useCallback(async (u) => {
     try {
       const { data: prof } = await supabase
         .from('profiles')
-        .select('id, email, role, max_children_allowed')
+        .select('id, email, role, max_children_allowed, classroom_code')
         .eq('id', u.id)
         .maybeSingle();
       setProfile(prof || null);
       if (!prof || (prof.role !== 'teacher' && prof.role !== 'admin')) return;
 
+      // ✅ get_teacher_class_overview uses auth.uid() internally — no params needed
       const { data: list, error: rpcErr } = await supabase
-        .rpc('get_teacher_class_overview', { p_teacher_id: u.id });
+        .rpc('get_teacher_class_overview');
       if (rpcErr) throw rpcErr;
       setStudents(list || []);
 
@@ -75,29 +77,25 @@ export default function TeacherDashboard() {
     return () => subscription.unsubscribe();
   }, [loadData]);
 
+  async function handleLogin() {
+    setLoginErr(null);
+    try {
+      const { error: authErr } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/teacher` },
+      });
+      if (authErr) throw authErr;
+    } catch (e) {
+      setLoginErr('הכניסה נכשלה — נסה שוב');
+      console.error('[TeacherDashboard] login:', e);
+    }
+  }
+
   async function handleLogout() {
     try { await supabase.auth.signOut(); } catch (e) { console.error(e); }
   }
 
-  async function handleAddStudent(name) {
-    if (!user) return null;
-    const { data, error: err } = await supabase
-      .from('children')
-      .insert({ parent_id: user.id, name })
-      .select()
-      .single();
-    if (err) throw err;
-    await loadData(user);
-    return data;
-  }
-
-  const atLimit = useMemo(() => {
-    if (!profile) return false;
-    const max = profile.max_children_allowed ?? 1;
-    return students.length >= max;
-  }, [profile, students]);
-
-  // ─── Render states ──────────────────────────────────────────────────────
+  // ─── Render states ───────────────────────────────────────────────────────
   if (loading) {
     return (
       <div dir="rtl" className="min-h-[100dvh] flex items-center justify-center bg-slate-50">
@@ -106,10 +104,52 @@ export default function TeacherDashboard() {
     );
   }
 
-  if (!user) return <Navigate to="/parent" replace />;
+  // לא מחובר — מסך כניסה ייעודי למורים
+  if (!user) {
+    return (
+      <div dir="rtl" className="min-h-[100dvh] flex items-center justify-center p-6"
+        style={{ background: 'radial-gradient(ellipse at 50% 60%, #0f172a 0%, #020617 100%)' }}>
+        <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-[2rem] p-8 max-w-sm w-full text-center space-y-6 shadow-2xl">
+          <div className="text-5xl">🎓</div>
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/20 border border-indigo-400/30 rounded-full mb-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+              <span className="text-indigo-300 text-[10px] font-black uppercase tracking-widest">Teacher Portal</span>
+            </div>
+            <h1 className="text-2xl font-black text-white">כניסת מורים</h1>
+            <p className="text-slate-400 text-sm mt-1">ניהול כיתה ומעקב התקדמות תלמידים</p>
+          </div>
+          {loginErr && (
+            <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-2">{loginErr}</p>
+          )}
+          <button
+            onClick={handleLogin}
+            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-50 text-slate-700 font-bold py-3 px-6 rounded-2xl transition-all hover:shadow-xl active:scale-95"
+          >
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+            כניסה עם Google
+          </button>
+          <p className="text-slate-600 text-xs">גישה למורים מורשים בלבד</p>
+        </div>
+      </div>
+    );
+  }
 
+  // מחובר אבל לא מורה/אדמין
   if (profile && profile.role !== 'teacher' && profile.role !== 'admin') {
-    return <Navigate to="/parent" replace />;
+    return (
+      <div dir="rtl" className="min-h-[100dvh] flex items-center justify-center p-6 bg-slate-50">
+        <div className="bg-white rounded-3xl shadow-lg p-8 max-w-sm w-full text-center space-y-4 border border-slate-200">
+          <ShieldAlert className="mx-auto text-amber-500" size={40} />
+          <h2 className="text-xl font-black text-slate-800">אין הרשאת גישה</h2>
+          <p className="text-slate-500 text-sm">
+            המשתמש <span className="font-bold text-slate-700">{user.email}</span> אינו רשום כמורה במערכת.
+          </p>
+          <p className="text-slate-400 text-xs">פנה למנהל המערכת לקבלת הרשאה.</p>
+          <button onClick={handleLogout} className="text-sm font-bold text-indigo-600 hover:text-indigo-800">יציאה</button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -142,7 +182,7 @@ export default function TeacherDashboard() {
           </div>
         )}
 
-        {/* Header row */}
+        {/* Header */}
         <div>
           <h2 className="text-2xl font-black tracking-tight">
             שלום, <span className="text-indigo-600">{user.email?.split('@')[0]}</span>
@@ -150,16 +190,17 @@ export default function TeacherDashboard() {
           <p className="text-slate-400 text-sm mt-1">
             {students.length > 0
               ? `${students.length} תלמידים רשומים בכיתה`
-              : 'עוד לא נוספו תלמידים לכיתה'}
+              : 'עוד אין תלמידים — שתף את קישור ההצטרפות'}
           </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-8 space-y-6">
-            <AddStudentForm onAdd={handleAddStudent} disabled={atLimit} />
             <ClassEngagementTable students={students} onSelect={setSelected} />
           </div>
           <div className="lg:col-span-4 space-y-6">
+            {/* קוד הכיתה — כרטיס בולט בראש הסיידבר */}
+            <ClassroomCodeCard classroomCode={profile?.classroom_code} />
             <ClassSkillsCard allEvents={allEvents} />
           </div>
         </div>

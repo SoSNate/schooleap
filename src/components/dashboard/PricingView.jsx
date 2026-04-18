@@ -1,5 +1,8 @@
-import { Check, ChevronLeft, Sparkles, Clock, Rocket, Brain, ShieldCheck, GraduationCap } from 'lucide-react';
+import { Check, ChevronLeft, Sparkles, Clock, Rocket, Brain, ShieldCheck, GraduationCap, MessageCircle, Mail, Users, BookOpen, BarChart2, Lock } from 'lucide-react';
 import { PLANS, PLAN_URLS } from './constants';
+
+const WHATSAPP_NUMBER = '972523456789'; // ← עדכן למספר האמיתי
+const CONTACT_EMAIL   = '12natanel@gmail.com';
 
 // ─── Reason sub-component (used only inside PricingView) ─────────────────────
 
@@ -105,6 +108,76 @@ export default function PricingView({ onBack }) {
               </a>
             </div>
           ))}
+        </div>
+
+        {/* ─── מסלול מורים ובתי ספר (B2B) ─── */}
+        <div className="mb-12">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-widest mb-3">
+              <GraduationCap size={12} /> מסלול מוסדי
+            </div>
+            <h3 className="text-2xl font-black text-slate-800">מורים ובתי ספר</h3>
+            <p className="text-slate-500 text-sm mt-2">
+              פלטפורמת LMS מלאה — המורה שולט, התלמידים מתרגלים, ההורים רואים תוצאות
+            </p>
+          </div>
+
+          <div className="bg-gradient-to-br from-slate-900 to-indigo-950 rounded-[2rem] p-8 md:p-10 text-white overflow-hidden relative">
+            <div className="absolute left-0 top-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -translate-x-16 -translate-y-16 pointer-events-none" />
+            <div className="absolute right-0 bottom-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl translate-x-12 translate-y-12 pointer-events-none" />
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center relative z-10">
+              {/* Features */}
+              <div className="space-y-4">
+                {[
+                  { icon: <Users size={16} />,     text: 'עד 40 תלמידים בכיתה' },
+                  { icon: <Lock size={16} />,      text: 'Assignment Wall — שיעורי בית דיגיטליים עם נעילת משחקים חופשיים' },
+                  { icon: <BarChart2 size={16} />, text: 'דשבורד מעורבות — מי פעיל, מי לא, מי הצליח' },
+                  { icon: <BookOpen size={16} />,  text: 'הצטרפות עצמית (Classroom Code) — ללא רישום ידני' },
+                  { icon: <Check size={16} />,     text: 'אנונימיות מוחלטת — ללא תחרות בין תלמידים' },
+                  { icon: <Check size={16} />,     text: 'מפת מיומנויות לכל תלמיד ולכיתה כולה' },
+                ].map((f, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 mt-0.5">
+                      {f.icon}
+                    </div>
+                    <p className="text-sm text-indigo-100/80 leading-snug">{f.text}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* CTA */}
+              <div className="bg-white/5 border border-white/10 rounded-[2rem] p-7 text-center space-y-5">
+                <div className="text-4xl">🤝</div>
+                <div>
+                  <h4 className="text-xl font-black mb-2">מחיר מותאם אישית</h4>
+                  <p className="text-indigo-200/70 text-sm leading-relaxed">
+                    המחיר נקבע לפי מספר כיתות, בית הספר ומשך הרישיון.
+                    נשמח לתת הצעת מחיר — צרו קשר ישירות:
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  <a
+                    href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('היי נתנאל, אני מעוניין/ת במסלול מורים לחשבונאוטיקה 🎓')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-green-400 text-white font-black py-3.5 rounded-xl transition-all active:scale-95"
+                  >
+                    <MessageCircle size={18} /> שלח הודעה ב-WhatsApp
+                  </a>
+                  <a
+                    href={`mailto:${CONTACT_EMAIL}?subject=מסלול מורים - חשבונאוטיקה`}
+                    className="flex items-center justify-center gap-2 w-full bg-white/10 hover:bg-white/20 text-white font-bold py-3 rounded-xl transition-all active:scale-95 text-sm"
+                  >
+                    <Mail size={16} /> {CONTACT_EMAIL}
+                  </a>
+                </div>
+                <p className="text-indigo-300/50 text-[10px]">
+                  מענה תוך 24 שעות בימי עבודה
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Why us */}

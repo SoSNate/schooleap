@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage      from './components/screens/LandingPage';
 import ParentDashboard  from './components/screens/ParentDashboard';
 import TeacherDashboard from './components/screens/TeacherDashboard';
+import JoinClass        from './components/screens/JoinClass';
 import ChildEntry       from './components/screens/ChildEntry';
 import GameApp          from './GameApp';
 import { captureInstallEvent } from './components/shared/InstallPrompt';
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="/"            element={<LandingPage />} />
         <Route path="/parent"      element={<ParentDashboard />} />
         <Route path="/teacher"     element={<TeacherDashboard />} />
+        <Route path="/join"        element={<JoinClass />} />
         <Route path="/play/:token" element={<ChildEntry />} />
         <Route path="/play"        element={
           <SubscriptionGuard>

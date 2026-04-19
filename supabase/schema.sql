@@ -157,7 +157,16 @@ CREATE TABLE public.audit_log (
 CREATE INDEX audit_log_created_idx ON public.audit_log (created_at DESC);
 
 -- ────────────────────────────────────────────────────────────
--- 2. Row Level Security
+-- 2. is_admin_caller — חייב לפני RLS policies
+-- ────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.is_admin_caller()
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT COALESCE((SELECT is_admin FROM public.profiles WHERE id = auth.uid()), false);
+$$;
+GRANT EXECUTE ON FUNCTION public.is_admin_caller() TO authenticated, anon;
+
+-- ────────────────────────────────────────────────────────────
+-- 3. Row Level Security
 -- ────────────────────────────────────────────────────────────
 ALTER TABLE public.profiles                  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.children                  ENABLE ROW LEVEL SECURITY;
@@ -207,15 +216,8 @@ CREATE POLICY "Admin reads all status" ON public.child_assignments_status FOR SE
 CREATE POLICY "Admin reads audit" ON public.audit_log FOR SELECT USING (public.is_admin_caller());
 
 -- ────────────────────────────────────────────────────────────
--- 3. פונקציות
+-- 4. פונקציות נוספות
 -- ────────────────────────────────────────────────────────────
-
--- is_admin_caller — helper לשימוש ב-RLS
-CREATE OR REPLACE FUNCTION public.is_admin_caller()
-RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT COALESCE((SELECT is_admin FROM public.profiles WHERE id = auth.uid()), false);
-$$;
-GRANT EXECUTE ON FUNCTION public.is_admin_caller() TO authenticated, anon;
 
 -- handle_new_user — טריגר הרשמה
 CREATE OR REPLACE FUNCTION public.handle_new_user()

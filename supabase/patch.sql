@@ -5,6 +5,15 @@
 -- ============================================================
 
 -- ────────────────────────────────────────────────────────────
+-- 0. is_admin_caller — חייב להיות ראשון (RLS policies תלויות בה)
+-- ────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.is_admin_caller()
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT COALESCE((SELECT is_admin FROM public.profiles WHERE id = auth.uid()), false);
+$$;
+GRANT EXECUTE ON FUNCTION public.is_admin_caller() TO authenticated, anon;
+
+-- ────────────────────────────────────────────────────────────
 -- 1. עמודות חדשות ל-profiles
 -- ────────────────────────────────────────────────────────────
 ALTER TABLE public.profiles
@@ -169,15 +178,6 @@ CREATE POLICY "Admin reads all profiles"
 -- ============================================================
 --  FUNCTIONS
 -- ============================================================
-
--- ────────────────────────────────────────────────────────────
--- 8. is_admin_caller()
--- ────────────────────────────────────────────────────────────
-CREATE OR REPLACE FUNCTION public.is_admin_caller()
-RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT COALESCE((SELECT is_admin FROM public.profiles WHERE id = auth.uid()), false);
-$$;
-GRANT EXECUTE ON FUNCTION public.is_admin_caller() TO authenticated, anon;
 
 -- ────────────────────────────────────────────────────────────
 -- 9. handle_new_user (מעודכן — is_admin + role)

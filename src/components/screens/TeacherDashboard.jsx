@@ -62,28 +62,27 @@ export default function TeacherDashboard() {
   }, []);
 
   useEffect(() => {
-    let settled = false;
-    const timeoutId = setTimeout(() => {
-      if (!settled) { setLoading(false); settled = true; }
-    }, 8000);
+    let mounted = true;
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (settled) return;
-      const u = session?.user ?? null;
-      setUser(u);
-      try { if (u) await loadData(u); }
-      finally { setLoading(false); settled = true; }
-    });
+    // ⏱ Timeout: אם אחרי 4 שניות עדיין loading — עצור spinner
+    const timeoutId = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 4000);
+
+    // INITIAL_SESSION fires synchronously with current session on mount,
+    // so a single onAuthStateChange is enough — no getSession() race condition
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_e, session) => {
-        settled = true;
+        if (!mounted) return;
         const u = session?.user ?? null;
         setUser(u);
+        clearTimeout(timeoutId);
         try { if (u) await loadData(u); }
-        finally { setLoading(false); }
+        catch (e) { console.error('[TeacherDashboard] loadData:', e); }
+        finally { if (mounted) setLoading(false); }
       }
     );
-    return () => { subscription.unsubscribe(); clearTimeout(timeoutId); };
+    return () => { mounted = false; clearTimeout(timeoutId); subscription.unsubscribe(); };
   }, [loadData]);
 
   async function handleLogin() {

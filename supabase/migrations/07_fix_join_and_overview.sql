@@ -115,6 +115,15 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.get_teacher_class_overview() TO authenticated;
 
+-- ────────────────────────────────────────────────────────────
+-- 3. תיקון max_children_allowed — COALESCE(0, 40) = 0 (באג!)
+--    כל מורה/אדמין עם ערך 0 או 1 (ברירת מחדל הורה) → 40
+-- ────────────────────────────────────────────────────────────
+UPDATE public.profiles
+SET max_children_allowed = 40
+WHERE max_children_allowed <= 1
+  AND (role IN ('teacher', 'admin') OR is_admin = true);
+
 -- ============================================================
--- ✅ Migration 07 הושלם — join_classroom + overview תוקנו.
+-- ✅ Migration 07 הושלם — join_classroom + overview + quota תוקנו.
 -- ============================================================

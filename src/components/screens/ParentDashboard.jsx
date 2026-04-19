@@ -191,7 +191,7 @@ export default function ParentDashboard() {
     try {
       const { data: prof } = await supabase
         .from('profiles')
-        .select('subscription_status, subscription_expires_at, applied_coupon, role')
+        .select('subscription_status, subscription_expires_at, applied_coupon, role, is_admin')
         .eq('id', u.id)
         .maybeSingle();
       if (prof) setProfile(prof);
@@ -467,9 +467,10 @@ export default function ParentDashboard() {
     );
   }
 
-  // ─── Render: redirect by role ──────────────────────────────────────────
-  if (profile?.role === 'admin')   return <Navigate to="/admin"   replace />;
-  if (profile?.role === 'teacher') return <Navigate to="/teacher" replace />;
+  // ─── Render: redirect by role / is_admin ───────────────────────────────
+  // is_admin=true הוא מקור האמת (migration 06). role='admin' הוא fallback.
+  if (profile?.is_admin || profile?.role === 'admin') return <Navigate to="/admin"   replace />;
+  if (profile?.role === 'teacher')                    return <Navigate to="/teacher" replace />;
 
   // ─── Render: paywall (trial expired) ────────────────────────────────────
   if (!trialActive) {

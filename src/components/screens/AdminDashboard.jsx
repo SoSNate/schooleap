@@ -358,23 +358,35 @@ function ActivityTab() {
 // ─── Tab: Links ───────────────────────────────────────────────────────────────
 
 function LinksTab() {
-  const navigate = useNavigate();
+  // פותח בטאב חדש — כך האדמין לא ינותב חזרה ל-/admin מ-ParentDashboard
+  const open = (path) => window.open(window.location.origin + path, '_blank');
   return (
-    <div className="space-y-3">
-      <button onClick={() => navigate('/teacher')}
+    <div className="space-y-4">
+      <p className="text-xs text-slate-400 font-bold">
+        נפתחים בטאב חדש — כדי למנוע ניתוב חזרה לאדמין
+      </p>
+      <button onClick={() => open('/teacher')}
         className="w-full flex items-center gap-3 bg-emerald-50 border border-emerald-200 hover:border-emerald-400 text-emerald-800 font-black py-4 px-5 rounded-2xl transition-all text-right">
         <span className="text-2xl">🎓</span>
         <div>
-          <p className="font-black">דשבורד מורה</p>
+          <p className="font-black">דשבורד מורה ↗</p>
           <p className="text-xs font-normal text-emerald-600">ניהול כיתה ומעקב תלמידים</p>
         </div>
       </button>
-      <button onClick={() => navigate('/parent')}
+      <button onClick={() => open('/parent')}
         className="w-full flex items-center gap-3 bg-indigo-50 border border-indigo-200 hover:border-indigo-400 text-indigo-800 font-black py-4 px-5 rounded-2xl transition-all text-right">
         <span className="text-2xl">👨‍👩‍👧</span>
         <div>
-          <p className="font-black">דשבורד הורה</p>
+          <p className="font-black">דשבורד הורה ↗</p>
           <p className="text-xs font-normal text-indigo-600">מעקב ילדים ומנוי</p>
+        </div>
+      </button>
+      <button onClick={() => open('/join')}
+        className="w-full flex items-center gap-3 bg-slate-50 border border-slate-200 hover:border-slate-400 text-slate-700 font-black py-4 px-5 rounded-2xl transition-all text-right">
+        <span className="text-2xl">🎮</span>
+        <div>
+          <p className="font-black">דף הצטרפות תלמיד ↗</p>
+          <p className="text-xs font-normal text-slate-500">בדיקת זרימת self-join</p>
         </div>
       </button>
     </div>

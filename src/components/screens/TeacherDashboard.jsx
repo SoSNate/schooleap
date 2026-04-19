@@ -187,16 +187,50 @@ export default function TeacherDashboard() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 space-y-6">
-            <ClassEngagementTable students={students} onSelect={setSelected} />
+        {students.length === 0 ? (
+          /* ─── Empty state ─────────────────────────────────────────── */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-8">
+              <div className="bg-white border border-slate-100 rounded-3xl p-10 flex flex-col items-center text-center gap-5 shadow-sm">
+                <div className="text-6xl">🏫</div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-black text-slate-800">הכיתה שלך עדיין ריקה</h3>
+                  <p className="text-slate-400 text-sm leading-relaxed max-w-xs">
+                    שלח לתלמידים את קוד הכיתה שלך — הם יצטרפו בעצמם דרך הקישור
+                  </p>
+                </div>
+                {profile?.classroom_code && (
+                  <div className="bg-indigo-50 border border-indigo-100 rounded-2xl px-6 py-4 w-full max-w-xs">
+                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">קוד הכיתה שלך</p>
+                    <p className="text-3xl font-black font-mono tracking-widest text-indigo-700 select-all">
+                      {profile.classroom_code}
+                    </p>
+                  </div>
+                )}
+                <p className="text-slate-400 text-xs">
+                  קישור הצטרפות:{' '}
+                  <span className="font-mono text-indigo-500">
+                    {window.location.origin}/join?code={profile?.classroom_code}
+                  </span>
+                </p>
+              </div>
+            </div>
+            <div className="lg:col-span-4 space-y-6">
+              <ClassroomCodeCard classroomCode={profile?.classroom_code} />
+            </div>
           </div>
-          <div className="lg:col-span-4 space-y-6">
-            {/* קוד הכיתה — כרטיס בולט בראש הסיידבר */}
-            <ClassroomCodeCard classroomCode={profile?.classroom_code} />
-            <ClassSkillsCard allEvents={allEvents} />
+        ) : (
+          /* ─── Normal state with students ─────────────────────────── */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-8 space-y-6">
+              <ClassEngagementTable students={students} onSelect={setSelected} />
+            </div>
+            <div className="lg:col-span-4 space-y-6">
+              <ClassroomCodeCard classroomCode={profile?.classroom_code} />
+              <ClassSkillsCard allEvents={allEvents} />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {selected && (

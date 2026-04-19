@@ -14,7 +14,7 @@ export default function JoinClass() {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
-  const [result,  setResult]  = useState(null); // { access_code, name }
+  const [result,  setResult]  = useState(null); // { access_code, magic_token, name }
   const [copied,  setCopied]  = useState(false);
 
   // Pre-fill code from URL
@@ -118,15 +118,25 @@ export default function JoinClass() {
             </p>
             <button
               onClick={copyCode}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-3 rounded-xl text-sm transition-all active:scale-95"
+              className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-2.5 rounded-xl text-sm transition-all active:scale-95 border border-white/20"
             >
               {copied ? '✅ הועתק!' : '📋 העתק קוד'}
             </button>
           </div>
 
+          {/* כפתור משחק מיידי */}
+          {result.magic_token && (
+            <button
+              onClick={() => navigate(`/play/${result.magic_token}`)}
+              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 rounded-2xl text-base transition-all active:scale-95 shadow-lg shadow-indigo-500/30"
+            >
+              🚀 בואו נשחק!
+            </button>
+          )}
+
           <button
             onClick={() => navigate('/')}
-            className="text-slate-500 hover:text-white text-sm font-bold transition-colors"
+            className="text-slate-600 hover:text-slate-400 text-sm font-medium transition-colors"
           >
             ← חזור לעמוד הראשי
           </button>
@@ -199,12 +209,12 @@ export default function JoinClass() {
         </form>
 
         <p className="text-center text-slate-600 text-xs">
-          כניסה חוזרת?{' '}
+          כבר יש לך קוד אישי?{' '}
           <button
             onClick={() => navigate('/')}
             className="text-indigo-400 hover:text-indigo-300 font-bold"
           >
-            לדף הראשי
+            כנס דרך הדף הראשי
           </button>
         </p>
       </div>

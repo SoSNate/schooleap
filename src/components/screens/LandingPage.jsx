@@ -47,13 +47,20 @@ function Pill({ emoji, text }) {
 
 const CONTACT_EMAIL = '12natanel@gmail.com';
 
+const TOKEN_KEY = 'hasbaonautica_child_token';
+const NAME_KEY  = 'hasbaonautica_child_name';
+
 export default function LandingPage() {
   const navigate = useNavigate();
-  const [launched, setLaunched] = useState(false);
+  const [launched,       setLaunched]       = useState(false);
+  const [returningChild, setReturningChild] = useState(null); // { token, name }
 
-  // תיקון באג גלילה — תמיד נוחתים בראש הדף
+  // תיקון באג גלילה + זיהוי ילד חוזר
   useEffect(() => {
     window.scrollTo(0, 0);
+    const token = localStorage.getItem(TOKEN_KEY);
+    const name  = localStorage.getItem(NAME_KEY);
+    if (token && name) setReturningChild({ token, name });
   }, []);
 
   function handleEnter() {
@@ -167,6 +174,17 @@ export default function LandingPage() {
 
         {/* CTA — בחירת תפקיד (הורה / מורה) */}
         <div className="w-full max-w-lg flex flex-col items-center gap-4">
+          {/* כפתור 0: ילד חוזר (מוצג רק אם יש טוקן שמור) */}
+          {returningChild && (
+            <button
+              onClick={() => navigate(`/play/${returningChild.token}`)}
+              className="w-full flex items-center justify-center gap-3 bg-amber-500 hover:bg-amber-400 text-white font-black py-4 px-8 rounded-2xl text-lg transition-all active:scale-95 shadow-lg shadow-amber-500/30"
+            >
+              <span>🚀 המשך כ-{returningChild.name}</span>
+              <span className="text-xl">→</span>
+            </button>
+          )}
+
           {/* כפתור 1: הורים */}
           <button
             onClick={handleEnter}

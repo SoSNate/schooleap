@@ -467,10 +467,10 @@ export default function ParentDashboard() {
     );
   }
 
-  // ─── Render: redirect by role / is_admin ───────────────────────────────
-  // is_admin=true הוא מקור האמת (migration 06). role='admin' הוא fallback.
-  if (profile?.is_admin || profile?.role === 'admin') return <Navigate to="/admin"   replace />;
-  if (profile?.role === 'teacher')                    return <Navigate to="/teacher" replace />;
+  // ─── Render: redirect by role ─────────────────────────────────────────
+  // אדמין (is_admin=true) יכול להישאר בדף זה לצורך QA — ללא redirect.
+  // מורה שאינו אדמין מועבר לדשבורד המורה.
+  if (!profile?.is_admin && profile?.role === 'teacher') return <Navigate to="/teacher" replace />;
 
   // ─── Render: paywall (trial expired) ────────────────────────────────────
   if (!trialActive) {

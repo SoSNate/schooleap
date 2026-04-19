@@ -27,11 +27,12 @@ export default function TeacherDashboard() {
     try {
       const { data: prof } = await supabase
         .from('profiles')
-        .select('id, email, role, max_children_allowed, classroom_code, teacher_status')
+        .select('id, email, role, is_admin, max_children_allowed, classroom_code, teacher_status')
         .eq('id', u.id)
         .maybeSingle();
       setProfile(prof || null);
-      if (!prof || (prof.role !== 'teacher' && prof.role !== 'admin')) return;
+      // אדמין (is_admin=true) יכול לצפות כמורה לצורך QA
+      if (!prof || (!prof.is_admin && prof.role !== 'teacher' && prof.role !== 'admin')) return;
 
       // ✅ get_teacher_class_overview uses auth.uid() internally — no params needed
       const { data: list, error: rpcErr } = await supabase
@@ -140,8 +141,9 @@ export default function TeacherDashboard() {
     );
   }
 
-  // מחובר אבל לא מורה מאושר → דף מכירה
-  if (profile && (profile.role !== 'teacher' && profile.role !== 'admin')) {
+  // מחובר אבל לא מורה/אדמין → דף מכירה
+  // אדמין (is_admin=true) עובר ישירות לדשבורד — ללא redirect
+  if (profile && !profile.is_admin && profile.role !== 'teacher' && profile.role !== 'admin') {
     return <TeacherSalesPage user={user} onLogout={handleLogout} />;
   }
 

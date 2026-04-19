@@ -25,30 +25,33 @@ export default function TeacherDashboard() {
 
   const loadData = useCallback(async (u) => {
     try {
-      const { data: prof } = await supabase
-        .from('profiles')
-        .select('id, email, role, is_admin, max_children_allowed, classroom_code, teacher_status')
-        .eq('id', u.id)
-        .maybeSingle();
-      setProfile(prof || null);
-      // אדמין (is_admin=true) יכול לצפות כמורה לצורך QA
-      if (!prof || (!prof.is_admin && prof.role !== 'teacher' && prof.role !== 'admin')) return;
+      // ── 1. profile + overview במקביל (חוסך round-trip אחד) ──────────────
+      const [{ data: prof }, { data: list, error: rpcErr }] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, email, role, is_admin, max_children_allowed, classroom_code, teacher_status')
+          .eq('id', u.id)
+          .maybeSingle(),
+        supabase.rpc('get_teacher_class_overview'),
+      ]);
 
-      // ✅ get_teacher_class_overview uses auth.uid() internally — no params needed
-      const { data: list, error: rpcErr } = await supabase
-        .rpc('get_teacher_class_overview');
+      setProfile(prof || null);
+      if (!prof || (!prof.is_admin && prof.role !== 'teacher' && prof.role !== 'admin')) return;
       if (rpcErr) throw rpcErr;
+
+      // ── 2. הצג תלמידים מיד — ללא המתנה ל-events ────────────────────────
       setStudents(list || []);
 
+      // ── 3. events נטען ברקע אחרי הרינדר הראשון (non-blocking) ──────────
       const tokens = (list || []).map(s => s.magic_token).filter(Boolean);
       if (tokens.length) {
-        const { data: ev } = await supabase
+        supabase
           .from('game_events')
           .select('game_name, success, level, created_at, child_token')
           .in('child_token', tokens)
           .order('created_at', { ascending: false })
-          .limit(2000);
-        setAllEvents(ev || []);
+          .limit(2000)
+          .then(({ data: ev }) => setAllEvents(ev || []));
       } else {
         setAllEvents([]);
       }

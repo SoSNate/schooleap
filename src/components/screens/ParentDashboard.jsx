@@ -189,24 +189,28 @@ export default function ParentDashboard() {
   // ─── Load child + profile ────────────────────────────────────────────────
   const loadChild = useCallback(async (u) => {
     try {
-      const { data: prof } = await supabase
-        .from('profiles')
-        .select('subscription_status, subscription_expires_at, applied_coupon, role, is_admin')
-        .eq('id', u.id)
-        .maybeSingle();
-      if (prof) setProfile(prof);
+      // ── profile + children במקביל (חוסך round-trip אחד) ─────────────────
+      const [{ data: prof }, { data, error: err }] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('subscription_status, subscription_expires_at, applied_coupon, role, is_admin')
+          .eq('id', u.id)
+          .maybeSingle(),
+        supabase
+          .from('children')
+          .select('*')
+          .eq('parent_id', u.id)
+          .maybeSingle(),
+      ]);
 
-      const { data, error: err } = await supabase
-        .from('children')
-        .select('*')
-        .eq('parent_id', u.id)
-        .maybeSingle();
+      if (prof) setProfile(prof);
       if (err) throw err;
 
       if (!data) { setChildExists(false); setChild(null); return; }
 
       setChildExists(true);
       setChild(data);
+      // events + goals כבר במקביל
       await Promise.all([fetchEvents(data.magic_token), fetchGoals(u.id)]);
     } catch (e) {
       setError('שגיאה בטעינת הנתונים. נסה לרענן את הדף.');

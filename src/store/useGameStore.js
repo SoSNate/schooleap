@@ -22,6 +22,10 @@ const useGameStore = create(
         blocked: false,    // true if the child should see the paywall
       },
 
+      // Assignments — משימות פתוחות של התלמיד. Assignment Wall ב-Menu קורא מכאן.
+      // לא persisted — נטען מחדש בכל ChildEntry.
+      assignments: [],
+
       // Per-game state
       equations: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
       balance: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
@@ -56,6 +60,8 @@ const useGameStore = create(
       clearSubscription: () => set({
         subscription: { status: null, expiresAt: null, checked: false, blocked: false },
       }),
+
+      setAssignments: (arr) => set({ assignments: Array.isArray(arr) ? arr : [] }),
 
       toggleDarkMode: () => {
         const next = !get().darkMode;
@@ -182,6 +188,19 @@ const useGameStore = create(
             level,
             success,
           });
+          // הטריגר ב-DB סוגר assignments שעמדו ביעד. רענן את הרשימה בלקוח,
+          // וסמן את היום כהושלם אם נסגרה משימה — Menu יפתח את שאר המשחקים.
+          if (success) {
+            const previousCount = get().assignments.length;
+            const { data } = await supabase.rpc('get_child_assignments', { p_token: token });
+            const nextAssignments = data || [];
+            set({ assignments: nextAssignments });
+            if (previousCount > 0 && nextAssignments.length < previousCount) {
+              try {
+                localStorage.setItem('assignment_done_date', new Date().toDateString());
+              } catch {}
+            }
+          }
         } catch (e) {
           console.error('[reportGameEvent]', e);
         }

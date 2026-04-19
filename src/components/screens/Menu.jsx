@@ -1,60 +1,55 @@
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import useGameStore from '../../store/useGameStore';
-import { ranks, vibe, anims, GAME_COLORS } from '../../utils/math';
-import Swal from 'sweetalert2';
+import { ranks, vibe, anims } from '../../utils/math';
+import { GAMES, GAME_BY_ID, getGameColorClasses } from '../../utils/games';
 
-const games = [
-  { id: 'equations',     label: 'כאן בונים בכיף',    emoji: '🧩', colorToken: 'purple'  },
-  { id: 'balance',       label: 'שומרים על איזון',    emoji: '⚖️', colorToken: 'emerald' },
-  { id: 'tank',          label: 'חצי הכוס המלאה',    emoji: '🧪', colorToken: 'blue'    },
-  { id: 'decimal',       label: 'תפוס את הנקודה',    emoji: '🎯', colorToken: 'yellow'  },
-  { id: 'fractionLab',   label: 'מעבדת השברים',      emoji: '🍕', colorToken: 'orange'  },
-  { id: 'magicPatterns', label: 'תבניות הקסם',       emoji: '🪄', colorToken: 'rose'    },
-  { id: 'grid',          label: 'מעבדת השטחים',      emoji: '📐', colorToken: 'teal'    },
-  { id: 'word',          label: 'שאלות מילוליות',    emoji: '🧠', colorToken: 'red'     },
-  { id: 'multChamp',     label: 'אלוף הכפל',         emoji: '✖️', colorToken: 'lime'    },
-];
+// Assignment Wall — המשימה הראשונה בתור חוסמת את שאר המשחקים.
+// הנעילה היא ליום אחד בלבד: ברגע שמשימה נסגרה (DB trigger → assignments רענון),
+// הפתק נשמר ב-localStorage והילד רשאי לשחק חופשי עד חצות.
+const ASSIGNMENT_DONE_KEY = 'assignment_done_date';
 
-// Helper: return full Tailwind classes for a color token (avoids dynamic class names)
-const getColorClasses = (colorToken) => {
-  const classMap = {
-    purple:  { border: 'border-purple-400 dark:border-purple-600', text: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-50 dark:bg-purple-900/30' },
-    emerald: { border: 'border-emerald-400 dark:border-emerald-600', text: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/30' },
-    blue:    { border: 'border-blue-400 dark:border-blue-600', text: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/30' },
-    cyan:    { border: 'border-cyan-400 dark:border-cyan-600', text: 'text-cyan-600 dark:text-cyan-400', bg: 'bg-cyan-50 dark:bg-cyan-900/30' },
-    yellow:  { border: 'border-yellow-400 dark:border-yellow-600', text: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-50 dark:bg-yellow-900/30' },
-    orange:  { border: 'border-orange-400 dark:border-orange-600', text: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/30' },
-    violet:  { border: 'border-violet-400 dark:border-violet-600', text: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-900/30' },
-    teal:    { border: 'border-teal-400 dark:border-teal-600', text: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-50 dark:bg-teal-900/30' },
-    rose:    { border: 'border-rose-400 dark:border-rose-200', text: 'text-rose-600 dark:text-rose-100', bg: 'bg-rose-50 dark:bg-rose-900/30' },
-    red:     { border: 'border-red-800 dark:border-red-950', text: 'text-red-800 dark:text-red-700', bg: 'bg-red-50 dark:bg-red-950/40' },
-    lime:    { border: 'border-lime-400 dark:border-lime-600', text: 'text-lime-600 dark:text-lime-400', bg: 'bg-lime-50 dark:bg-lime-900/30' },
-  };
-  return classMap[colorToken] || classMap.purple;
-};
+function wasAssignmentCompletedToday() {
+  try {
+    const stored = localStorage.getItem(ASSIGNMENT_DONE_KEY);
+    return stored === new Date().toDateString();
+  } catch {
+    return false;
+  }
+}
 
 export default function Menu({ goals = [] }) {
-  const setScreen = useGameStore((s) => s.setScreen);
-  const locks = useGameStore((s) => s.locks);
-  const cheatLevel = useGameStore((s) => s.cheatLevel);
-  const equations = useGameStore((s) => s.equations);
-  const balance = useGameStore((s) => s.balance);
-  const tank = useGameStore((s) => s.tank);
-  const decimal = useGameStore((s) => s.decimal);
-  const fractionLab = useGameStore((s) => s.fractionLab);
-  const magicPatterns = useGameStore((s) => s.magicPatterns);
-  const grid = useGameStore((s) => s.grid);
-  const word = useGameStore((s) => s.word);
-  const multChamp = useGameStore((s) => s.multChamp);
+  const setScreen       = useGameStore((s) => s.setScreen);
+  const locks           = useGameStore((s) => s.locks);
+  const cheatLevel      = useGameStore((s) => s.cheatLevel);
+  const assignments     = useGameStore((s) => s.assignments);
+  const equations       = useGameStore((s) => s.equations);
+  const balance         = useGameStore((s) => s.balance);
+  const tank            = useGameStore((s) => s.tank);
+  const decimal         = useGameStore((s) => s.decimal);
+  const fractionLab     = useGameStore((s) => s.fractionLab);
+  const magicPatterns   = useGameStore((s) => s.magicPatterns);
+  const grid            = useGameStore((s) => s.grid);
+  const word            = useGameStore((s) => s.word);
+  const multChamp       = useGameStore((s) => s.multChamp);
 
   const gameStates = { equations, balance, tank, decimal, fractionLab, magicPatterns, grid, word, multChamp };
 
+  // Assignment Wall state
+  const completedToday   = wasAssignmentCompletedToday();
+  const hasOpenAssignment = assignments.length > 0 && !completedToday;
+  const currentAssignment = hasOpenAssignment ? assignments[0] : null;
+  const currentGameMeta   = currentAssignment ? GAME_BY_ID[currentAssignment.game_name] : null;
+
+  const isLocked = (gameId) => currentAssignment && currentAssignment.game_name !== gameId;
+
   const startGame = (gameId) => {
+    if (isLocked(gameId)) { vibe(30); return; }
     vibe(10);
     setScreen(gameId);
   };
 
   const handleCheatLevel = (e, gameId) => {
+    if (isLocked(gameId)) return;
     e.stopPropagation();
     vibe(30);
     cheatLevel(gameId);
@@ -77,6 +72,35 @@ export default function Menu({ goals = [] }) {
         </div>
       </div>
 
+      {/* Assignment Wall banner — מוצג רק כשיש משימה פתוחה פעילה */}
+      {currentAssignment && currentGameMeta && (
+        <div dir="rtl" className="w-full max-w-sm mb-4 bg-gradient-to-l from-indigo-600 to-violet-600 text-white rounded-2xl p-4 shadow-lg border-2 border-indigo-300">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">{currentGameMeta.emoji}</span>
+            <div className="text-right flex-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200 mb-0.5">
+                📋 משימה מהמורה
+              </p>
+              <p className="text-sm font-black">
+                {currentAssignment.title || `הגע לרמה ${currentAssignment.target_level} ב${currentGameMeta.label}`}
+              </p>
+              <p className="text-[11px] text-indigo-100 mt-0.5">
+                רמת יעד: {currentAssignment.target_level} • שאר המשחקים נעולים עד לסיום
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* הודעת שחרור — משימת היום הושלמה */}
+      {completedToday && assignments.length > 0 && (
+        <div dir="rtl" className="w-full max-w-sm mb-4 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 rounded-2xl px-4 py-3 text-center">
+          <p className="text-sm font-black text-emerald-700 dark:text-emerald-300">
+            🎉 סיימת את משימת היום — שחק בחופשיות!
+          </p>
+        </div>
+      )}
+
       {/* Goals banner — מוצג רק אם ההורה הגדיר יעדים */}
       {goals.length > 0 && (
         <div dir="rtl" className="w-full max-w-sm mb-4 space-y-2">
@@ -96,13 +120,15 @@ export default function Menu({ goals = [] }) {
         </div>
       )}
 
-      {games.map((g) => {
-        const colors = getColorClasses(g.colorToken);
+      {GAMES.map((g) => {
+        const colors = getGameColorClasses(g.colorToken);
+        const locked = isLocked(g.id);
         return (
           <button
             key={g.id}
             onClick={() => startGame(g.id)}
-            className={`menu-btn ${colors.bg} ${colors.border} border-e-slate-200 border-s-slate-200 border-t-slate-200 dark:border-e-slate-700 dark:border-s-slate-700 dark:border-t-slate-700 group`}
+            disabled={locked}
+            className={`menu-btn ${colors.bg} ${colors.border} border-e-slate-200 border-s-slate-200 border-t-slate-200 dark:border-e-slate-700 dark:border-s-slate-700 dark:border-t-slate-700 group relative ${locked ? 'opacity-40 cursor-not-allowed' : ''}`}
           >
             <span className="text-3xl drop-shadow-sm">{g.emoji}</span>
             <div className="text-right flex-1 px-4">
@@ -119,7 +145,11 @@ export default function Menu({ goals = [] }) {
                 </p>
               </div>
             </div>
-            <span className="text-slate-300 dark:text-slate-600 group-hover:-translate-x-1 transition-transform">◀</span>
+            {locked ? (
+              <span className="text-xl">🔒</span>
+            ) : (
+              <span className="text-slate-300 dark:text-slate-600 group-hover:-translate-x-1 transition-transform">◀</span>
+            )}
           </button>
         );
       })}

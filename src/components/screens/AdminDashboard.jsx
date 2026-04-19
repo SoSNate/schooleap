@@ -1,8 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import useAdminStore from '../../store/useAdminStore';
 
-const ADMIN_EMAIL = '12natanel@gmail.com';
+// Fallback לבדיקת אדמין במקרה שהעמודה is_admin טרם אוכלסה (bootstrap).
+// הגנה עיקרית נעשית דרך profiles.is_admin ו-RLS ב-DB.
+const ADMIN_EMAIL_FALLBACK = '12natanel@gmail.com';
 
 const TABS = [
   { id: 'leads',    label: '📬 פניות מורים' },
@@ -43,6 +46,7 @@ function subColor(s) {
 function LeadsTab() {
   const [leads, setLeads]   = useState([]);
   const [loading, setLoading] = useState(true);
+  const editMode = useAdminStore(s => s.editMode);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,19 +61,23 @@ function LeadsTab() {
   useEffect(() => { load(); }, [load]);
 
   async function markHandled(id) {
-    await supabase.from('teacher_leads').update({ handled: true }).eq('id', id);
+    if (!editMode) { alert('הפעל מצב עריכה כדי לבצע שינויים'); return; }
+    const { error } = await supabase.from('teacher_leads').update({ handled: true }).eq('id', id);
+    if (error) { alert('שגיאה: ' + error.message); return; }
     setLeads(l => l.map(x => x.id === id ? { ...x, handled: true } : x));
   }
 
   async function approveTeacher(email) {
-    if (!email) { alert('אין מייל לפניה זו — אשר ידנית ב-Supabase'); return; }
-    const code = Math.random().toString(36).slice(2, 8).toUpperCase();
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role: 'teacher', teacher_status: 'approved', classroom_code: code })
-      .eq('email', email.toLowerCase());
+    if (!editMode) { alert('הפעל מצב עריכה כדי לאשר מורה'); return; }
+    if (!email) { alert('אין מייל לפניה זו'); return; }
+    // RPC admin_approve_teacher: מגדיר is_approved, role=teacher, subscription active לשנה,
+    // מייצר classroom_code ייחודי, מסמן leads כ-handled, ורושם ב-audit_log.
+    const { data, error } = await supabase.rpc('admin_approve_teacher', { p_email: email });
     if (error) { alert('שגיאה: ' + error.message); return; }
+    const row = Array.isArray(data) ? data[0] : data;
+    const code = row?.classroom_code || '—';
     alert(`✅ ${email} אושר כמורה!\nקוד כיתה: ${code}`);
+    await load();
   }
 
   if (loading) return <Spinner />;
@@ -95,6 +103,7 @@ function LeadsTab() {
 }
 
 function LeadRow({ lead, onHandled, onApprove }) {
+  const editMode = useAdminStore(s => s.editMode);
   return (
     <div className={`bg-white rounded-2xl border p-4 space-y-2 ${lead.handled ? 'border-slate-100 opacity-60' : 'border-indigo-100 shadow-sm'}`}>
       <div className="flex items-start justify-between gap-2">
@@ -114,11 +123,13 @@ function LeadRow({ lead, onHandled, onApprove }) {
         <div className="flex gap-2 pt-1">
           <button
             onClick={() => onHandled(lead.id)}
-            className="flex-1 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-xl transition-all"
+            disabled={!editMode}
+            className="flex-1 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-100"
           >סמן כטופל</button>
           <button
             onClick={() => onApprove(lead.email)}
-            className="flex-1 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-xl transition-all"
+            disabled={!editMode}
+            className="flex-1 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-indigo-600"
           >✅ אשר כמורה</button>
         </div>
       )}
@@ -131,6 +142,7 @@ function LeadRow({ lead, onHandled, onApprove }) {
 function TeachersTab() {
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading]   = useState(true);
+  const editMode = useAdminStore(s => s.editMode);
 
   useEffect(() => {
     supabase.from('profiles').select('id, email, classroom_code, teacher_status, created_at')
@@ -139,8 +151,11 @@ function TeachersTab() {
   }, []);
 
   async function revoke(id) {
+    if (!editMode) { alert('הפעל מצב עריכה כדי לבטל הרשאה'); return; }
     if (!confirm('לבטל הרשאת מורה?')) return;
-    await supabase.from('profiles').update({ role: 'parent', teacher_status: null, classroom_code: null }).eq('id', id);
+    // RPC admin_revoke_teacher: מחזיר ל-role=parent, מנקה classroom_code ורושם audit_log.
+    const { error } = await supabase.rpc('admin_revoke_teacher', { p_user_id: id });
+    if (error) { alert('שגיאה: ' + error.message); return; }
     setTeachers(t => t.filter(x => x.id !== id));
   }
 
@@ -165,7 +180,11 @@ function TeachersTab() {
               <td className="py-2.5 font-mono font-black text-indigo-600">{t.classroom_code || '—'}</td>
               <td className="py-2.5 text-slate-400 text-xs">{fmt(t.created_at)}</td>
               <td className="py-2.5">
-                <button onClick={() => revoke(t.id)} className="text-xs text-red-500 hover:text-red-700 font-bold">בטל</button>
+                <button
+                  onClick={() => revoke(t.id)}
+                  disabled={!editMode}
+                  className="text-xs text-red-500 hover:text-red-700 font-bold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-red-500"
+                >בטל</button>
               </td>
             </tr>
           ))}
@@ -389,18 +408,33 @@ function Section({ title, children }) {
 
 export default function AdminDashboard() {
   const [user,    setUser]    = useState(null);
+  const [isAdmin, setIsAdmin] = useState(null); // null = עדיין בודק
   const [loading, setLoading] = useState(true);
   const [tab,     setTab]     = useState('leads');
   const [loginErr, setLoginErr] = useState(null);
+  const editMode      = useAdminStore(s => s.editMode);
+  const toggleEditMode = useAdminStore(s => s.toggleEditMode);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+    async function resolve(session) {
+      const u = session?.user ?? null;
+      setUser(u);
+      if (!u) { setIsAdmin(null); setLoading(false); return; }
+      // מקור אמת: profiles.is_admin. ה-RLS מאפשר ל-user לקרוא את השורה שלו.
+      const { data } = await supabase
+        .from('profiles')
+        .select('is_admin, email')
+        .eq('id', u.id)
+        .maybeSingle();
+      const fromDb = Boolean(data?.is_admin);
+      // Bootstrap fallback — מייל קשיח, למקרה שהטריגר טרם רץ.
+      const fromFallback = (u.email || '').toLowerCase() === ADMIN_EMAIL_FALLBACK.toLowerCase();
+      setIsAdmin(fromDb || fromFallback);
       setLoading(false);
-    });
+    }
+    supabase.auth.getSession().then(({ data: { session } }) => { resolve(session); });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
+      resolve(session);
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -449,7 +483,7 @@ export default function AdminDashboard() {
   );
 
   // ── לא אדמין ──
-  if (user.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) return (
+  if (!isAdmin) return (
     <div dir="rtl" className="min-h-[100dvh] flex items-center justify-center p-6 bg-slate-50">
       <div className="bg-white rounded-3xl shadow-lg p-8 max-w-sm w-full text-center space-y-4 border border-slate-200">
         <div className="text-5xl">🚫</div>
@@ -464,13 +498,29 @@ export default function AdminDashboard() {
   return (
     <div dir="rtl" className="min-h-[100dvh] bg-slate-50 text-slate-900">
       {/* Top bar */}
-      <div className="bg-white border-b border-slate-100 sticky top-0 z-20">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div className={`border-b sticky top-0 z-20 transition-colors ${editMode ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-100'}`}>
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="text-xl">🛸</span>
             <span className="font-black text-slate-800">Admin — חשבונאוטיקה</span>
+            {editMode && (
+              <span className="text-[10px] font-black uppercase tracking-widest bg-amber-500 text-white px-2 py-0.5 rounded-full">Edit</span>
+            )}
           </div>
-          <button onClick={handleLogout} className="text-xs font-bold text-slate-400 hover:text-slate-700">יציאה</button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleEditMode}
+              title={editMode ? 'חזרה למצב קריאה' : 'הפעלת מצב עריכה'}
+              className={`text-xs font-black px-3 py-1.5 rounded-full transition-all ${
+                editMode
+                  ? 'bg-amber-500 text-white hover:bg-amber-600'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              {editMode ? '🔓 עריכה פעילה' : '🔒 קריאה בלבד'}
+            </button>
+            <button onClick={handleLogout} className="text-xs font-bold text-slate-400 hover:text-slate-700">יציאה</button>
+          </div>
         </div>
       </div>
 

@@ -54,6 +54,7 @@ export default function ChildEntry() {
   const navigate           = useNavigate();
   const loadProgress       = useGameStore((s) => s.loadProgress);
   const setSubscription    = useGameStore((s) => s.setSubscription);
+  const setAssignments     = useGameStore((s) => s.setAssignments);
   const subscription       = useGameStore((s) => s.subscription);
 
   useEffect(() => {
@@ -86,12 +87,15 @@ export default function ChildEntry() {
           setSubscription({ status: 'trial', expiresAt: null });
         }
 
-        // ── 2. טען היסטוריית משחקים מ-DB ─────────────────────────────────
-        const { data: events } = await supabase
-          .rpc('get_child_events', { p_token: token });
+        // ── 2. טען היסטוריית משחקים + משימות פתוחות במקביל ───────────────
+        const [{ data: events }, { data: openAssignments }] = await Promise.all([
+          supabase.rpc('get_child_events',      { p_token: token }),
+          supabase.rpc('get_child_assignments', { p_token: token }),
+        ]);
 
         if (!mounted) return;
         if (events?.length > 0) loadProgress(events);
+        setAssignments(openAssignments || []);
 
         // ── 3. כנס למשחק ─────────────────────────────────────────────────
         if (mounted) navigate('/play', { replace: true });

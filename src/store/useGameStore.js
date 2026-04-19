@@ -257,6 +257,31 @@ const useGameStore = create(
     }),
     {
       name: 'nat-game-store',
+      version: 2,
+      // Migration: users with a pre-percentages store (v1) get default state
+      // for the new game + lock key, so Menu/GameApp don't blow up on undefined.
+      migrate: (persisted, fromVersion) => {
+        if (!persisted) return persisted;
+        if (fromVersion < 2) {
+          persisted.percentages = persisted.percentages ||
+            { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 };
+          persisted.locks = {
+            equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0,
+            magicPatterns: 0, grid: 0, word: 0, multChamp: 0, percentages: 0,
+            ...(persisted.locks || {}),
+          };
+        }
+        return persisted;
+      },
+      // Safety net even when version matches — any missing per-game key falls
+      // back to the initial-state default (shallow merge is already the zustand
+      // default, but we make it explicit to guard against future additions).
+      merge: (persisted, current) => {
+        const merged = { ...current, ...(persisted || {}) };
+        if (!merged.percentages) merged.percentages = current.percentages;
+        merged.locks = { ...current.locks, ...(persisted?.locks || {}) };
+        return merged;
+      },
       partialize: (state) => ({
         totalStars: state.totalStars,
         equations: state.equations,

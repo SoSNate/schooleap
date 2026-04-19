@@ -31,8 +31,9 @@ export default function Menu({ goals = [] }) {
   const grid            = useGameStore((s) => s.grid);
   const word            = useGameStore((s) => s.word);
   const multChamp       = useGameStore((s) => s.multChamp);
+  const percentages     = useGameStore((s) => s.percentages);
 
-  const gameStates = { equations, balance, tank, decimal, fractionLab, magicPatterns, grid, word, multChamp };
+  const gameStates = { equations, balance, tank, decimal, fractionLab, magicPatterns, grid, word, multChamp, percentages };
 
   // Assignment Wall state
   const completedToday   = wasAssignmentCompletedToday();

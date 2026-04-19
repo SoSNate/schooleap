@@ -1,10 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Lightbulb, ArrowRightLeft, Play } from 'lucide-react';
+import { ArrowRightLeft, Play } from 'lucide-react';
 import Swal from 'sweetalert2';
 import useGameStore from '../../store/useGameStore';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
 import Hearts from '../shared/Hearts';
 import GameTutorial from '../shared/GameTutorial';
+import HintButton from '../shared/HintButton';
+import HintBubble from '../shared/HintBubble';
+import useHint from '../../hooks/useHint';
+import { reportHintUsed } from '../../lib/telemetry';
 import { vibe } from '../../utils/math';
 import {
   generatePuzzle,
@@ -148,19 +152,39 @@ export default function PercentsLab() {
   const [justLost,  setJustLost]  = useState(false);
   const [feedback,  setFeedback]  = useState({ visible: false });
   const [hintGlow,  setHintGlow]  = useState(false);
-  const [hintCooldown, setHintCooldown] = useState(0);
-  const [hintBubble,   setHintBubble]   = useState(null);
-  const [usedHint,     setUsedHint]     = useState(false);
-  const [showTutorial, setShowTutorial] = useState(false);
 
   const scaffold = getScaffolding(gameState.lvl);
 
-  // Cooldown timer
-  useEffect(() => {
-    if (hintCooldown <= 0) return;
-    const t = setTimeout(() => setHintCooldown(c => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [hintCooldown]);
+  // Hint infra (shared across analytical games)
+  const onApplyHint = useCallback((hint) => {
+    if (hint.kind === 'both' || hint.kind === 'operator') {
+      // Snap the user controls to the hinted operation/factor; glow highlights the arc
+      if (hint.operation) {
+        setUserLogic((prev) => ({
+          ...prev,
+          operation: hint.operation,
+          ...(hint.factor ? { factor: hint.factor } : {}),
+        }));
+      }
+      setHintGlow(true);
+      setTimeout(() => setHintGlow(false), 1600);
+    }
+  }, []);
+
+  const {
+    cooldown: hintCooldown,
+    bubble:   hintBubbleText,
+    usedThisRound: usedHint,
+    requestHint,
+    resetRound: resetHintRound,
+  } = useHint({
+    level: gameState.lvl,
+    getHint,
+    puzzle,
+    cooldownSec: 5,
+    bubbleMs: 2600,
+    onApplyHint,
+  });
 
   // Re-generate puzzle when level changes in store (after level-up)
   useEffect(() => {
@@ -174,31 +198,8 @@ export default function PercentsLab() {
     setLives(3);
     setJustLost(false);
     setHintGlow(false);
-    setHintBubble(null);
-    setUsedHint(false);
-  }, []);
-
-  function requestHint() {
-    if (hintCooldown > 0 || !puzzle) return;
-    const h = getHint(puzzle, gameState.lvl);
-    if (!h) return;
-    setUsedHint(true);
-    setHintCooldown(5);
-    vibe?.(30);
-
-    if (h.kind === 'both' || h.kind === 'operator') {
-      // Snap the user controls to the hinted operation/factor visually via glow
-      if (h.operation) setUserLogic(prev => ({ ...prev, operation: h.operation, ...(h.factor ? { factor: h.factor } : {}) }));
-      setHintGlow(true);
-      setHintBubble({ text: h.text });
-      setTimeout(() => { setHintGlow(false); }, 1600);
-      setTimeout(() => setHintBubble(null), 2600);
-    } else {
-      // Example / text hint — show bubble only
-      setHintBubble({ text: h.text });
-      setTimeout(() => setHintBubble(null), 3500);
-    }
-  }
+    resetHintRound();
+  }, [resetHintRound]);
 
   function handleValidate() {
     if (!puzzle || isAnimating) return;
@@ -206,21 +207,8 @@ export default function PercentsLab() {
       vibe?.(40);
       const r = handleWinStore('percentages');
       setFeedback({ visible: true, isLevelUp: r.isLevelUp, unlocked: r.unlocked, pts: r.pts });
-      // Telemetry: mark if hint was used
-      if (usedHint) {
-        // fire-and-forget — not awaited, non-blocking
-        import('../../lib/supabase').then(({ supabase }) => {
-          const token = localStorage.getItem('hasbaonautica_child_token');
-          if (!token) return;
-          supabase.from('game_events').insert({
-            child_token: token,
-            game_name:   'percentages',
-            level:       gameState.lvl,
-            success:     true,
-            data:        { hint_used: true },
-          });
-        });
-      }
+      // Telemetry: mark if hint was used (fire-and-forget)
+      if (usedHint) reportHintUsed({ game: 'percentages', level: gameState.lvl });
       setTimeout(nextPuzzle, 2100);
     } else {
       vibe?.(80);
@@ -275,18 +263,8 @@ export default function PercentsLab() {
 
         <div className="flex items-center gap-2">
           {/* Hint button */}
-          <button
-            onClick={requestHint}
-            disabled={hintCooldown > 0}
-            className={`w-11 h-11 flex items-center justify-center rounded-2xl border-2 transition-all active:scale-95 ${
-              hintCooldown > 0
-                ? 'bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-300 dark:text-slate-500'
-                : 'bg-amber-50 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700/50 text-amber-600 hover:scale-105'
-            }`}
-            title="רמז"
-          >
-            {hintCooldown > 0 ? <span className="text-xs font-bold">{hintCooldown}s</span> : <Lightbulb size={18} />}
-          </button>
+          <HintButton cooldown={hintCooldown} onClick={requestHint} />
+
           {/* Star score */}
           <div className="flex items-center gap-2 bg-sky-50 dark:bg-sky-900/30 border border-sky-100 dark:border-sky-800 rounded-2xl px-4 py-2">
             <span className="text-lg">⭐</span>
@@ -401,11 +379,7 @@ export default function PercentsLab() {
       </div>
 
       {/* Hint bubble */}
-      {hintBubble && (
-        <div className="max-w-md mx-auto mt-6 bg-amber-50 dark:bg-amber-900/30 border-2 border-amber-300 dark:border-amber-700/60 rounded-2xl px-5 py-3 text-center shadow-md">
-          <p className="text-sm font-bold text-amber-800 dark:text-amber-200">💡 {hintBubble.text}</p>
-        </div>
-      )}
+      <HintBubble text={hintBubbleText} />
 
       {/* CTA */}
       <div className="flex justify-center mt-8 pb-10">

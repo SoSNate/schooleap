@@ -92,7 +92,7 @@ function OnboardingScreen({ onDone }) {
         <button
           onClick={() => {
             if (isLast) {
-              try { localStorage.setItem(ONBOARD_KEY, '1'); } catch {}
+              try { localStorage.setItem(ONBOARD_KEY, '1'); } catch { /* storage blocked */ }
               onDone();
             } else {
               setStep((s) => s + 1);
@@ -181,7 +181,7 @@ export default function GameApp() {
 
     try {
       if (!localStorage.getItem(ONBOARD_KEY)) setShowOnboarding(true);
-    } catch {}
+    } catch { /* storage blocked */ }
 
     const installTimer = setTimeout(() => {
       if (shouldAutoShowInstallPrompt() && mounted) setShowInstallPrompt(true);

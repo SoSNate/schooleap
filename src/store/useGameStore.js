@@ -198,7 +198,7 @@ const useGameStore = create(
             if (previousCount > 0 && nextAssignments.length < previousCount) {
               try {
                 localStorage.setItem('assignment_done_date', new Date().toDateString());
-              } catch {}
+              } catch { /* storage blocked */ }
             }
           }
         } catch (e) {

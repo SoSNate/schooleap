@@ -69,8 +69,6 @@ const RotaryKnob = ({ stepIndex, onChange }) => {
 
   const rotation = stepIndex * 90; // 0°, 90°, 180°, 270°
 
-  const dialRadius = 85; // הוגדל כדי לרווח את התוויות
-
   const labelDefs = [
     { idx: 0, content: <span className="text-sm font-black">×1</span>,                                                                          style: { top: '-2rem',   left: '50%', transform: 'translateX(-50%)' } },
     { idx: 1, content: <div className="flex items-center gap-0.5 text-sm font-black" dir="ltr"><span>×</span><Fraction n={1} d={10}   /></div>, style: { top: '50%',    right: '-4.5rem', transform: 'translateY(-50%)' } },
@@ -392,8 +390,9 @@ export default function Decimal() {
     }
   };
 
-  // Hot/cold cursor color — רק ברמות 1–2
-  const proximity = Math.abs(position - targetRef.current);
+  // Hot/cold cursor color — רק ברמות 1–2. קוראים מה-state (targetFrac)
+  // ולא מ-ref, כדי ש-react יריץ render מחדש כשהמטרה משתנה.
+  const proximity = Math.abs(position - (targetFrac?.v ?? 0));
   const cursorColor = lvl > 2
     ? '#eab308'
     : proximity < step * 3
@@ -456,11 +455,11 @@ export default function Decimal() {
 
           {/* משיכת הציר החוצה לפריצת הפדינג */}
           <div className="relative h-[110px] w-[120vw] -mx-[10vw] select-none z-0" style={{ overflow: 'visible' }}>
-            <NumberLine position={position} fullRange={rangeRef.current} zoomLevel={zoom} cursorColor={cursorColor} stepIndex={stepIndex} />
+            <NumberLine position={position} fullRange={targetFrac?.range ?? [-0.5, 2.5]} zoomLevel={zoom} cursorColor={cursorColor} stepIndex={stepIndex} />
           </div>
 
           <div className="w-full px-2">
-            <PositionSlider value={position} onChange={handlePositionChange} step={step} range={rangeRef.current} />
+            <PositionSlider value={position} onChange={handlePositionChange} step={step} range={targetFrac?.range ?? [-0.5, 2.5]} />
           </div>
 
           <div className="flex items-center gap-2">

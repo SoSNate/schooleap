@@ -11,12 +11,7 @@ function PanContent({ text }) {
   // Split on 🟦 and operators to render styled blocks
   // Tokenize: split into [numbers, operators, variables]
   const tokens = [];
-  let remaining = text;
-  const re = /(🟦|🔴|\d+(?:\.\d+)?|[+\-×÷*/()=\s]+)/g;
-  let match;
-  let last = 0;
-  re.lastIndex = 0;
-  const raw = Array.from(remaining.matchAll(/(🟦|🔴|\d+(?:\.\d+)?|[^🟦🔴\d]+)/g));
+  const raw = Array.from(text.matchAll(/(🟦|🔴|\d+(?:\.\d+)?|[^🟦🔴\d]+)/gu));
   raw.forEach((m, i) => {
     const tok = m[0];
     if (tok === '🟦') {

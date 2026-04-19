@@ -111,7 +111,7 @@ const ONBOARD_KEY  = 'seen_onboarding_v1';
 
 export function clearAllTutorials() {
   Object.keys(TUTORIALS).forEach((g) => {
-    try { sessionStorage.removeItem(SESSION_KEY(g)); } catch {}
+    try { sessionStorage.removeItem(SESSION_KEY(g)); } catch { /* storage blocked */ }
   });
 }
 
@@ -126,7 +126,7 @@ export default function GameTutorial({ gameName, onDismiss = () => {} }) {
   if (!visible || !tutorial) return null;
 
   function dismiss() {
-    try { sessionStorage.setItem(SESSION_KEY(gameName), '1'); } catch {}
+    try { sessionStorage.setItem(SESSION_KEY(gameName), '1'); } catch { /* storage blocked */ }
     setVisible(false);
     onDismiss();
   }

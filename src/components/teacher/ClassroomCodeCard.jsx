@@ -20,7 +20,7 @@ export default function ClassroomCodeCard({ classroomCode }) {
       await navigator.clipboard.writeText(classroomCode);
       setCopiedCode(true);
       setTimeout(() => setCopiedCode(false), 2500);
-    } catch {}
+    } catch { /* clipboard blocked */ }
   }
 
   async function handleCopyLink() {
@@ -28,7 +28,7 @@ export default function ClassroomCodeCard({ classroomCode }) {
       await navigator.clipboard.writeText(inviteLink);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2500);
-    } catch {}
+    } catch { /* clipboard blocked */ }
   }
 
   if (!classroomCode) {

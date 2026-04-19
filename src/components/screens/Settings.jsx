@@ -3,7 +3,7 @@ import useGameStore from '../../store/useGameStore';
 import { GAME_COLORS } from '../../utils/math';
 import Swal from 'sweetalert2';
 import { clearAllTutorials } from '../shared/GameTutorial';
-import InstallPrompt, { canInstallNatively, triggerNativeInstall } from '../shared/InstallPrompt';
+import InstallPrompt from '../shared/InstallPrompt';
 
 const ONBOARD_KEY = 'seen_onboarding_v1';
 
@@ -91,7 +91,7 @@ export default function Settings() {
 
   const handleReplayTutorials = () => {
     clearAllTutorials();
-    try { localStorage.removeItem(ONBOARD_KEY); } catch {}
+    try { localStorage.removeItem(ONBOARD_KEY); } catch { /* storage blocked */ }
     Swal.fire({
       title: '✅ ההסברים אופסו!',
       text: 'בפעם הבאה שתיכנס לכל משחק תראה שוב את ההסבר.',

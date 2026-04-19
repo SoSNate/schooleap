@@ -76,7 +76,7 @@ export default function InstallPrompt({ onClose, forceShow = false }) {
   // Mark as shown
   useEffect(() => {
     if (!forceShow) {
-      try { localStorage.setItem(SHOWN_KEY, '1'); } catch {}
+      try { localStorage.setItem(SHOWN_KEY, '1'); } catch { /* storage blocked */ }
     }
   }, [forceShow]);
 
@@ -178,6 +178,6 @@ export default function InstallPrompt({ onClose, forceShow = false }) {
 // ─── Utility: should we auto-show the prompt? ─────────────────────────────────
 export function shouldAutoShowInstallPrompt() {
   if (isInStandaloneMode()) return false; // already installed
-  try { if (localStorage.getItem(SHOWN_KEY)) return false; } catch {}
+  try { if (localStorage.getItem(SHOWN_KEY)) return false; } catch { /* storage blocked */ }
   return true;
 }

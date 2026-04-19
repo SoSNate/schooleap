@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Info, Plus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import InstallPrompt, { captureInstallEvent, shouldAutoShowInstallPrompt } from '../shared/InstallPrompt';
+import InstallPrompt, { captureInstallEvent } from '../shared/InstallPrompt';
 import { APP_URL, buildNotifications, buildRadarData } from '../dashboard/constants';
 import DashboardNav       from '../dashboard/DashboardNav';
 import MagicLinkCard      from '../dashboard/MagicLinkCard';
@@ -20,6 +20,18 @@ function EmptyState({ onAdd, loading }) {
   const [name,    setName]    = useState('');
   const [open,    setOpen]    = useState(false);
   const [nameErr, setNameErr] = useState('');
+
+  // כוכבים decorative — מגריל פעם אחת בלבד, לא משפיע על הלוגיקה.
+  const stars = useMemo(
+    () => Array.from({ length: 80 }, () => ({
+      top: Math.random() * 100,
+      left: Math.random() * 100,
+      size: Math.random() * 2 + 0.5,
+      dur: Math.random() * 3 + 2,
+      delay: Math.random() * 4,
+    })),
+    []
+  );
 
   function submit(e) {
     e.preventDefault();
@@ -39,11 +51,11 @@ function EmptyState({ onAdd, loading }) {
         @keyframes float2   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
         @keyframes pulse-ring { 0%{transform:scale(1);opacity:.6} 100%{transform:scale(1.6);opacity:0} }
       `}</style>
-      {Array.from({ length: 80 }, (_, i) => (
+      {stars.map((s, i) => (
         <div key={i} className="absolute rounded-full bg-white" style={{
-          top: `${Math.random() * 100}%`, left: `${Math.random() * 100}%`,
-          width: Math.random() * 2 + 0.5, height: Math.random() * 2 + 0.5,
-          animation: `twinkle2 ${Math.random() * 3 + 2}s ${Math.random() * 4}s ease-in-out infinite`,
+          top: `${s.top}%`, left: `${s.left}%`,
+          width: s.size, height: s.size,
+          animation: `twinkle2 ${s.dur}s ${s.delay}s ease-in-out infinite`,
         }} />
       ))}
 
@@ -495,7 +507,6 @@ export default function ParentDashboard() {
     <div dir="rtl" className="min-h-[100dvh] bg-[#FDFDFF] text-slate-900">
 
       <DashboardNav
-        user={user}
         profile={profile}
         trialDaysLeft={trialDaysLeft}
         onLogout={handleLogout}

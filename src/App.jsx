@@ -8,7 +8,6 @@ import JoinClass        from './components/screens/JoinClass';
 import ChildEntry       from './components/screens/ChildEntry';
 import GameApp          from './GameApp';
 import { captureInstallEvent } from './components/shared/InstallPrompt';
-import useGameStore     from './store/useGameStore';
 
 const TOKEN_KEY = 'hasbaonautica_child_token';
 
@@ -17,7 +16,6 @@ const TOKEN_KEY = 'hasbaonautica_child_token';
 // the subscription check has run.  If the user hits /play directly (no token),
 // redirect them to the landing page.  If blocked, GameApp itself shows the paywall.
 function SubscriptionGuard({ children }) {
-  const subscription = useGameStore((s) => s.subscription);
   const hasToken     = !!localStorage.getItem(TOKEN_KEY);
 
   // No token → not a valid child session, send to landing

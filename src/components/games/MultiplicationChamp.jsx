@@ -96,12 +96,6 @@ function generateRound(lvl) {
   }
 }
 
-function tilesEqual(a, b) {
-  if (typeof a === 'number' && typeof b === 'number') return a === b;
-  if (a && b && typeof a === 'object') return a.n === b.n && a.d === b.d;
-  return false;
-}
-
 export default function MultiplicationChamp() {
   const gameState = useGameStore((s) => s.multChamp);
   const handleWin = useGameStore((s) => s.handleWin);

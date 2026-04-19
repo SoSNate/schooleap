@@ -1,12 +1,10 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 
 const WHATSAPP_NUMBER = '972535303607';
 const CONTACT_EMAIL   = '12natanel@gmail.com';
 
 export default function TeacherSalesPage({ user, onLogout }) {
-  const navigate = useNavigate();
   const [tab, setTab]         = useState('info'); // 'info' | 'form' | 'sent'
   const [form, setForm]       = useState({ full_name: '', school: '', phone: '', notes: '' });
   const [sending, setSending] = useState(false);

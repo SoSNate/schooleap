@@ -47,9 +47,10 @@ export default function StudentDetailDrawer({ student, onClose }) {
   const radarData = useMemo(() => buildRadarData(events), [events]);
 
   const weeklyActivity = useMemo(() => {
+    const now = Date.now(); // eslint-disable-line react-hooks/purity
     const days = [];
     for (let i = 6; i >= 0; i--) {
-      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      const d = new Date(now - i * 24 * 60 * 60 * 1000);
       const key = d.toISOString().slice(0, 10);
       days.push({
         date: key,

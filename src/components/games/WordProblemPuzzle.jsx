@@ -7,7 +7,8 @@ import Swal from 'sweetalert2';
 import GameTutorial from '../shared/GameTutorial';
 
 /* ── Telemetry stub ──────────────────────────────────────────────────────── */
-function telemetry(event, data) { /* no-op until LMS integration */ }
+// eslint-disable-next-line no-unused-vars
+function telemetry(_event, _data) { /* no-op until LMS integration */ }
 
 /* ── Config ──────────────────────────────────────────────────────────────── */
 export const DEFAULT_CONFIG = { maxLvl: 5, livesPerRound: 3 };
@@ -173,6 +174,7 @@ const SCHEMAS = [
   },
   {
     id: 10, diff: 5,
+    // eslint-disable-next-line no-unused-vars
     gen(lvl) {
       const mapDist = rnd(3, 9), scale = pick([100, 200, 500]);
       return {
@@ -270,6 +272,7 @@ const SCHEMAS = [
   },
   {
     id: 17, diff: 4,
+    // eslint-disable-next-line no-unused-vars
     gen(lvl) {
       const pct = pick([10, 20, 25, 50]);
       const unit = pick([4, 5, 8, 10, 20]);
@@ -304,6 +307,7 @@ const SCHEMAS = [
   },
   {
     id: 19, diff: 5,
+    // eslint-disable-next-line no-unused-vars
     gen(lvl) {
       const ratios = [[1, 2], [1, 3], [2, 3], [1, 4], [3, 4]];
       const [r1, r2] = pick(ratios);
@@ -337,6 +341,7 @@ const SCHEMAS = [
 const LEVEL_SCHEMAS = { 1: [1, 2, 11, 12], 2: [3, 4, 13, 14], 3: [5, 6, 15, 16], 4: [7, 8, 17, 18], 5: [9, 10, 19, 20] };
 
 /* ── generateQuestion ────────────────────────────────────────────────────── */
+// eslint-disable-next-line no-unused-vars
 export function generateQuestion(lvl, recent = [], config = DEFAULT_CONFIG) {
   const ids = LEVEL_SCHEMAS[Math.min(5, Math.max(1, lvl))] || LEVEL_SCHEMAS[1];
   const pool = SCHEMAS.filter(s => ids.includes(s.id));

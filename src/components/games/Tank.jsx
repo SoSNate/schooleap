@@ -7,8 +7,6 @@ import { vibe } from '../../utils/math';
 import Swal from 'sweetalert2';
 import GameTutorial from '../shared/GameTutorial';
 
-function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
-
 export default function Tank() {
   const gameState = useGameStore((s) => s.tank);
   const handleWin = useGameStore((s) => s.handleWin);

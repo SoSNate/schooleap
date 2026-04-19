@@ -10,7 +10,7 @@ import { GraduationCap } from 'lucide-react';
  *  onLogout     – () => void
  *  onPricing    – () => void
  */
-export default function DashboardNav({ user, profile, trialDaysLeft, onLogout, onPricing }) {
+export default function DashboardNav({ profile, trialDaysLeft, onLogout, onPricing }) {
   return (
     <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 px-4 py-3">
       <div className="max-w-5xl mx-auto flex justify-between items-center">

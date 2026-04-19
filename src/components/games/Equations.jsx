@@ -93,7 +93,7 @@ export default function Equations() {
   const [pool,       setPool]       = useState([]);
   const [feedback,   setFeedback]   = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
   const [errorFlash, setErrorFlash] = useState(false);
-  const [slotsPerRow, setSlotsPerRow] = useState(3);
+  const [, setSlotsPerRow] = useState(3);
   const [lives,      setLives]      = useState(3);
   const [justLost,   setJustLost]   = useState(false);
 

@@ -59,6 +59,10 @@ export default function TeacherDashboard() {
 
   useEffect(() => {
     let settled = false;
+    const timeoutId = setTimeout(() => {
+      if (!settled) { setLoading(false); settled = true; }
+    }, 8000);
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (settled) return;
       const u = session?.user ?? null;
@@ -75,7 +79,7 @@ export default function TeacherDashboard() {
         finally { setLoading(false); }
       }
     );
-    return () => subscription.unsubscribe();
+    return () => { subscription.unsubscribe(); clearTimeout(timeoutId); };
   }, [loadData]);
 
   async function handleLogin() {

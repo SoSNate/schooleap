@@ -235,6 +235,12 @@ export default function ParentDashboard() {
     captureInstallEvent();
     let settled = false;
 
+    // ⏱ Timeout: אם אחרי 8 שניות עדיין loading (למשל בנייד עם session פגה),
+    //    עצור spinner ותראה מסך כניסה רגיל במקום תקיעה
+    const timeoutId = setTimeout(() => {
+      if (!settled) { setLoading(false); settled = true; }
+    }, 8000);
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (settled) return;
       const u = session?.user ?? null;
@@ -252,7 +258,7 @@ export default function ParentDashboard() {
         finally { setLoading(false); }
       }
     );
-    return () => subscription.unsubscribe();
+    return () => { subscription.unsubscribe(); clearTimeout(timeoutId); };
   }, [loadChild]);
 
   // ─── Handlers ────────────────────────────────────────────────────────────
@@ -461,10 +467,9 @@ export default function ParentDashboard() {
     );
   }
 
-  // ─── Render: redirect teachers/admins to their dashboard ───────────────
-  if (profile?.role === 'teacher' || profile?.role === 'admin') {
-    return <Navigate to="/teacher" replace />;
-  }
+  // ─── Render: redirect by role ──────────────────────────────────────────
+  if (profile?.role === 'admin')   return <Navigate to="/admin"   replace />;
+  if (profile?.role === 'teacher') return <Navigate to="/teacher" replace />;
 
   // ─── Render: paywall (trial expired) ────────────────────────────────────
   if (!trialActive) {

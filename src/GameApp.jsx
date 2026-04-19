@@ -12,6 +12,7 @@ import MagicPatterns from './components/games/MagicPatterns';
 import DecimalAreaLab from './components/games/DecimalAreaLab';
 import WordProblemPuzzle from './components/games/WordProblemPuzzle';
 import MultiplicationChamp from './components/games/MultiplicationChamp';
+import PercentsLab from './components/games/PercentsLab';
 import { supabase } from './lib/supabase';
 import InstallPrompt, { captureInstallEvent, shouldAutoShowInstallPrompt } from './components/shared/InstallPrompt';
 
@@ -27,6 +28,7 @@ const screens = {
   grid: DecimalAreaLab,
   word: WordProblemPuzzle,
   multChamp: MultiplicationChamp,
+  percentages: PercentsLab,
 };
 
 const TOKEN_KEY    = 'hasbaonautica_child_token';

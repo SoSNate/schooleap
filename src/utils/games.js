@@ -11,6 +11,7 @@ export const GAMES = [
   { id: 'grid',          label: 'מעבדת השטחים',      emoji: '📐', colorToken: 'teal'    },
   { id: 'word',          label: 'שאלות מילוליות',    emoji: '🧠', colorToken: 'red'     },
   { id: 'multChamp',     label: 'אלוף הכפל',         emoji: '✖️', colorToken: 'lime'    },
+  { id: 'percentages',   label: 'מעבדת אחוזים',      emoji: '📊', colorToken: 'sky'     },
 ];
 
 export const GAME_BY_ID = Object.fromEntries(GAMES.map(g => [g.id, g]));
@@ -20,6 +21,7 @@ export const GAME_COLOR_CLASSES = {
   emerald: { border: 'border-emerald-400 dark:border-emerald-600', text: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/30' },
   blue:    { border: 'border-blue-400 dark:border-blue-600',     text: 'text-blue-600 dark:text-blue-400',     bg: 'bg-blue-50 dark:bg-blue-900/30'     },
   cyan:    { border: 'border-cyan-400 dark:border-cyan-600',     text: 'text-cyan-600 dark:text-cyan-400',     bg: 'bg-cyan-50 dark:bg-cyan-900/30'     },
+  sky:     { border: 'border-sky-400 dark:border-sky-600',       text: 'text-sky-600 dark:text-sky-400',       bg: 'bg-sky-50 dark:bg-sky-900/30'       },
   yellow:  { border: 'border-yellow-400 dark:border-yellow-600', text: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-50 dark:bg-yellow-900/30' },
   orange:  { border: 'border-orange-400 dark:border-orange-600', text: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/30' },
   violet:  { border: 'border-violet-400 dark:border-violet-600', text: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-900/30' },

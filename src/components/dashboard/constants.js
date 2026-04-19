@@ -63,6 +63,7 @@ export const GAME_LABELS = {
   grid:          'מעבדת השטחים',
   word:          'שאלות מילוליות',
   multChamp:     'אלוף הכפל',
+  percentages:   'מעבדת אחוזים',
 };
 
 export const SKILL_MAP = {
@@ -75,6 +76,7 @@ export const SKILL_MAP = {
   grid:          'שטחים',
   word:          'הבנת הנקרא',
   multChamp:     'כפל/חילוק',
+  percentages:   'אחוזים',
 };
 
 export function formatDate(iso) {
@@ -94,7 +96,7 @@ export function buildRadarData(events) {
     skillTotals[skill] += e.success ? 100 : 30;
     skillCounts[skill]++;
   });
-  const skills = ['אריתמטיקה', 'לוגיקה', 'שברים', 'עשרוניים', 'כפל/חילוק', 'שטחים', 'הבנת הנקרא'];
+  const skills = ['אריתמטיקה', 'לוגיקה', 'שברים', 'עשרוניים', 'כפל/חילוק', 'שטחים', 'הבנת הנקרא', 'אחוזים'];
   return skills.map(s => ({
     subject: s,
     value: skillCounts[s] ? Math.round(skillTotals[s] / skillCounts[s]) : 20,

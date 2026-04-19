@@ -36,9 +36,10 @@ const useGameStore = create(
       grid: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
       word: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
       multChamp: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
+      percentages: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
 
       // Locks
-      locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0, magicPatterns: 0, grid: 0, word: 0, multChamp: 0 },
+      locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0, magicPatterns: 0, grid: 0, word: 0, multChamp: 0, percentages: 0 },
 
       // Weekly stats
       weeklyStats: emptyWeek(),
@@ -81,7 +82,7 @@ const useGameStore = create(
 
       // ─── Load progress from DB events (called by ChildEntry) ───────────
       loadProgress: (events) => {
-        const GAMES = ['equations','balance','tank','decimal','fractionLab','magicPatterns','grid','word','multChamp'];
+        const GAMES = ['equations','balance','tank','decimal','fractionLab','magicPatterns','grid','word','multChamp','percentages'];
         const updates = {};
         let totalStars = 0;
 
@@ -248,7 +249,8 @@ const useGameStore = create(
           grid: { ...fresh },
           word: { ...fresh },
           multChamp: { ...fresh },
-          locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0, magicPatterns: 0, grid: 0, word: 0, multChamp: 0 },
+          percentages: { ...fresh },
+          locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0, magicPatterns: 0, grid: 0, word: 0, multChamp: 0, percentages: 0 },
           weeklyStats: emptyWeek(),
         });
       },
@@ -266,6 +268,7 @@ const useGameStore = create(
         grid: state.grid,
         word: state.word,
         multChamp: state.multChamp,
+        percentages: state.percentages,
         locks: state.locks,
         weeklyStats: state.weeklyStats,
         darkMode: state.darkMode,

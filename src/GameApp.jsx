@@ -169,13 +169,16 @@ function GoalProgressBanner({ goal }) {
 export default function GameApp() {
   const currentScreen  = useGameStore((s) => s.currentScreen);
   const initDarkMode   = useGameStore((s) => s.initDarkMode);
-  // Subscription result is set by ChildEntry via the store — no duplicate RPC needed
   const subscription   = useGameStore((s) => s.subscription);
+  const setSubscription = useGameStore((s) => s.setSubscription);
+  const loadProgress   = useGameStore((s) => s.loadProgress);
+  const setAssignments = useGameStore((s) => s.setAssignments);
 
-  const [showOnboarding,   setShowOnboarding]   = useState(false);
+  const [showOnboarding,    setShowOnboarding]    = useState(false);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-  const [goals,            setGoals]            = useState([]);
+  const [goals,             setGoals]             = useState([]);
 
+  // ── UI setup (dark mode, install prompt, onboarding) — runs once ──────────
   useEffect(() => {
     initDarkMode();
     captureInstallEvent();
@@ -189,16 +192,65 @@ export default function GameApp() {
       if (shouldAutoShowInstallPrompt() && mounted) setShowInstallPrompt(true);
     }, 3500);
 
-    // Fetch goals only (subscription already checked by ChildEntry → stored in Zustand)
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (token) {
-      supabase.rpc('get_child_goals', { p_token: token })
-        .then(({ data }) => { if (mounted && data) setGoals(data); })
-        .catch(() => {});
-    }
-
     return () => { mounted = false; clearTimeout(installTimer); };
   }, []); // eslint-disable-line
+
+  // ── Bootstrap: runs when subscription hasn't been checked yet ────────────
+  // Covers two cases:
+  //   1. Normal entry via ChildEntry → subscription.checked = true already → skip
+  //   2. Refresh at /play → subscription.checked = false → run full bootstrap here
+  useEffect(() => {
+    if (subscription.checked) return;          // ChildEntry already did this
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) return;                         // no token → "ask parent" screen shown
+
+    let mounted = true;
+
+    // Hard timeout: never leave child stuck on spinner longer than 5s
+    const failOpenTimer = setTimeout(() => {
+      if (mounted && !useGameStore.getState().subscription.checked) {
+        setSubscription({ status: 'trial', expiresAt: null }); // fail-open
+      }
+    }, 5000);
+
+    (async () => {
+      try {
+        // Run subscription + events + assignments in parallel
+        const [subRes, eventsRes, assignmentsRes, goalsRes] = await Promise.all([
+          supabase.rpc('get_child_subscription', { p_token: token }),
+          supabase.rpc('get_child_events',       { p_token: token }),
+          supabase.rpc('get_child_assignments',  { p_token: token }),
+          supabase.rpc('get_child_goals',        { p_token: token }),
+        ]);
+
+        if (!mounted) return;
+        clearTimeout(failOpenTimer);
+
+        // Subscription
+        const subRows = subRes.data;
+        if (!subRes.error && subRows?.length > 0) {
+          const { subscription_status, subscription_expires_at } = subRows[0];
+          setSubscription({ status: subscription_status, expiresAt: subscription_expires_at });
+        } else {
+          setSubscription({ status: 'trial', expiresAt: null }); // fail-open
+        }
+
+        // Progress + assignments + goals
+        if (eventsRes.data?.length > 0) loadProgress(eventsRes.data);
+        setAssignments(eventsRes.data ? (assignmentsRes.data || []) : []);
+        if (goalsRes.data) setGoals(goalsRes.data);
+
+      } catch (e) {
+        console.error('[GameApp bootstrap]', e);
+        if (mounted) {
+          clearTimeout(failOpenTimer);
+          setSubscription({ status: 'trial', expiresAt: null }); // fail-open
+        }
+      }
+    })();
+
+    return () => { mounted = false; clearTimeout(failOpenTimer); };
+  }, [subscription.checked]); // eslint-disable-line
 
   // ── No token: accessed /play directly without a magic link ──────────────
   if (!localStorage.getItem(TOKEN_KEY)) {

@@ -239,25 +239,34 @@ export default function ParentDashboard() {
     captureInstallEvent();
     let mounted = true;
 
-    // ⏱ Timeout: אם אחרי 4 שניות עדיין loading — עצור spinner
-    const timeoutId = setTimeout(() => {
-      if (mounted) setLoading(false);
-    }, 4000);
+    // Fast path: getSession reads from localStorage — no network, near-instant.
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
+      const u = session?.user ?? null;
+      setUser(u);
+      try { if (u) await loadChild(u); }
+      catch (e) { console.error('[ParentDashboard] loadChild:', e); }
+      finally { if (mounted) setLoading(false); }
+    });
 
-    // INITIAL_SESSION fires synchronously with current session on mount,
-    // so a single onAuthStateChange is enough — no getSession() race condition
+    // Handle auth events that happen AFTER init (login, logout).
+    // Skip INITIAL_SESSION — already handled by getSession above.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (!mounted) return;
+      async (event, session) => {
+        if (!mounted || event === 'INITIAL_SESSION') return;
         const u = session?.user ?? null;
         setUser(u);
-        clearTimeout(timeoutId);
-        try { if (u) await loadChild(u); }
-        catch (e) { console.error('[ParentDashboard] loadChild:', e); }
-        finally { if (mounted) setLoading(false); }
+        if (event === 'SIGNED_IN' && u) {
+          setLoading(true);
+          try { await loadChild(u); }
+          catch (e) { console.error('[ParentDashboard] loadChild:', e); }
+          finally { if (mounted) setLoading(false); }
+        } else if (event === 'SIGNED_OUT') {
+          setLoading(false);
+        }
       }
     );
-    return () => { mounted = false; clearTimeout(timeoutId); subscription.unsubscribe(); };
+    return () => { mounted = false; subscription.unsubscribe(); };
   }, [loadChild]);
 
   // ─── Handlers ────────────────────────────────────────────────────────────
@@ -390,7 +399,7 @@ export default function ParentDashboard() {
 
   // ─── Derived values ──────────────────────────────────────────────────────
   const magicLink     = child?.magic_token ? `${APP_URL}/play/${child.magic_token}` : null;
-  const notifications = buildNotifications(events);
+  const notifications = useMemo(() => buildNotifications(events), [events]);
   const radarData     = useMemo(() => buildRadarData(events), [events]);
 
   const trialActive = useMemo(() => {

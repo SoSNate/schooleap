@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useGameStore from './store/useGameStore';
 import Header from './components/layout/Header';
 import Menu from './components/screens/Menu';
@@ -167,6 +168,7 @@ function GoalProgressBanner({ goal }) {
 // ─── GameApp ──────────────────────────────────────────────────────────────────
 
 export default function GameApp() {
+  const navigate       = useNavigate();
   const currentScreen  = useGameStore((s) => s.currentScreen);
   const initDarkMode   = useGameStore((s) => s.initDarkMode);
   const subscription   = useGameStore((s) => s.subscription);
@@ -237,7 +239,7 @@ export default function GameApp() {
 
         // Progress + assignments + goals
         if (eventsRes.data?.length > 0) loadProgress(eventsRes.data);
-        setAssignments(eventsRes.data ? (assignmentsRes.data || []) : []);
+        setAssignments(assignmentsRes.data || []); // independent of eventsRes
         if (goalsRes.data) setGoals(goalsRes.data);
 
       } catch (e) {
@@ -260,6 +262,12 @@ export default function GameApp() {
           <div className="text-6xl">🔗</div>
           <h2 className="text-2xl font-black">אנא בקש מההורה את הקישור המיוחד שלך!</h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm">ההורה שלך יקבל קישור ייחודי שדרכו תיכנס למשחק</p>
+          <button
+            onClick={() => navigate('/')}
+            className="text-sm text-slate-500 dark:text-slate-400 underline underline-offset-2 mt-2"
+          >
+            ← חזור לעמוד הכניסה
+          </button>
         </div>
       </div>
     );

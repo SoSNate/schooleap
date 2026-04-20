@@ -65,7 +65,7 @@ export default function LandingPage() {
 
   function handleEnter() {
     setLaunched(true);
-    setTimeout(() => navigate('/parent'), 600);
+    navigate('/parent');
   }
 
   function scrollToAbout() {

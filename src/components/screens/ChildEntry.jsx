@@ -1,7 +1,5 @@
 import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
-import useGameStore from '../../store/useGameStore';
 
 const TOKEN_KEY = 'hasbaonautica_child_token';
 
@@ -49,69 +47,19 @@ function LoadingScreen() {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+// ChildEntry — lightweight redirect only.
+// Saves the token to localStorage and immediately navigates to /play.
+// GameApp handles all data loading (subscription + events + assignments + goals)
+// in parallel, covering both first-entry and refresh with the same code path.
 export default function ChildEntry() {
-  const { token }          = useParams();
-  const navigate           = useNavigate();
-  const loadProgress       = useGameStore((s) => s.loadProgress);
-  const setSubscription    = useGameStore((s) => s.setSubscription);
-  const setAssignments     = useGameStore((s) => s.setAssignments);
-  const subscription       = useGameStore((s) => s.subscription);
+  const { token } = useParams();
+  const navigate  = useNavigate();
 
   useEffect(() => {
     if (!token) { navigate('/'); return; }
-
     localStorage.setItem(TOKEN_KEY, token);
-    let mounted = true;
-
-    (async () => {
-      try {
-        // ── 1. בדוק סטטוס מנוי → שמור בstore ────────────────────────────
-        const { data: subRows, error: subErr } = await supabase
-          .rpc('get_child_subscription', { p_token: token });
-
-        if (!mounted) return;
-
-        if (!subErr && subRows?.length > 0) {
-          const { subscription_status, subscription_expires_at } = subRows[0];
-          // setSubscription מחשב blocked בעצמו ושומר בstore
-          setSubscription({ status: subscription_status, expiresAt: subscription_expires_at });
-          if (subscription_status === 'expired'  ||
-              subscription_status === 'canceled' ||
-              (subscription_status === 'trial' && subscription_expires_at &&
-               new Date(subscription_expires_at) < new Date())) {
-            // נשאר במסך PaywallScreen — GameApp יקרא subscription.blocked מהstore
-            return;
-          }
-        } else {
-          // שגיאה / אין נתונים — mark as checked+unblocked (fail-open)
-          setSubscription({ status: 'trial', expiresAt: null });
-        }
-
-        // ── 2. טען היסטוריית משחקים + משימות פתוחות במקביל ───────────────
-        const [{ data: events }, { data: openAssignments }] = await Promise.all([
-          supabase.rpc('get_child_events',      { p_token: token }),
-          supabase.rpc('get_child_assignments', { p_token: token }),
-        ]);
-
-        if (!mounted) return;
-        if (events?.length > 0) loadProgress(events);
-        setAssignments(openAssignments || []);
-
-        // ── 3. כנס למשחק ─────────────────────────────────────────────────
-        if (mounted) navigate('/play', { replace: true });
-      } catch (e) {
-        console.error('[ChildEntry]', e);
-        // fail-open: שגיאת רשת לא חוסמת
-        if (mounted) {
-          setSubscription({ status: 'trial', expiresAt: null });
-          navigate('/play', { replace: true });
-        }
-      }
-    })();
-
-    return () => { mounted = false; };
+    navigate('/play', { replace: true });
   }, [token]); // eslint-disable-line
 
-  if (subscription.checked && subscription.blocked) return <PaywallScreen />;
   return <LoadingScreen />;
 }

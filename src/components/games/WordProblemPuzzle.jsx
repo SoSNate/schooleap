@@ -2,9 +2,14 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import useGameStore from '../../store/useGameStore';
 import Hearts from '../shared/Hearts';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
+import HintButton from '../shared/HintButton';
+import HintBubble from '../shared/HintBubble';
+import useHint from '../../hooks/useHint';
+import { reportHintUsed } from '../../lib/telemetry';
 import { vibe } from '../../utils/math';
 import Swal from 'sweetalert2';
 import GameTutorial from '../shared/GameTutorial';
+import { getHint } from './wordEngine';
 
 /* ── Telemetry stub ──────────────────────────────────────────────────────── */
 // eslint-disable-next-line no-unused-vars
@@ -432,6 +437,27 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
 
   const recentRef = useRef([]);
 
+  // Hint infra
+  const onApplyHint = useCallback(() => {
+    // Word doesn't snap controls on hint (unlike percentages)
+    // Just display the bubble
+  }, []);
+
+  const {
+    cooldown: hintCooldown,
+    bubble:   hintBubbleText,
+    usedThisRound: usedHint,
+    requestHint,
+    resetRound: resetHintRound,
+  } = useHint({
+    level: gameState.lvl,
+    getHint,
+    puzzle: question,
+    cooldownSec: 5,
+    bubbleMs: 2600,
+    onApplyHint,
+  });
+
   /* ── new question ──────────────────────────────────────────────────────── */
   const newQuestion = useCallback(() => {
     const q = generateQuestion(gameState.lvl, recentRef.current, config);
@@ -447,7 +473,8 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
     setDisabled(false);
     setErrorMsg('');
     setConsErrors(0);
-  }, [gameState.lvl, config]);
+    resetHintRound();
+  }, [gameState.lvl, config, resetHintRound]);
 
   useEffect(() => { newQuestion(); }, [newQuestion]);
 
@@ -503,6 +530,7 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
       setConsErrors(0);
       telemetry('win', { schemaId: question.schemaId, lvl: gameState.lvl });
       const result = handleWin('word');
+      if (usedHint) reportHintUsed({ game: 'word', level: gameState.lvl });
       setFeedback({ visible: true, isLevelUp: result.isLevelUp, unlocked: result.unlocked, pts: result.pts });
     } else {
       vibe([50, 50, 50]);
@@ -551,7 +579,10 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
             <p className="text-xs font-black text-red-800 dark:text-red-300 mb-0.5">{stepLabel}</p>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 font-bold">{question.opHint}</p>
           </div>
-          <Hearts lives={lives} maxLives={config.livesPerRound} justLost={justLost} />
+          <div className="flex items-center gap-2">
+            <HintButton cooldown={hintCooldown} onClick={requestHint} colorToken="red" />
+            <Hearts lives={lives} maxLives={config.livesPerRound} justLost={justLost} />
+          </div>
         </div>
 
         {/* ── COLLECT ─────────────────────────────────────────────────── */}
@@ -682,6 +713,9 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
           </div>
         )}
       </div>
+
+      {/* Hint bubble */}
+      <HintBubble text={hintBubbleText} />
 
       <FeedbackOverlay
         visible={feedback.visible}

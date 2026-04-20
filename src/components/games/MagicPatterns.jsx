@@ -3,8 +3,13 @@ import useGameStore from '../../store/useGameStore';
 import Hearts from '../shared/Hearts';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
 import GameTutorial from '../shared/GameTutorial';
+import HintButton from '../shared/HintButton';
+import HintBubble from '../shared/HintBubble';
+import useHint from '../../hooks/useHint';
+import { reportHintUsed } from '../../lib/telemetry';
 import { vibe } from '../../utils/math';
 import Swal from 'sweetalert2';
+import { getHint } from './magicPatternsEngine';
 
 // ── SVG Shape Icons ───────────────────────────────────────────────────────────
 function ShapeIcon({ shape, className = 'w-full h-full' }) {
@@ -523,6 +528,32 @@ export default function MagicPatterns() {
 
   useEffect(() => { newQuestion(); }, [newQuestion]);
 
+  // Hint infra
+  const onApplyHint = useCallback(() => {
+    // Magic Patterns doesn't snap controls on hint
+    // Just display the bubble
+  }, []);
+
+  const {
+    cooldown: hintCooldown,
+    bubble:   hintBubbleText,
+    usedThisRound: usedHint,
+    requestHint,
+    resetRound: resetHintRound,
+  } = useHint({
+    level: gameState.lvl,
+    getHint,
+    puzzle: question,
+    cooldownSec: 5,
+    bubbleMs: 2600,
+    onApplyHint,
+  });
+
+  // Update newQuestion to reset hint
+  useEffect(() => {
+    resetHintRound();
+  }, [question, resetHintRound]);
+
 
   // ── tryPlace — attempt placing a bank card into a slot ──────────────────────
   const tryPlace = useCallback((cardId, cardValue, slotId) => {
@@ -548,6 +579,7 @@ export default function MagicPatterns() {
           vibe([30, 50, 30]);
           setScaffoldStage((s) => Math.min(2, s + 1));
           const result = handleWin('magicPatterns');
+          if (usedHint) reportHintUsed({ game: 'magicPatterns', level: gameState.lvl });
           setFeedback({ visible: true, isLevelUp: result.isLevelUp, unlocked: result.unlocked, pts: result.pts });
         }, 300);
       }
@@ -678,18 +710,19 @@ export default function MagicPatterns() {
       <div className="flex-1 flex flex-col items-center p-4 gap-4 overflow-y-auto">
         <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] w-full max-w-md shadow-xl flex flex-col items-center gap-5 p-6 border-2 border-pink-200 dark:border-pink-800/40 border-b-4 border-b-pink-400 dark:border-b-pink-700 transition-colors">
 
-          {/* Scaffold stage indicator + hearts for L4-L5 */}
+          {/* Scaffold stage indicator + hint button + hearts for L4-L5 */}
           <div className="flex justify-between items-center w-full h-8">
             <span className="text-xs font-bold text-slate-400">
               {gameState.lvl >= 4
                 ? (colorsHidden ? '⬜ ללא צבעים' : '🎨 צבעים פעילים')
                 : (scaffoldStage === 0 ? '🔵 מלא עזרים' : scaffoldStage === 1 ? '🟡 עזרים חלקיים' : '🔴 ללא עזרים')}
             </span>
-            {gameState.lvl >= 4 && (
-              <div className="flex gap-1 items-center">
+            <div className="flex gap-1 items-center">
+              <HintButton cooldown={hintCooldown} onClick={requestHint} colorToken="violet" />
+              {gameState.lvl >= 4 && (
                 <Hearts count={lives} />
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* ── Legend (scaffold stage 0 only) ── */}
@@ -827,6 +860,9 @@ export default function MagicPatterns() {
           })}
         </div>
       </div>
+
+      {/* Hint bubble */}
+      <HintBubble text={hintBubbleText} />
 
       {/* ── Win overlay ── */}
       <FeedbackOverlay

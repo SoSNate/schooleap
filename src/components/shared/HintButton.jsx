@@ -21,6 +21,12 @@ const COLOR_CLASSES = {
   emerald: {
     ready:   'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700/50 text-emerald-600',
   },
+  red: {
+    ready:   'bg-red-50 dark:bg-red-900/30 border-red-300 dark:border-red-700/50 text-red-600',
+  },
+  violet: {
+    ready:   'bg-violet-50 dark:bg-violet-900/30 border-violet-300 dark:border-violet-700/50 text-violet-600',
+  },
 };
 
 const DISABLED = 'bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-300 dark:text-slate-500';

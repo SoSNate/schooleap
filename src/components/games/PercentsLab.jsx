@@ -46,7 +46,7 @@ function SwipeRoller({ value, onChange, min = 2, max = 50, highlight = false }) 
 
   return (
     <div
-      className={`relative w-14 h-14 bg-white dark:bg-slate-700 rounded-xl border shadow-inner flex items-center justify-center cursor-ns-resize touch-none overflow-hidden select-none ${
+      className={`relative w-14 h-16 bg-white dark:bg-slate-700 rounded-xl border shadow-inner flex items-center justify-center cursor-ns-resize touch-none overflow-hidden select-none ${
         highlight
           ? 'border-sky-400 ring-4 ring-sky-200 dark:ring-sky-900/50 animate-pulse'
           : 'border-slate-200 dark:border-slate-600 hover:border-sky-300'
@@ -56,9 +56,24 @@ function SwipeRoller({ value, onChange, min = 2, max = 50, highlight = false }) 
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
-      <div className="absolute top-0 w-full h-3 bg-gradient-to-b from-slate-100 dark:from-slate-800 to-transparent pointer-events-none" />
-      <div className="absolute bottom-0 w-full h-3 bg-gradient-to-t from-slate-100 dark:from-slate-800 to-transparent pointer-events-none" />
-      <span className="text-2xl font-black text-sky-700 dark:text-sky-300">{value}</span>
+      {/* Grip ridges — top */}
+      {[0, 1, 2].map((i) => (
+        <div key={`t${i}`}
+          className="absolute w-6 h-px bg-slate-300/80 dark:bg-slate-500/60 rounded-full pointer-events-none"
+          style={{ top: 8 + i * 5, left: '50%', transform: 'translateX(-50%)' }}
+        />
+      ))}
+      {/* Grip ridges — bottom */}
+      {[0, 1, 2].map((i) => (
+        <div key={`b${i}`}
+          className="absolute w-6 h-px bg-slate-300/80 dark:bg-slate-500/60 rounded-full pointer-events-none"
+          style={{ bottom: 8 + i * 5, left: '50%', transform: 'translateX(-50%)' }}
+        />
+      ))}
+      {/* Fade gradients (mask ridges near edge) */}
+      <div className="absolute top-0 w-full h-5 bg-gradient-to-b from-white dark:from-slate-700 to-transparent pointer-events-none" />
+      <div className="absolute bottom-0 w-full h-5 bg-gradient-to-t from-white dark:from-slate-700 to-transparent pointer-events-none" />
+      <span className="text-2xl font-black text-sky-700 dark:text-sky-300 relative z-10">{value}</span>
     </div>
   );
 }
@@ -138,6 +153,15 @@ function DynamicArc({
     </>
   );
 }
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+const INSTRUCTIONS = {
+  1: 'החליקו את הגלגל ובחרו ÷ או × — כך שהחץ יתאים לחידה',
+  2: 'בחרו פעולה (÷/×) והחליקו את המספר בגלגל',
+  3: 'מצאו את הפעולה והגורם הנכון',
+  4: 'חשבו — איזו פעולה ואיזה גורם מאזנים את המשוואה?',
+  5: '',  // L5: מומחים לא צריכים הוראה
+};
 
 // ─── Main component ──────────────────────────────────────────────────────────
 export default function PercentsLab() {
@@ -231,6 +255,11 @@ export default function PercentsLab() {
 
   if (!puzzle) return null;
 
+  // Board scale: shrink on narrow viewports so board never overflows
+  const boardScale = typeof window !== 'undefined'
+    ? Math.min(1, (window.innerWidth - 32) / 500)
+    : 1;
+
   const liveValue = computeLiveValue(puzzle, userLogic);
   const display   = {
     ...puzzle.display,
@@ -274,18 +303,44 @@ export default function PercentsLab() {
       </div>
 
       {/* Title */}
-      <div className="text-center mb-6">
+      <div className="text-center mb-4">
         <h1 className="text-2xl md:text-3xl font-black text-slate-800 dark:text-slate-100 flex items-center justify-center gap-2">
           מעבדת אחוזים <ArrowRightLeft className="text-sky-500" size={22} />
         </h1>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-          החליפו את הפעולה (×/÷) והחליקו את המספר — כך שהחץ יתאים לחידה
-        </p>
+        {INSTRUCTIONS[gameState.lvl] && (
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+            {INSTRUCTIONS[gameState.lvl]}
+          </p>
+        )}
       </div>
 
       {/* Board */}
       <div className="flex justify-center">
-        <div className="relative w-[448px] h-[384px] max-w-[95vw]" dir="ltr" style={{ transformOrigin: 'top center' }}>
+        <div className="relative">
+          {/* Column labels — vertical layout only */}
+          {puzzle.puzzleType === 'vertical' && (
+            <div className="flex w-[448px] max-w-[95vw] mb-1 px-[80px]" dir="ltr">
+              <span className="flex-1 text-xs font-bold text-slate-400 text-center">₪ שקלים</span>
+              <span className="flex-1 text-xs font-bold text-slate-400 text-center">% אחוזים</span>
+            </div>
+          )}
+
+          {/* Board + row labels */}
+          <div className="flex items-start">
+            {/* Row labels — vertical layout only */}
+            {puzzle.puzzleType === 'vertical' && (
+              <div className="flex flex-col justify-around h-[384px] pr-1" style={{ width: 44 }}>
+                <span className="text-xs font-bold text-slate-400 text-center leading-tight">חלק</span>
+                <span className="text-xs font-bold text-slate-400 text-center leading-tight">סכום<br/>כולל</span>
+              </div>
+            )}
+
+        <div className="relative w-[448px] h-[384px]" dir="ltr" style={{
+          transform: `scale(${boardScale})`,
+          transformOrigin: 'top left',
+          marginBottom: `${(boardScale - 1) * 384}px`,
+          marginRight: `${(boardScale - 1) * 448}px`,
+        }}>
           {puzzle.puzzleType === 'horizontal' ? (
             <>
               <DynamicArc
@@ -376,6 +431,8 @@ export default function PercentsLab() {
             ))}
           </div>
         </div>
+          </div>{/* end flex items-start */}
+        </div>{/* end relative wrapper */}
       </div>
 
       {/* Hint bubble */}

@@ -177,6 +177,35 @@ export default function PercentsLab() {
   const [feedback,  setFeedback]  = useState({ visible: false });
   const [hintGlow,  setHintGlow]  = useState(false);
 
+  // Track pending timeouts so unmount doesn't fire setters on dead component.
+  const timersRef = useRef([]);
+  const schedule = (fn, ms) => {
+    const id = setTimeout(() => {
+      timersRef.current = timersRef.current.filter(t => t !== id);
+      fn();
+    }, ms);
+    timersRef.current.push(id);
+    return id;
+  };
+  useEffect(() => () => {
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current = [];
+  }, []);
+
+  // Responsive board scale — recompute on resize / orientation change.
+  const computeScale = () =>
+    typeof window === 'undefined' ? 1 : Math.min(1, (window.innerWidth - 32) / 500);
+  const [boardScale, setBoardScale] = useState(computeScale);
+  useEffect(() => {
+    const onResize = () => setBoardScale(computeScale());
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onResize);
+    };
+  }, []);
+
   const scaffold = getScaffolding(gameState.lvl);
 
   // Hint infra (shared across analytical games)
@@ -191,7 +220,7 @@ export default function PercentsLab() {
         }));
       }
       setHintGlow(true);
-      setTimeout(() => setHintGlow(false), 1600);
+      schedule(() => setHintGlow(false), 1600);
     }
   }, []);
 
@@ -233,13 +262,13 @@ export default function PercentsLab() {
       setFeedback({ visible: true, isLevelUp: r.isLevelUp, unlocked: r.unlocked, pts: r.pts });
       // Telemetry: mark if hint was used (fire-and-forget)
       if (usedHint) reportHintUsed({ game: 'percentages', level: gameState.lvl });
-      setTimeout(nextPuzzle, 2100);
+      schedule(nextPuzzle, 2100);
     } else {
       vibe?.(80);
-      const next = lives - 1;
+      const next = Math.max(0, lives - 1);
       setLives(next);
       setJustLost(true);
-      setTimeout(() => setJustLost(false), 600);
+      schedule(() => setJustLost(false), 600);
       if (next <= 0) {
         handleGameFail('percentages');
         Swal.fire({
@@ -254,11 +283,6 @@ export default function PercentsLab() {
   }
 
   if (!puzzle) return null;
-
-  // Board scale: shrink on narrow viewports so board never overflows
-  const boardScale = typeof window !== 'undefined'
-    ? Math.min(1, (window.innerWidth - 32) / 500)
-    : 1;
 
   const liveValue = computeLiveValue(puzzle, userLogic);
   const display   = {
@@ -280,8 +304,8 @@ export default function PercentsLab() {
       <GameTutorial gameName="percentages" />
 
       {/* Top bar: back/lives/score (minimal — Header already exists outside) */}
-      <div className="max-w-3xl mx-auto flex items-center justify-between mb-4 bg-white dark:bg-slate-800 rounded-[1.5rem] px-5 py-3 border border-slate-100 dark:border-slate-700 shadow-sm">
-        <div className="flex items-center gap-4">
+      <div className="max-w-3xl mx-auto flex flex-wrap items-center justify-between gap-2 mb-4 bg-white dark:bg-slate-800 rounded-[1.5rem] px-4 py-3 border border-slate-100 dark:border-slate-700 shadow-sm">
+        <div className="flex items-center gap-3 min-w-0">
           <div className="bg-sky-600 text-white w-11 h-11 flex items-center justify-center rounded-2xl font-black text-lg shadow-md">
             {gameState.lvl}
           </div>
@@ -315,13 +339,13 @@ export default function PercentsLab() {
       </div>
 
       {/* Board */}
-      <div className="flex justify-center">
-        <div className="relative">
+      <div className="flex justify-center w-full overflow-hidden">
+        <div className="relative" style={{ width: 448 * boardScale + (puzzle.puzzleType === 'vertical' ? 44 : 0), maxWidth: '100%' }}>
           {/* Column labels — vertical layout only */}
           {puzzle.puzzleType === 'vertical' && (
-            <div className="flex w-[448px] max-w-[95vw] mb-1 px-[80px]" dir="ltr">
-              <span className="flex-1 text-xs font-bold text-slate-400 text-center">₪ שקלים</span>
-              <span className="flex-1 text-xs font-bold text-slate-400 text-center">% אחוזים</span>
+            <div className="flex mb-1" dir="ltr" style={{ width: 448 * boardScale, marginRight: 44, paddingLeft: 80 * boardScale, paddingRight: 80 * boardScale }}>
+              <span className="flex-1 text-[10px] sm:text-xs font-bold text-slate-400 text-center">₪ שקלים</span>
+              <span className="flex-1 text-[10px] sm:text-xs font-bold text-slate-400 text-center">% אחוזים</span>
             </div>
           )}
 
@@ -329,17 +353,19 @@ export default function PercentsLab() {
           <div className="flex items-start">
             {/* Row labels — vertical layout only */}
             {puzzle.puzzleType === 'vertical' && (
-              <div className="flex flex-col justify-around h-[384px] pr-1" style={{ width: 44 }}>
-                <span className="text-xs font-bold text-slate-400 text-center leading-tight">חלק</span>
-                <span className="text-xs font-bold text-slate-400 text-center leading-tight">סכום<br/>כולל</span>
+              <div className="flex flex-col justify-around pr-1" style={{ width: 44, height: 384 * boardScale }}>
+                <span className="text-[10px] sm:text-xs font-bold text-slate-400 text-center leading-tight">חלק</span>
+                <span className="text-[10px] sm:text-xs font-bold text-slate-400 text-center leading-tight">סכום<br/>כולל</span>
               </div>
             )}
 
-        <div className="relative w-[448px] h-[384px]" dir="ltr" style={{
+        <div className="relative" dir="ltr" style={{
+          width: 448 * boardScale,
+          height: 384 * boardScale,
+        }}>
+        <div className="absolute top-0 left-0 w-[448px] h-[384px]" style={{
           transform: `scale(${boardScale})`,
           transformOrigin: 'top left',
-          marginBottom: `${(boardScale - 1) * 384}px`,
-          marginRight: `${(boardScale - 1) * 448}px`,
         }}>
           {puzzle.puzzleType === 'horizontal' ? (
             <>
@@ -431,6 +457,7 @@ export default function PercentsLab() {
             ))}
           </div>
         </div>
+        </div>{/* end scaled inner board */}
           </div>{/* end flex items-start */}
         </div>{/* end relative wrapper */}
       </div>

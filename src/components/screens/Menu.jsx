@@ -41,7 +41,13 @@ export default function Menu({ goals = [] }) {
   const currentAssignment = hasOpenAssignment ? assignments[0] : null;
   const currentGameMeta   = currentAssignment ? GAME_BY_ID[currentAssignment.game_name] : null;
 
-  const isLocked = (gameId) => currentAssignment && currentAssignment.game_name !== gameId;
+  // Guard: only lock if the assigned game actually exists in our game registry.
+  // A typo'd game_name in the DB would otherwise lock ALL games indefinitely.
+  const isLocked = (gameId) => {
+    if (!currentAssignment) return false;
+    if (!GAME_BY_ID[currentAssignment.game_name]) return false; // invalid/unknown game → no lock
+    return currentAssignment.game_name !== gameId;
+  };
 
   const startGame = (gameId) => {
     if (isLocked(gameId)) { vibe(30); return; }

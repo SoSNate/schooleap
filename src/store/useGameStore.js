@@ -174,10 +174,26 @@ const useGameStore = create(
         // שלח אירוע ל-Supabase אוטומטית
         get().reportGameEvent(game, get()[game].lvl, true);
 
+        // Safety: if FeedbackOverlay unmounts without firing finishAnimation
+        // (e.g. parent navigates away mid-animation), clear the flag after 3s
+        // so the game isn't stuck in a frozen isAnimating=true state.
+        if (typeof window !== 'undefined') {
+          if (window.__animGuardId) clearTimeout(window.__animGuardId);
+          window.__animGuardId = setTimeout(() => {
+            if (get().isAnimating) set({ isAnimating: false });
+          }, 3000);
+        }
+
         return { isLevelUp, unlocked, pts };
       },
 
-      finishAnimation: () => set({ isAnimating: false }),
+      finishAnimation: () => {
+        if (typeof window !== 'undefined' && window.__animGuardId) {
+          clearTimeout(window.__animGuardId);
+          window.__animGuardId = null;
+        }
+        set({ isAnimating: false });
+      },
 
       reportGameEvent: async (game, level, success) => {
         const token = localStorage.getItem(CHILD_TOKEN_KEY);

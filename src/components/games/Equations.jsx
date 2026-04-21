@@ -2,37 +2,46 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import useGameStore from '../../store/useGameStore';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
 import Hearts from '../shared/Hearts';
-import { vibe, opsDict, opEmojis } from '../../utils/math';
+import { vibe, opsDict, opEmojis, rnd, shuffle } from '../../utils/math';
 import Swal from 'sweetalert2';
 import GameTutorial from '../shared/GameTutorial';
 
-// ─── Safe math evaluator (Shunting-yard, no eval) ─────────────────────────────
+// Safe math evaluator (Shunting-yard, no eval).
+// Returns NaN on any error (divide-by-zero, malformed input, empty stack).
+// Callers must check Number.isFinite before using.
 const safeEvaluate = (expr) => {
   const tokens = expr.replace(/\s+/g, '').match(/(\d+\.\d+|\d+|[+\-*/()])/g);
-  if (!tokens) return 0;
+  if (!tokens) return NaN;
   const prec = { '+': 1, '-': 1, '*': 2, '/': 2 };
   const applyOp = (op, b, a) => {
     if (op === '+') return a + b;
     if (op === '-') return a - b;
     if (op === '*') return a * b;
-    if (op === '/') return a / b;
-    return 0;
+    if (op === '/') return b === 0 ? NaN : a / b;
+    return NaN;
   };
   const vals = [], ops = [];
   for (const token of tokens) {
     if (!isNaN(token)) { vals.push(parseFloat(token)); continue; }
     if (token === '(') { ops.push(token); continue; }
     if (token === ')') {
-      while (ops.length && ops[ops.length - 1] !== '(')
+      while (ops.length && ops[ops.length - 1] !== '(') {
+        if (vals.length < 2) return NaN;
         vals.push(applyOp(ops.pop(), vals.pop(), vals.pop()));
+      }
       ops.pop(); continue;
     }
-    while (ops.length && ops[ops.length - 1] !== '(' && prec[ops[ops.length - 1]] >= prec[token])
+    while (ops.length && ops[ops.length - 1] !== '(' && prec[ops[ops.length - 1]] >= prec[token]) {
+      if (vals.length < 2) return NaN;
       vals.push(applyOp(ops.pop(), vals.pop(), vals.pop()));
+    }
     ops.push(token);
   }
-  while (ops.length) vals.push(applyOp(ops.pop(), vals.pop(), vals.pop()));
-  return vals[0] ?? 0;
+  while (ops.length) {
+    if (vals.length < 2) return NaN;
+    vals.push(applyOp(ops.pop(), vals.pop(), vals.pop()));
+  }
+  return vals.length === 1 ? vals[0] : NaN;
 };
 
 function safeEval(expr) {
@@ -42,17 +51,6 @@ function safeEval(expr) {
     return safeEvaluate(s);
   } catch { return NaN; }
 }
-
-const rnd = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-
-const shuffle = (arr) => {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = rnd(0, i);
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-};
 
 // ─── L5 Hardcoded Bank ─────────────────────────────────────────────────────────
 // Each entry: nums[5] op nums[4] → expr = n0 op0 n1 op1 n2 op2 n3 op3 n4
@@ -280,43 +278,62 @@ export default function Equations() {
           const slotIdx = parseInt(z.dataset.slot);
           if (getSlotType(slotIdx) !== item.type) return;
 
+          // No-op: dropped back onto its own origin slot — treat as a successful
+          // drop with nothing to move, so nothing leaks to the pool.
+          if (fromSlot && fromSlot.row === rowIdx && fromSlot.idx === slotIdx) {
+            dropped = true;
+            return;
+          }
+
           dropped = true;
           setRows((prev) => {
             let displaced = null;
-            const updated = prev.map((r, ri) => {
+            // Step 1: place item in target (capture existing occupant).
+            let updated = prev.map((r, ri) => {
               if (ri !== rowIdx) return r;
               const newSlots = [...r.slots];
-              displaced = newSlots[slotIdx];   // capture — do NOT call setPool here
+              displaced = newSlots[slotIdx];
               newSlots[slotIdx] = item;
               return { ...r, slots: newSlots };
             });
-            displacedItem = displaced;         // expose to outer scope
+            // Step 2: if dragged from another slot, clear origin.
             if (fromSlot) {
-              return updated.map((r, ri) => {
+              updated = updated.map((r, ri) => {
                 if (ri !== fromSlot.row) return r;
                 const ns = [...r.slots];
-                if (ns[fromSlot.idx]?.id === item.id) ns[fromSlot.idx] = null;
+                ns[fromSlot.idx] = null;
                 return { ...r, slots: ns };
               });
             }
+            displacedItem = displaced;
             return updated;
           });
         }
       });
 
-      // All pool mutations happen OUTSIDE setRows — no nested setState calls
+      // Pool mutations happen OUTSIDE setRows — single atomic update, dedup-safe.
       if (dropped) {
-        if (displacedItem) setPool((p) => [...p, displacedItem]);
-        if (!fromSlot)     setPool((p) => p.filter((pi) => pi.id !== item.id));
+        setPool((p) => {
+          let next = p;
+          // If dragged from pool, remove the original entry exactly once.
+          if (!fromSlot) next = next.filter((pi) => pi.id !== item.id);
+          // Return displaced occupant to pool, unless it is the same identity
+          // as the moved item (should be impossible, but guard anyway).
+          if (displacedItem && displacedItem.id !== item.id &&
+              !next.some((pi) => pi.id === displacedItem.id)) {
+            next = [...next, displacedItem];
+          }
+          return next;
+        });
       } else if (fromSlot) {
-        // Failed drop — clear source slot and return item to pool
+        // Failed drop — clear source slot and return item to pool (dedup-safe).
         setRows((prev) => prev.map((r, ri) => {
           if (ri !== fromSlot.row) return r;
           const ns = [...r.slots];
           if (ns[fromSlot.idx]?.id === item.id) ns[fromSlot.idx] = null;
           return { ...r, slots: ns };
         }));
-        setPool((p) => [...p, item]);
+        setPool((p) => (p.some((pi) => pi.id === item.id) ? p : [...p, item]));
       }
 
       document.removeEventListener('mousemove', move);
@@ -348,7 +365,8 @@ export default function Equations() {
       let expr = '';
       row.slots.forEach((s) => { if (!s) { ok = false; return; } expr += s.val; });
       if (!ok) return;
-      if (Math.abs(safeEval(expr) - row.target) > 0.001) ok = false;
+      const result = safeEval(expr);
+      if (!Number.isFinite(result) || Math.abs(result - row.target) > 0.001) ok = false;
     });
 
     if (ok) {
@@ -363,7 +381,7 @@ export default function Equations() {
 
       // Hearts only for L1–L4; L5 encourages trial-and-error (no lock)
       if (!isLvl5) {
-        const newLives = lives - 1;
+        const newLives = Math.max(0, lives - 1);
         setLives(newLives);
         if (newLives <= 0) {
           handleGameFail('equations');
@@ -474,7 +492,7 @@ export default function Equations() {
       </div>
 
       {/* Pool */}
-      <div className="flex flex-wrap justify-center content-start gap-2 min-h-[120px] bg-slate-100 dark:bg-slate-800 p-4 rounded-[2rem] shadow-inner w-full max-w-lg border-2 border-purple-300 dark:border-purple-800/50 relative z-20">
+      <div className="flex flex-wrap justify-center content-start gap-2 min-h-[120px] max-h-36 overflow-y-auto bg-slate-100 dark:bg-slate-800 p-4 rounded-[2rem] shadow-inner w-full max-w-lg border-2 border-purple-300 dark:border-purple-800/50 relative z-20">
         {pool.map((item) => renderItem(item))}
       </div>
 

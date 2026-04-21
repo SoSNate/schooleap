@@ -4,11 +4,9 @@ import useGameStore from '../../store/useGameStore';
 import Fraction from '../shared/Fraction';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
 import Hearts from '../shared/Hearts';
-import { vibe } from '../../utils/math';
+import { vibe, gcd } from '../../utils/math';
 import Swal from 'sweetalert2';
 import GameTutorial from '../shared/GameTutorial';
-
-function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
 
 // Circle (pie) visual
 function CircleShape({ n, d }) {
@@ -180,6 +178,7 @@ export default function FractionLab() {
   const [errorMsg, setErrorMsg] = useState('');
   const [feedback, setFeedback] = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
   const [consecutiveErrors, setConsecutiveErrors] = useState(0);
+  const [checking, setChecking] = useState(false);
 
   const recentRef = useRef([]);
   const timersRef = useRef([]);
@@ -230,6 +229,10 @@ export default function FractionLab() {
 
   const checkAnswer = () => {
     if (!question) return;
+    if (checking) return; // debounce rapid clicks — don't drain lives on double-tap
+    setChecking(true);
+    timersRef.current.push(setTimeout(() => setChecking(false), 700));
+
     const targetVal = question.targetN / question.targetD;
     const userVal = userN / userD;
 
@@ -237,9 +240,9 @@ export default function FractionLab() {
       vibe([50, 50, 50]);
       const newErrors = consecutiveErrors + 1;
       setConsecutiveErrors(newErrors);
-      setErrorMsg('❌ לא מדויק, נסה שוב');
+      setErrorMsg('❌ לא בדיוק, אבל אתה כמעט שם! 💪 נסה שוב');
       {
-        const next = lives - 1;
+        const next = Math.max(0, lives - 1);
         setLives(next);
         setJustLost(true);
         timersRef.current.push(setTimeout(() => setJustLost(false), 600));
@@ -261,13 +264,16 @@ export default function FractionLab() {
     // Require reduced form only in simplify mode
     if (question.mode === 'simplify' && gcd(userN, userD) > 1) {
       vibe(30);
-      setErrorMsg('⚠️ התשובה נכונה, אך יש לצמצם אותה קודם!');
+      setErrorMsg('⚠️ כמעט נכון! תצמצם את השבר — יש מספר שמתחלק גם במונה וגם במכנה 🎯');
       return;
     }
 
     vibe([30, 50, 30]);
-    confetti({ particleCount: 60, spread: 60, origin: { y: 0.7 } });
     const result = handleWinStore('fractionLab');
+    // Only celebrate with confetti on level-ups — per-win confetti overwhelms kids.
+    if (result.isLevelUp) {
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.7 } });
+    }
     setFeedback({ visible: true, isLevelUp: result.isLevelUp, unlocked: result.unlocked, pts: result.pts });
   };
 
@@ -363,7 +369,8 @@ export default function FractionLab() {
 
           <button
             onClick={checkAnswer}
-            className="w-full py-4 bg-orange-500 hover:bg-orange-400 dark:bg-orange-600 dark:hover:bg-orange-500 text-white rounded-2xl font-black text-xl shadow-xl transition-all active:scale-95 mt-1"
+            disabled={checking}
+            className="w-full py-4 bg-orange-500 hover:bg-orange-400 dark:bg-orange-600 dark:hover:bg-orange-500 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-2xl font-black text-xl shadow-xl transition-all active:scale-95 mt-1"
           >
             בדיקה ✓
           </button>

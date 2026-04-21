@@ -63,6 +63,7 @@ export default function Balance() {
   const [feedback, setFeedback] = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
   const [errorFlash, setErrorFlash] = useState(false);
   const [consecutiveErrors, setConsecutiveErrors] = useState(0);
+  const [checking, setChecking] = useState(false);
 
   const ansRef = useRef(0);
   const lFnRef = useRef((v) => v);
@@ -143,16 +144,18 @@ export default function Balance() {
         rFnRef.current = () => t;
       }
     } else {
+      // רמה 5 — שני שלבים ברורים: מצא את 🟦, אז חשב 🔴 לפי הכלל ובדוק איזון.
+      // השלב הראשון עוזר לילד למצוא את הערך; השני מיישם אותו.
       const shape5 = Math.random() < 0.5 ? 'a' : 'b';
       if (shape5 === 'a') {
-        setRulesHtml('🔴 = 🟦 + 2');
+        setRulesHtml('שלב 1: מצא 🟦 &nbsp;·&nbsp; שלב 2: 🔴 = 🟦 + 2 &nbsp;·&nbsp; חשב 🔴 × 🟦');
         setLeftText(`🔴 × 🟦`);
         const t = (x + 2) * x;
         setRightText(`${t}`);
         lFnRef.current = (v) => (v + 2) * v;
         rFnRef.current = () => t;
       } else {
-        setRulesHtml('🔴 = 🟦 + 3');
+        setRulesHtml('שלב 1: מצא 🟦 &nbsp;·&nbsp; שלב 2: 🔴 = 🟦 + 3 &nbsp;·&nbsp; חשב 🔴 × (🟦 − 1)');
         setLeftText(`🔴 × (🟦 - 1)`);
         const t = (x + 3) * (x - 1);
         setRightText(`${t}`);
@@ -171,11 +174,11 @@ export default function Balance() {
     vibe(20);
     const lvl = gameState.lvl;
     const hints = [
-      'נסה מספרים! אם ? + 3 = 10, אז ? = 10 − 3 = 7 ✓\nכלל: מה שמוסיפים — מחסירים מהצד השני.',
-      'נסה מספרים! אם ? × 4 = 20, אז ? = 20 ÷ 4 = 5 ✓\nכלל: מה שכופלים — מחלקים בו מהצד השני.',
-      '? מופיע בשני הצדדים!\nדוגמה: ? + 2 = 20 − ?\nחבר ? לשני הצדדים: 2×? = 18, אז ? = 9 ✓',
-      'נסה להכניס מספרים: ? = 1, 2, 3...\nמצא את זה שהופך את שני הצדדים לשווים!',
-      'ראה את הכלל למעלה 🔴 = ?, החלף אותו ונסה: ? = 1, 2, 3...',
+      'תחשוב: מה לשים ב-🟦 כדי ששני הצדדים יהיו שווים? התחל ממספרים קטנים ונסה להרגיש איך הכף זזה! 💙',
+      'כפל או חילוק? אם הצד השני גדול — נסה להכפיל. אם הצד השני קטן — נסה לחלק. התחל מ-2, 3, 4... 🎯',
+      '🟦 נמצא בשני הצדדים! נסה להציב אותו מספר מצד שמאל ומצד ימין — 1, 2, 3... מי מאזן? ⚖️',
+      'יש כאן ביטוי מורכב. נסה להציב 🟦 = 1, 2, 3... תראה את הכף זזה, וגלה מי מאזן! 💪',
+      'שני שלבים: 1) מצא את 🟦 עם הכלל למעלה. 2) חשב את 🔴. שים כל פעם מספר אחר ב-🟦 וראה! 🔑',
     ];
     Swal.fire({
       title: '💡 רמז',
@@ -188,6 +191,11 @@ export default function Balance() {
   };
 
   const checkAnswer = () => {
+    // Debounce: prevent rapid-fire clicks from deducting multiple lives at once.
+    if (checking) return;
+    setChecking(true);
+    timersRef.current.push(setTimeout(() => setChecking(false), 700));
+
     const v = sliderVal;
     const l = lFnRef.current(v);
     const r = rFnRef.current(v);
@@ -201,7 +209,7 @@ export default function Balance() {
       const result = handleWin('balance');
       setFeedback({ visible: true, isLevelUp: result.isLevelUp, unlocked: result.unlocked, pts: result.pts });
     } else {
-      const newLives = lives - 1;
+      const newLives = Math.max(0, lives - 1);
       const newErrors = consecutiveErrors + 1;
       setLives(newLives);
       setJustLost(true);
@@ -324,7 +332,8 @@ export default function Balance() {
             </button>
             <button
               onClick={checkAnswer}
-              className="flex-1 py-3 sm:py-4 bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white rounded-2xl sm:rounded-3xl font-black text-base sm:text-xl md:text-2xl shadow-xl transition-all active:scale-95"
+              disabled={checking}
+              className="flex-1 py-3 sm:py-4 bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-2xl sm:rounded-3xl font-black text-base sm:text-xl md:text-2xl shadow-xl transition-all active:scale-95"
             >
               בדוק! ⚖️
             </button>

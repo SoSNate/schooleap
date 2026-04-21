@@ -7,7 +7,7 @@ import HintButton from '../shared/HintButton';
 import HintBubble from '../shared/HintBubble';
 import useHint from '../../hooks/useHint';
 import { reportHintUsed } from '../../lib/telemetry';
-import { vibe } from '../../utils/math';
+import { vibe, rnd, shuffle } from '../../utils/math';
 import Swal from 'sweetalert2';
 import { getHint } from './magicPatternsEngine';
 
@@ -34,21 +34,12 @@ const SC = {
 const NEUTRAL = { text: 'text-slate-500', bg: 'bg-slate-100 dark:bg-slate-700', border: 'border-slate-300 dark:border-slate-600' };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-function rnd(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
-
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
 // Returns n unique random shapes from the full pool — ensures variety across questions
 const SHAPE_POOL_SIMPLE = ['sq', 'ci', 'tr'];                    // L1-2: צורות בסיסיות בלבד
 const SHAPE_POOL_ALL    = ['sq', 'ci', 'tr', 'rh', 'st', 'hx']; // L3+: כל הצורות
-let _activeShapePool = SHAPE_POOL_ALL; // מוגדר לפני קריאה ל-generateQuestion
+// NOTE: _activeShapePool is module-level but generateQuestion() always sets it before use.
+// It is reset to the safe default here and on component mount (see useEffect in component).
+let _activeShapePool = SHAPE_POOL_ALL;
 function pickShapes(n) { return shuffle(_activeShapePool).slice(0, n); }
 
 // Returns a distractor value not already in the excluded list
@@ -507,6 +498,14 @@ export default function MagicPatterns() {
   const dragRef      = useRef(null);
   const tryPlaceRef  = useRef(null);
 
+  // Reset module-level shape pool on mount so stale state from a previous session
+  // doesn't bleed in if the component is remounted (e.g., player exits and re-enters).
+  // generateQuestion() also resets it every call, so this is purely defensive.
+  useEffect(() => {
+    _activeShapePool = SHAPE_POOL_ALL;
+    return () => { _activeShapePool = SHAPE_POOL_ALL; };
+  }, []);
+
   // ── New question ────────────────────────────────────────────────────────────
   const newQuestion = useCallback(() => {
     const q = generateQuestion(gameState.lvl, recentRef.current);
@@ -594,7 +593,7 @@ export default function MagicPatterns() {
         // L4-L5: lose a heart + reveal colors as hint
         setColorsHidden(false);
         setLives((prev) => {
-          const next = prev - 1;
+          const next = Math.max(0, prev - 1);
           if (next <= 0) {
             // Out of hearts — skip question after short delay
             setTimeout(() => {

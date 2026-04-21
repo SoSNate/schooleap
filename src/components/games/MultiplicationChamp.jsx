@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import useGameStore from '../../store/useGameStore';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
 import Fraction from '../shared/Fraction';
-import { vibe } from '../../utils/math';
+import { vibe, gcd, shuffle } from '../../utils/math';
 import Swal from 'sweetalert2';
 import GameTutorial from '../shared/GameTutorial';
 
@@ -29,17 +29,7 @@ const HARD_FRACS = [
   { n: 4, d: 7 }, { n: 3, d: 8 },
 ];
 
-function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
 function simplify(n, d) { const g = gcd(n, d); return { n: n / g, d: d / g }; }
-
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
 
 function FracDisplay({ n, d, size = 'md' }) {
   const cls = size === 'sm' ? { num: 'text-base', den: 'text-base', line: 'my-0.5' } : { num: 'text-lg', den: 'text-lg', line: 'my-0.5' };
@@ -97,10 +87,12 @@ function generateRound(lvl) {
 }
 
 export default function MultiplicationChamp() {
-  const gameState = useGameStore((s) => s.multChamp);
-  const handleWin = useGameStore((s) => s.handleWin);
-  const handleGameFail = useGameStore((s) => s.handleGameFail);
-  const setScreen = useGameStore((s) => s.setScreen);
+  const gameState       = useGameStore((s) => s.multChamp);
+  const handleWin       = useGameStore((s) => s.handleWin);
+  const handleGameFail  = useGameStore((s) => s.handleGameFail);
+  const setScreen       = useGameStore((s) => s.setScreen);
+  const reportGameEvent = useGameStore((s) => s.reportGameEvent);
+  const updateGameField = useGameStore((s) => s.updateGameField);
 
   const [round, setRound] = useState(null);
   const [selected, setSelected] = useState([]); // indices of selected tiles
@@ -112,12 +104,27 @@ export default function MultiplicationChamp() {
   const [showHint, setShowHint] = useState(false);
   const [correctPairs, setCorrectPairs] = useState(0); // pairs found in this timer session
 
-  const timerRef = useRef(null);
+  const rafRef = useRef(null);
+  const startTimeRef = useRef(0);
+  const durationRef = useRef(60);
   const timersRef = useRef([]);
+
+  // Wrap setTimeout so the id is removed from the tracking array once it fires.
+  // Without this, timersRef grows unbounded across rounds of a long game.
+  const addTimer = useCallback((fn, ms) => {
+    let id;
+    id = setTimeout(() => {
+      timersRef.current = timersRef.current.filter((t) => t !== id);
+      fn();
+    }, ms);
+    timersRef.current.push(id);
+    return id;
+  }, []);
 
   useEffect(() => () => {
     timersRef.current.forEach(clearTimeout);
-    clearInterval(timerRef.current);
+    timersRef.current = [];
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
   }, []);
 
   const startRound = useCallback(() => {
@@ -132,42 +139,50 @@ export default function MultiplicationChamp() {
     setScore(0);
     setCorrectPairs(0);
     setTimeLeft(cfg.timeLimit);
+    durationRef.current = cfg.timeLimit;
+    startTimeRef.current = performance.now();
     setGameOver(false);
     startRound();
   }, [gameState.lvl, startRound]);
 
   useEffect(() => { startGame(); }, [startGame]);
 
-  // Timer
+  // Timer — requestAnimationFrame for drift-free accuracy
   useEffect(() => {
-    if (gameOver) { clearInterval(timerRef.current); return; }
-    clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setTimeLeft(t => {
-        if (t <= 1) {
-          clearInterval(timerRef.current);
-          setGameOver(true);
-          return 0;
-        }
-        return t - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timerRef.current);
+    if (gameOver) {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      return;
+    }
+    const tick = () => {
+      const elapsedSec = (performance.now() - startTimeRef.current) / 1000;
+      const remaining = Math.max(0, Math.ceil(durationRef.current - elapsedSec));
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        setGameOver(true);
+        return;
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [gameOver, gameState.lvl]);
 
   // When game ends
   useEffect(() => {
     if (!gameOver) return;
-    clearInterval(timerRef.current);
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
     if (correctPairs >= 4) {
       // 4/4 — win + potential level up
       const result = handleWin('multChamp');
-      timersRef.current.push(setTimeout(() => {
+      addTimer(() => {
         setFeedback({ visible: true, isLevelUp: result.isLevelUp, unlocked: result.unlocked, pts: result.pts });
-      }, 300));
+      }, 300);
     } else if (correctPairs === 3) {
       // 3/4 — give points but no level up (partial win)
       const pts = gameState.lvl + 1;
+      // Actually award the stars to the store and log to DB
+      updateGameField('multChamp', { stars: gameState.stars + pts });
+      reportGameEvent('multChamp', gameState.lvl, true);
       Swal.fire({
         title: 'כמעט! 👏',
         html: `<div class="text-center">ענית נכון על <b>3 מתוך 4</b>!<br>קיבלת <b>${pts}⭐</b> אבל לא עלית רמה.<br>נסה שוב להגיע ל-4/4!</div>`,
@@ -223,19 +238,19 @@ export default function MultiplicationChamp() {
       setFlash('correct');
       setScore(s => s + 1);
       setCorrectPairs(p => p + 1);
-      timersRef.current.push(setTimeout(() => {
+      addTimer(() => {
         setFlash(null);
         setSelected([]);
         startRound();
-      }, 600));
+      }, 600);
     } else {
       vibe([50, 50, 50]);
       setSelected(newSel); // keep both selected so both flash red
       setFlash('wrong');
-      timersRef.current.push(setTimeout(() => {
+      addTimer(() => {
         setFlash(null);
         setSelected([]);
-      }, 600));
+      }, 600);
     }
   };
 

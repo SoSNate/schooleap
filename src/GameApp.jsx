@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useGameStore from './store/useGameStore';
+import { useEdgeSwipe } from './hooks/useEdgeSwipe';
 import Header from './components/layout/Header';
 import Menu from './components/screens/Menu';
 import Settings from './components/screens/Settings';
@@ -170,11 +171,19 @@ function GoalProgressBanner({ goal }) {
 export default function GameApp() {
   const navigate       = useNavigate();
   const currentScreen  = useGameStore((s) => s.currentScreen);
+  const setScreen      = useGameStore((s) => s.setScreen);
   const initDarkMode   = useGameStore((s) => s.initDarkMode);
   const subscription   = useGameStore((s) => s.subscription);
   const setSubscription = useGameStore((s) => s.setSubscription);
   const loadProgress   = useGameStore((s) => s.loadProgress);
   const setAssignments = useGameStore((s) => s.setAssignments);
+
+  // Edge swipe: swipe right from left edge → go back to menu (if not already on menu)
+  const goToMenu = useCallback(() => setScreen('menu'), [setScreen]);
+  useEdgeSwipe({
+    disabled:     currentScreen === 'menu' || currentScreen === 'settings',
+    onSwipeRight: goToMenu,
+  });
 
   const [showOnboarding,    setShowOnboarding]    = useState(false);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);

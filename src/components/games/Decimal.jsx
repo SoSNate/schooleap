@@ -370,7 +370,7 @@ export default function Decimal() {
       vibe([50, 50, 50]);
       setErrorFlash(true);
       timersRef.current.push(setTimeout(() => setErrorFlash(false), 400));
-      const newLives = lives - 1;
+      const newLives = Math.max(0, lives - 1);
       const newErrors = consecutiveErrors + 1;
       setLives(newLives);
       setJustLost(true);

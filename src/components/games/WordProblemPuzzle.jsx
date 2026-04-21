@@ -6,7 +6,7 @@ import HintButton from '../shared/HintButton';
 import HintBubble from '../shared/HintBubble';
 import useHint from '../../hooks/useHint';
 import { reportHintUsed } from '../../lib/telemetry';
-import { vibe } from '../../utils/math';
+import { vibe, rnd } from '../../utils/math';
 import Swal from 'sweetalert2';
 import GameTutorial from '../shared/GameTutorial';
 import { getHint } from './wordEngine';
@@ -19,7 +19,6 @@ function telemetry(_event, _data) { /* no-op until LMS integration */ }
 export const DEFAULT_CONFIG = { maxLvl: 5, livesPerRound: 3 };
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
-function rnd(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 const NAMES_M = ['יוסי', 'איתמר', 'רועי', 'דני', 'עומר', 'אריאל'];
 const NAMES_F = ['דנה', 'נועה', 'שירה', 'יעל', 'מיה', 'תמר'];
@@ -127,7 +126,23 @@ const SCHEMAS = [
     id: 7, diff: 4,
     gen(lvl) {
       let start, items, price, answer;
-      do { start = rnd(30, 70 + lvl * 10); items = rnd(2, 4); price = rnd(4, 9 + lvl); answer = start - items * price; } while (answer <= 0);
+      // Bound the retries — if somehow nothing valid emerges, force a safe baseline
+      // so the generator never returns a negative/zero answer that breaks the UX.
+      let tries = 0;
+      do {
+        start = rnd(30, 70 + lvl * 10);
+        items = rnd(2, 4);
+        price = rnd(4, 9 + lvl);
+        answer = start - items * price;
+        tries++;
+      } while (answer <= 0 && tries < 20);
+      if (answer <= 0) {
+        // Deterministic solvable fallback (prevents silent L1 reroute upstream).
+        start  = 60 + lvl * 5;
+        items  = 3;
+        price  = 5;
+        answer = start - items * price;
+      }
       const { name, isMale } = pickGendered();
       return {
         text: `ל${name} היו ${start} שקלים. ${isMale ? 'הוא קנה' : 'היא קנתה'} ${items} ספרים ב-${price} שקלים כל אחד. כמה נשאר?`,
@@ -540,26 +555,24 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
       setErrorMsg('לא מדויק, נסה שוב 💡');
       setTimeout(() => setErrorMsg(''), 2500);
       telemetry('error', { schemaId: question.schemaId, answer: ans });
-      setLives(prev => {
-        const next = prev - 1;
-        if (next <= 0) {
-          setDisabled(true);
-          setTimeout(() => {
-            handleGameFail('word');
-            Swal.fire({
-              title: 'הרמה ננעלה 🔒',
-              text: 'השג 5 ניצחונות ברצף כדי להתקדם לרמה הבאה!',
-              icon: 'warning',
-              confirmButtonText: 'הבנתי',
-              confirmButtonColor: '#991b1b',
-              customClass: { popup: 'rounded-3xl' },
-            }).then(() => setScreen('menu'));
-          }, 600);
-        }
-        return next;
-      });
+      const nextLives = Math.max(0, lives - 1);
+      setLives(nextLives);
+      if (nextLives <= 0) {
+        setDisabled(true);
+        setTimeout(() => {
+          handleGameFail('word');
+          Swal.fire({
+            title: 'הרמה ננעלה 🔒',
+            text: 'השג 5 ניצחונות ברצף כדי להתקדם לרמה הבאה!',
+            icon: 'warning',
+            confirmButtonText: 'הבנתי',
+            confirmButtonColor: '#991b1b',
+            customClass: { popup: 'rounded-3xl' },
+          }).then(() => setScreen('menu'));
+        }, 600);
+      }
     }
-  }, [disabled, question, userAnswer, gameState.lvl, handleWin, handleGameFail, setScreen, newQuestion]);
+  }, [disabled, question, userAnswer, gameState.lvl, lives, usedHint, handleWin, handleGameFail, setScreen]);
 
   if (!question) return null;
 

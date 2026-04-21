@@ -153,7 +153,7 @@ export default function Tank() {
       const result = handleWin('tank');
       setFeedback({ visible: true, isLevelUp: result.isLevelUp, unlocked: result.unlocked, pts: result.pts });
     } else {
-      const newLives = lives - 1;
+      const newLives = Math.max(0, lives - 1);
       const newErrors = consecutiveErrors + 1;
       setLives(newLives);
       setJustLost(true);
@@ -247,7 +247,7 @@ export default function Tank() {
             id="tank-slider"
             min="10"
             max={sliderMax}
-            step="10"
+            step={totalCapacity > 100 ? 10 : totalCapacity > 20 ? 5 : 1}
             value={sliderVal}
             onChange={(e) => { setSliderVal(parseInt(e.target.value)); vibe(10); }}
             className="val-track mb-6"

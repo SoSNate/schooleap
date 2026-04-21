@@ -26,6 +26,27 @@ export function vibe(ms = 15) {
   if (navigator.vibrate) navigator.vibrate(ms);
 }
 
+// ─── Shared math/random helpers (canonical home — do not redefine in games) ──
+// rnd(min, max): inclusive integer in [min, max].
+export const rnd = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+// shuffle(arr): Fisher–Yates, returns a new array (does not mutate input).
+export const shuffle = (arr) => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = rnd(0, i);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
+// gcd(a, b): greatest common divisor, Euclidean algorithm.
+export const gcd = (a, b) => (b === 0 ? Math.abs(a) : gcd(b, a % b));
+
+// pickFrom(arr): random element from array. Use this where the rest of the
+// codebase uses `rnd(arr)` ambiguously — naming matters in math-heavy files.
+export const pickFrom = (arr) => arr[rnd(0, arr.length - 1)];
+
 export function getWeekId() {
   // Return week identifier based on Sunday start (not ISO Monday)
   const d = new Date();

@@ -70,8 +70,9 @@ export default function DecimalAreaLab() {
   const [justLost,     setJustLost]     = useState(false);
   const [disabled,     setDisabled]     = useState(false);
   const [feedback,     setFeedback]     = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
-  const [cell,         setCell]         = useState(14);
+  const [cell,         setCell]         = useState(18);
   const [nearEdge,     setNearEdge]     = useState(false);
+  const [hoverVertex,  setHoverVertex]  = useState(null); // {cx, cy} for crosshair snap indicator
 
   const gridRef      = useRef(null);
   const containerRef = useRef(null);
@@ -83,7 +84,7 @@ export default function DecimalAreaLab() {
     const ro = new ResizeObserver(([entry]) => {
       // card width − p-5 padding (40px) − Y-axis space (24px)
       const usable = entry.contentRect.width - 64;
-      setCell(Math.max(12, Math.floor(usable / TOTAL_CELLS)));
+      setCell(Math.max(18, Math.floor(usable / TOTAL_CELLS)));
     });
     ro.observe(containerRef.current);
     return () => ro.disconnect();
@@ -138,6 +139,8 @@ export default function DecimalAreaLab() {
       const inside = px >= 0 && py >= 0 && px <= gpx && py <= gpx;
       const near   = inside && (px < 20 || py < 20 || px > gpx - 20 || py > gpx - 20);
       setNearEdge(near);
+      // Live vertex preview — helps the child see which grid point will be snapped.
+      setHoverVertex(inside ? { cx: Math.round(px / cell), cy: Math.round(py / cell) } : null);
     }
 
     if (!isDrawing) return;
@@ -147,7 +150,13 @@ export default function DecimalAreaLab() {
 
   const onPointerLeave = useCallback(() => {
     setNearEdge(false);
-  }, []);
+    setHoverVertex(null);
+    // Cancel drawing if pointer leaves the grid mid-drag → prevents stuck drawing state
+    if (isDrawing) {
+      setIsDrawing(false);
+      setDrawing(null);
+    }
+  }, [isDrawing]);
 
   const onPointerUp = useCallback(() => {
     if (!isDrawing || !drawing) return;
@@ -178,7 +187,7 @@ export default function DecimalAreaLab() {
     setTimeout(() => setJustLost(false), 600);
 
     setLives((prev) => {
-      const next = prev - 1;
+      const next = Math.max(0, prev - 1);
       if (next <= 0) {
         setDisabled(true);
         setTimeout(() => {
@@ -392,6 +401,22 @@ export default function DecimalAreaLab() {
                     </div>
                   );
                 })}
+                {/* Snap indicator — glowing ring on nearest vertex while hovering */}
+                {hoverVertex && (
+                  <div
+                    className="absolute rounded-full pointer-events-none"
+                    style={{
+                      width: 14, height: 14,
+                      left: hoverVertex.cx * cell - 7,
+                      top:  hoverVertex.cy * cell - 7,
+                      border: '2px solid #2dd4bf',
+                      background: 'rgba(45,212,191,0.25)',
+                      boxShadow: '0 0 8px 2px rgba(45,212,191,0.6)',
+                      zIndex: 5,
+                      transition: 'left 0.05s linear, top 0.05s linear',
+                    }}
+                  />
+                )}
                 {/* Live drawing rect */}
                 {isDrawing && normDrawing && normDrawing.w > 0 && normDrawing.h > 0 && (
                   <div className="absolute border-2 border-dashed border-slate-600 bg-slate-400/30"

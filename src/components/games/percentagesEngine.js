@@ -4,8 +4,9 @@
 // elementary / junior-high-friendly numbers, with a fading-scaffolding ladder.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const rnd  = (arr) => arr[Math.floor(Math.random() * arr.length)];
-const rndi = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+import { pickFrom, rnd as rndi } from '../../utils/math';
+// Local alias — this engine uses `rnd(arr)` ambiguously; map to canonical pickFrom.
+const rnd = pickFrom;
 
 // ── Level configuration ─────────────────────────────────────────────────────
 const LEVEL_CONFIG = {

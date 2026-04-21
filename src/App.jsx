@@ -1,6 +1,10 @@
-import { useEffect, lazy, Suspense } from 'react';
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { captureInstallEvent } from './components/shared/InstallPrompt';
+import ErrorBoundary from './components/shared/ErrorBoundary';
+
+// Capture beforeinstallprompt at module load — fires once, must not be missed.
+captureInstallEvent();
 
 // ─── Lazy imports — כל route נטען רק כשמגיעים אליו ──────────────────────────
 const LandingPage      = lazy(() => import('./components/screens/LandingPage'));
@@ -10,6 +14,8 @@ const AdminDashboard   = lazy(() => import('./components/screens/AdminDashboard'
 const JoinClass        = lazy(() => import('./components/screens/JoinClass'));
 const ChildEntry       = lazy(() => import('./components/screens/ChildEntry'));
 const GameApp          = lazy(() => import('./GameApp'));
+const PrivacyPolicy    = lazy(() => import('./components/screens/PrivacyPolicy'));
+const TermsOfService   = lazy(() => import('./components/screens/TermsOfService'));
 
 // ─── Spinner — מוצג בזמן טעינת chunk ────────────────────────────────────────
 function PageSpinner() {
@@ -40,27 +46,28 @@ function SubscriptionGuard({ children }) {
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
-  useEffect(() => {
-    captureInstallEvent();
-  }, []);
 
   return (
-    <BrowserRouter>
-      <Suspense fallback={<PageSpinner />}>
-        <Routes>
-          <Route path="/"            element={<LandingPage />} />
-          <Route path="/parent"      element={<ParentDashboard />} />
-          <Route path="/teacher"     element={<TeacherDashboard />} />
-          <Route path="/admin"       element={<AdminDashboard />} />
-          <Route path="/join"        element={<JoinClass />} />
-          <Route path="/play/:token" element={<ChildEntry />} />
-          <Route path="/play"        element={
-            <SubscriptionGuard>
-              <GameApp />
-            </SubscriptionGuard>
-          } />
-        </Routes>
-      </Suspense>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Suspense fallback={<PageSpinner />}>
+          <Routes>
+            <Route path="/"            element={<LandingPage />} />
+            <Route path="/parent"      element={<ParentDashboard />} />
+            <Route path="/teacher"     element={<TeacherDashboard />} />
+            <Route path="/admin"       element={<AdminDashboard />} />
+            <Route path="/join"        element={<JoinClass />} />
+            <Route path="/privacy"     element={<PrivacyPolicy />} />
+            <Route path="/terms"       element={<TermsOfService />} />
+            <Route path="/play/:token" element={<ChildEntry />} />
+            <Route path="/play"        element={
+              <SubscriptionGuard>
+                <GameApp />
+              </SubscriptionGuard>
+            } />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }

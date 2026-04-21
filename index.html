@@ -17,6 +17,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="חשבונאוטיקה" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
+    <!-- Dark mode: apply before React mounts to prevent white flash -->
+    <script>
+      try {
+        var _s = JSON.parse(localStorage.getItem('nat-game-store') || '{}');
+        if (_s && _s.state && _s.state.darkMode) document.documentElement.classList.add('dark');
+      } catch(e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

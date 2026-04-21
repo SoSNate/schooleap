@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Navigate } from 'react-router-dom';
-import { LogOut, GraduationCap, ShieldAlert } from 'lucide-react';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { LogOut, GraduationCap, ShieldAlert, Moon, Sun } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import useGameStore from '../../store/useGameStore';
+import { useEdgeSwipe } from '../../hooks/useEdgeSwipe';
 import TeacherSalesPage from './TeacherSalesPage';
 import ClassEngagementTable from '../teacher/ClassEngagementTable';
 import ClassSkillsCard      from '../teacher/ClassSkillsCard';
@@ -14,6 +16,14 @@ import ClassroomCodeCard    from '../teacher/ClassroomCodeCard';
  * Students join the class themselves via /join?code=CLASSROOM_CODE.
  */
 export default function TeacherDashboard() {
+  const navigate       = useNavigate();
+  const initDarkMode   = useGameStore(s => s.initDarkMode);
+  const toggleDarkMode = useGameStore(s => s.toggleDarkMode);
+  const darkMode       = useGameStore(s => s.darkMode);
+
+  useEffect(() => { initDarkMode(); }, []); // eslint-disable-line
+  useEdgeSwipe({ onSwipeRight: () => navigate(-1) });
+
   const [user,      setUser]      = useState(null);
   const [profile,   setProfile]   = useState(null);
   const [loginErr,  setLoginErr]  = useState(null);
@@ -152,46 +162,102 @@ export default function TeacherDashboard() {
     );
   }
 
-  // מחובר אבל לא מורה/אדמין → דף מכירה
-  // אדמין (is_admin=true) עובר ישירות לדשבורד — ללא redirect
+  // מחובר אבל לא מורה/אדמין → דף pending אם נרשם lead, אחרת sales page.
   if (profile && !profile.is_admin && profile.role !== 'teacher' && profile.role !== 'admin') {
+    if (profile.teacher_status === 'pending') {
+      return (
+        <div dir="rtl" className="min-h-[100dvh] flex items-center justify-center p-6"
+          style={{ background: 'radial-gradient(ellipse at 50% 60%, #0f172a 0%, #020617 100%)' }}>
+          <div className="max-w-md w-full bg-white/5 border border-white/10 rounded-3xl p-8 text-center space-y-4">
+            <div className="text-6xl">⏳</div>
+            <h2 className="text-2xl font-black text-white">בקשתך בבדיקה</h2>
+            <p className="text-slate-400 text-sm leading-relaxed">
+              קיבלנו את הבקשה שלך להצטרף כמורה.<br />
+              נעדכן אותך במייל ({user?.email}) ברגע שתאושר — בדרך כלל תוך 24 שעות.
+            </p>
+            <button
+              onClick={handleLogout}
+              className="text-slate-500 hover:text-slate-300 text-xs font-bold transition-colors mt-4"
+            >
+              יציאה מהחשבון
+            </button>
+          </div>
+        </div>
+      );
+    }
+    if (profile.teacher_status === 'rejected') {
+      return (
+        <div dir="rtl" className="min-h-[100dvh] flex items-center justify-center p-6"
+          style={{ background: 'radial-gradient(ellipse at 50% 60%, #0f172a 0%, #020617 100%)' }}>
+          <div className="max-w-md w-full bg-white/5 border border-white/10 rounded-3xl p-8 text-center space-y-4">
+            <div className="text-6xl">📭</div>
+            <h2 className="text-2xl font-black text-white">הבקשה לא אושרה</h2>
+            <p className="text-slate-400 text-sm leading-relaxed">
+              אם נראה לך שזו טעות, פנה אלינו ב-12natanel@gmail.com עם פרטי המוסד.
+            </p>
+            <button onClick={handleLogout} className="text-slate-500 hover:text-slate-300 text-xs font-bold transition-colors mt-4">יציאה</button>
+          </div>
+        </div>
+      );
+    }
     return <TeacherSalesPage user={user} onLogout={handleLogout} />;
   }
 
   return (
-    <div dir="rtl" className="min-h-[100dvh] bg-slate-50 text-slate-900">
+    <div dir="rtl" className="min-h-[100dvh] bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
       {/* Top bar */}
-      <div className="bg-white border-b border-slate-100 sticky top-0 z-20">
+      <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-700 sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center">
               <GraduationCap size={20} />
             </div>
             <div>
-              <h1 className="text-lg font-black text-slate-800">לוח המורה</h1>
+              <h1 className="text-lg font-black text-slate-800 dark:text-slate-100">לוח המורה</h1>
               <p className="text-[11px] text-slate-400">{user.email}</p>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 px-3 py-2 rounded-xl hover:bg-slate-100"
-          >
-            <LogOut size={16} /> יציאה
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Admin back button */}
+            {profile?.is_admin && (
+              <a
+                href="/admin"
+                title="דשבורד מנהל"
+                className="flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 px-2.5 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+              >
+                <ShieldAlert size={13} />
+                <span className="hidden sm:inline">מנהל</span>
+              </a>
+            )}
+            {/* Dark mode toggle */}
+            <button
+              onClick={toggleDarkMode}
+              title="מצב לילה"
+              className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-300 transition-colors"
+            >
+              {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <LogOut size={16} /> יציאה
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-6 pb-16">
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
-            <p className="text-red-600 text-sm">{error}</p>
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl px-4 py-3">
+            <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
           </div>
         )}
 
         {/* Header */}
         <div>
           <h2 className="text-2xl font-black tracking-tight">
-            שלום, <span className="text-indigo-600">{user.email?.split('@')[0]}</span>
+            שלום, <span className="text-indigo-600 dark:text-indigo-400">{user.email?.split('@')[0]}</span>
           </h2>
           <p className="text-slate-400 text-sm mt-1">
             {students.length > 0

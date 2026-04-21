@@ -1,7 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Moon, Sun } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import useAdminStore from '../../store/useAdminStore';
+import useGameStore from '../../store/useGameStore';
+import InstallPrompt, { shouldAutoShowInstallPrompt } from '../shared/InstallPrompt';
+import { useEdgeSwipe } from '../../hooks/useEdgeSwipe';
 
 // Fallback לבדיקת אדמין במקרה שהעמודה is_admin טרם אוכלסה (bootstrap).
 // הגנה עיקרית נעשית דרך profiles.is_admin ו-RLS ב-DB.
@@ -23,14 +27,24 @@ function fmt(ts) {
   return new Date(ts).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
+/** Returns label + Tailwind color class for subscription expiry */
+function daysLeft(iso) {
+  if (!iso) return null;
+  const d = Math.ceil((new Date(iso) - Date.now()) / 86_400_000);
+  if (d < 0)   return { label: 'פג',       cls: 'text-red-500 dark:text-red-400 font-black' };
+  if (d <= 7)  return { label: `${d}י׳`,   cls: 'text-amber-500 dark:text-amber-400 font-bold' };
+  if (d <= 30) return { label: `${d}י׳`,   cls: 'text-blue-500 dark:text-blue-400 font-bold' };
+  return       { label: `${Math.floor(d/30)}ח׳`, cls: 'text-green-600 dark:text-green-400 font-bold' };
+}
+
 function Badge({ text, color = 'slate' }) {
   const cls = {
-    green:  'bg-green-100 text-green-700',
-    amber:  'bg-amber-100 text-amber-700',
-    red:    'bg-red-100 text-red-700',
-    slate:  'bg-slate-100 text-slate-600',
-    indigo: 'bg-indigo-100 text-indigo-700',
-  }[color] || 'bg-slate-100 text-slate-600';
+    green:  'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+    amber:  'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    red:    'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    slate:  'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
+    indigo: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
+  }[color] || 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
   return <span className={`text-[11px] font-black px-2 py-0.5 rounded-full ${cls}`}>{text}</span>;
 }
 
@@ -70,13 +84,52 @@ function LeadsTab() {
   async function approveTeacher(email) {
     if (!editMode) { alert('הפעל מצב עריכה כדי לאשר מורה'); return; }
     if (!email) { alert('אין מייל לפניה זו'); return; }
-    // RPC admin_approve_teacher: מגדיר is_approved, role=teacher, subscription active לשנה,
-    // מייצר classroom_code ייחודי, מסמן leads כ-handled, ורושם ב-audit_log.
-    const { data, error } = await supabase.rpc('admin_approve_teacher', { p_email: email });
-    if (error) { alert('שגיאה: ' + error.message); return; }
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    const { data, error } = await supabase.rpc('admin_approve_teacher', { p_email: normalizedEmail });
+    if (error) {
+      console.error('[admin_approve_teacher] RPC failed:', { email: normalizedEmail, code: error.code, message: error.message, details: error.details, hint: error.hint });
+      const retry = confirm(
+        `⚠️ אישור מורה נכשל\n\n` +
+        `מייל: ${normalizedEmail}\n` +
+        `קוד שגיאה: ${error.code || 'N/A'}\n` +
+        `הודעה: ${error.message}\n` +
+        `${error.hint ? `רמז: ${error.hint}\n` : ''}` +
+        `\nלחץ OK כדי לנסות אישור ידני (ללא RPC) — רק אם אתה בטוח.`
+      );
+      if (retry) await manualApproveTeacher(normalizedEmail);
+      return;
+    }
     const row = Array.isArray(data) ? data[0] : data;
     const code = row?.classroom_code || '—';
-    alert(`✅ ${email} אושר כמורה!\nקוד כיתה: ${code}`);
+    alert(`✅ ${normalizedEmail} אושר כמורה!\nקוד כיתה: ${code}`);
+    await load();
+  }
+
+  // Manual fallback: direct UPDATE on profiles if the RPC is broken/missing.
+  // Requires RLS policy allowing admins to update profiles.
+  async function manualApproveTeacher(email) {
+    const { data: profile, error: pErr } = await supabase
+      .from('profiles')
+      .select('id, email, role, classroom_code')
+      .ilike('email', email)
+      .maybeSingle();
+    if (pErr || !profile) {
+      alert(`לא נמצא פרופיל למייל ${email}. המשתמש צריך להתחבר פעם אחת דרך Google לפני אישור.`);
+      return;
+    }
+    const code = profile.classroom_code || ('T-' + Math.random().toString(36).slice(2, 7).toUpperCase());
+    const oneYear = new Date(); oneYear.setFullYear(oneYear.getFullYear() + 1);
+    const { error: uErr } = await supabase.from('profiles').update({
+      role: 'teacher',
+      teacher_status: 'approved',
+      classroom_code: code,
+      subscription_status: 'active',
+      subscription_expires_at: oneYear.toISOString(),
+    }).eq('id', profile.id);
+    if (uErr) { alert('עדכון ידני נכשל: ' + uErr.message); return; }
+    await supabase.from('teacher_leads').update({ handled: true }).eq('email', email);
+    alert(`✅ אישור ידני בוצע\nמורה: ${email}\nקוד: ${code}`);
     await load();
   }
 
@@ -162,23 +215,32 @@ function TeachersTab() {
   if (loading) return <Spinner />;
   if (!teachers.length) return <Empty text="אין מורים פעילים" />;
 
+  function teacherStatusColor(s) {
+    if (s === 'approved') return 'green';
+    if (s === 'pending')  return 'amber';
+    if (s === 'revoked')  return 'red';
+    return 'slate';
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-right text-xs font-black text-slate-500 border-b border-slate-100">
+          <tr className="text-right text-xs font-black text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">
             <th className="pb-2 pr-2">מייל</th>
             <th className="pb-2">קוד כיתה</th>
+            <th className="pb-2">סטטוס</th>
             <th className="pb-2">תאריך</th>
             <th className="pb-2"></th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-50">
+        <tbody className="divide-y divide-slate-50 dark:divide-slate-700/50">
           {teachers.map(t => (
-            <tr key={t.id}>
-              <td className="py-2.5 pr-2 font-medium text-slate-800">{t.email}</td>
-              <td className="py-2.5 font-mono font-black text-indigo-600">{t.classroom_code || '—'}</td>
-              <td className="py-2.5 text-slate-400 text-xs">{fmt(t.created_at)}</td>
+            <tr key={t.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/40">
+              <td className="py-2.5 pr-2 font-medium text-slate-800 dark:text-slate-200 text-xs">{t.email}</td>
+              <td className="py-2.5 font-mono font-black text-indigo-600 dark:text-indigo-400">{t.classroom_code || '—'}</td>
+              <td className="py-2.5"><Badge text={t.teacher_status || 'approved'} color={teacherStatusColor(t.teacher_status)} /></td>
+              <td className="py-2.5 text-slate-400 dark:text-slate-500 text-xs">{fmt(t.created_at)}</td>
               <td className="py-2.5">
                 <button
                   onClick={() => revoke(t.id)}
@@ -202,22 +264,55 @@ function ParentsTab() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.from('profiles')
-      .select('id, email, subscription_status, subscription_expires_at, applied_coupon, created_at')
-      .neq('role', 'teacher').order('created_at', { ascending: false })
-      .then(({ data }) => { setParents(data || []); setLoading(false); });
+    Promise.all([
+      supabase.from('profiles')
+        .select('id, email, subscription_status, subscription_expires_at, applied_coupon, created_at')
+        .neq('role', 'teacher').order('created_at', { ascending: false }),
+      supabase.from('children').select('parent_id'),
+    ]).then(([parentsRes, childrenRes]) => {
+      // Build child-count map per parent
+      const childCount = {};
+      (childrenRes.data || []).forEach(c => {
+        childCount[c.parent_id] = (childCount[c.parent_id] || 0) + 1;
+      });
+      const merged = (parentsRes.data || []).map(p => ({ ...p, linkCount: childCount[p.id] || 0 }));
+      setParents(merged);
+      setLoading(false);
+    });
   }, []);
 
   const filtered = filter === 'all' ? parents : parents.filter(p => p.subscription_status === filter);
+
+  // Coupon usage summary
+  const couponSummary = Object.entries(
+    parents.reduce((acc, p) => {
+      if (p.applied_coupon) acc[p.applied_coupon] = (acc[p.applied_coupon] || 0) + 1;
+      return acc;
+    }, {})
+  ).sort((a, b) => b[1] - a[1]);
 
   if (loading) return <Spinner />;
 
   return (
     <div className="space-y-4">
+      {/* Coupon summary */}
+      {couponSummary.length > 0 && (
+        <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-2xl px-4 py-3">
+          <p className="text-[11px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mb-2">שוברים בשימוש</p>
+          <div className="flex flex-wrap gap-2">
+            {couponSummary.map(([code, count]) => (
+              <span key={code} className="text-xs font-bold bg-indigo-100 dark:bg-indigo-800 text-indigo-700 dark:text-indigo-300 px-3 py-1 rounded-full">
+                {code} × {count}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-2 flex-wrap">
         {['all','trial','active','expired','canceled'].map(f => (
           <button key={f} onClick={() => setFilter(f)}
-            className={`text-xs font-bold px-3 py-1.5 rounded-full transition-all ${filter === f ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+            className={`text-xs font-bold px-3 py-1.5 rounded-full transition-all ${filter === f ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>
             {f === 'all' ? 'הכל' : f}
           </button>
         ))}
@@ -225,22 +320,33 @@ function ParentsTab() {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-right text-xs font-black text-slate-500 border-b border-slate-100">
+            <tr className="text-right text-xs font-black text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">
               <th className="pb-2 pr-2">מייל</th>
               <th className="pb-2">סטטוס</th>
-              <th className="pb-2">פג תוקף</th>
+              <th className="pb-2">נותר</th>
+              <th className="pb-2">קישורים</th>
               <th className="pb-2">קופון</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50">
-            {filtered.map(p => (
-              <tr key={p.id}>
-                <td className="py-2.5 pr-2 text-slate-800">{p.email}</td>
-                <td className="py-2.5"><Badge text={p.subscription_status || '—'} color={subColor(p.subscription_status)} /></td>
-                <td className="py-2.5 text-slate-400 text-xs">{fmt(p.subscription_expires_at)}</td>
-                <td className="py-2.5 text-slate-500 text-xs">{p.applied_coupon || '—'}</td>
-              </tr>
-            ))}
+          <tbody className="divide-y divide-slate-50 dark:divide-slate-700/50">
+            {filtered.map(p => {
+              const dl = daysLeft(p.subscription_expires_at);
+              return (
+                <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                  <td className="py-2.5 pr-2 text-slate-800 dark:text-slate-200 text-xs">{p.email}</td>
+                  <td className="py-2.5"><Badge text={p.subscription_status || '—'} color={subColor(p.subscription_status)} /></td>
+                  <td className="py-2.5 text-xs">
+                    {dl ? <span className={dl.cls}>{dl.label}</span> : <span className="text-slate-400">—</span>}
+                  </td>
+                  <td className="py-2.5 text-center">
+                    <span className={`text-xs font-black ${p.linkCount > 0 ? 'text-slate-700 dark:text-slate-200' : 'text-slate-300 dark:text-slate-600'}`}>
+                      {p.linkCount || '—'}
+                    </span>
+                  </td>
+                  <td className="py-2.5 text-slate-500 dark:text-slate-400 text-xs">{p.applied_coupon || '—'}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         {!filtered.length && <Empty text="אין תוצאות" />}
@@ -404,13 +510,13 @@ function Spinner() {
 }
 
 function Empty({ text }) {
-  return <p className="text-center text-slate-400 text-sm py-10">{text}</p>;
+  return <p className="text-center text-slate-400 dark:text-slate-500 text-sm py-10">{text}</p>;
 }
 
 function Section({ title, children }) {
   return (
     <div>
-      <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">{title}</p>
+      <p className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">{title}</p>
       <div className="space-y-3">{children}</div>
     </div>
   );
@@ -419,15 +525,36 @@ function Section({ title, children }) {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
+  const navigate       = useNavigate();
   const [user,    setUser]    = useState(null);
   const [isAdmin, setIsAdmin] = useState(null); // null = עדיין בודק
   const [loading, setLoading] = useState(true);
   const [tab,     setTab]     = useState('leads');
   const [loginErr, setLoginErr] = useState(null);
-  const editMode      = useAdminStore(s => s.editMode);
+  const [showInstall, setShowInstall] = useState(false);
+  const editMode       = useAdminStore(s => s.editMode);
   const toggleEditMode = useAdminStore(s => s.toggleEditMode);
+  const initDarkMode   = useGameStore(s => s.initDarkMode);
+  const toggleDarkMode = useGameStore(s => s.toggleDarkMode);
+  const darkMode       = useGameStore(s => s.darkMode);
+
+  // Apply dark mode class immediately (backup to index.html script)
+  useEffect(() => { initDarkMode(); }, []); // eslint-disable-line
+
+  // PWA install prompt — auto show after delay
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (shouldAutoShowInstallPrompt()) setShowInstall(true);
+    }, 3000);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Swipe right (from left edge) → navigate back
+  useEdgeSwipe({ onSwipeRight: () => navigate(-1) });
 
   useEffect(() => {
+    let mounted = true;
+
     async function resolve(session) {
       const u = session?.user ?? null;
       setUser(u);
@@ -438,17 +565,23 @@ export default function AdminDashboard() {
         .select('is_admin, email')
         .eq('id', u.id)
         .maybeSingle();
+      if (!mounted) return;
       const fromDb = Boolean(data?.is_admin);
       // Bootstrap fallback — מייל קשיח, למקרה שהטריגר טרם רץ.
       const fromFallback = (u.email || '').toLowerCase() === ADMIN_EMAIL_FALLBACK.toLowerCase();
       setIsAdmin(fromDb || fromFallback);
       setLoading(false);
     }
-    supabase.auth.getSession().then(({ data: { session } }) => { resolve(session); });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+
+    // Fast path: reads from localStorage (no network)
+    supabase.auth.getSession().then(({ data: { session } }) => { if (mounted) resolve(session); });
+
+    // Only handle actual auth events — skip INITIAL_SESSION (already handled above)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted || event === 'INITIAL_SESSION') return;
       resolve(session);
     });
-    return () => subscription.unsubscribe();
+    return () => { mounted = false; subscription.unsubscribe(); };
   }, []);
 
   async function handleLogin() {
@@ -466,7 +599,7 @@ export default function AdminDashboard() {
 
   // ── loading ──
   if (loading) return (
-    <div className="min-h-[100dvh] flex items-center justify-center bg-slate-50">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-slate-50 dark:bg-slate-900">
       <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
@@ -496,52 +629,78 @@ export default function AdminDashboard() {
 
   // ── לא אדמין ──
   if (!isAdmin) return (
-    <div dir="rtl" className="min-h-[100dvh] flex items-center justify-center p-6 bg-slate-50">
-      <div className="bg-white rounded-3xl shadow-lg p-8 max-w-sm w-full text-center space-y-4 border border-slate-200">
+    <div dir="rtl" className="min-h-[100dvh] flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-900">
+      <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-lg p-8 max-w-sm w-full text-center space-y-4 border border-slate-200 dark:border-slate-700">
         <div className="text-5xl">🚫</div>
-        <h2 className="text-xl font-black text-slate-800">אין גישה</h2>
-        <p className="text-slate-500 text-sm">{user.email}</p>
-        <button onClick={handleLogout} className="text-sm font-bold text-indigo-600 hover:text-indigo-800">יציאה</button>
+        <h2 className="text-xl font-black text-slate-800 dark:text-slate-100">אין גישה</h2>
+        <p className="text-slate-500 dark:text-slate-400 text-sm">{user.email}</p>
+        <button onClick={handleLogout} className="text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800">יציאה</button>
       </div>
     </div>
   );
 
   // ── דשבורד ──
   return (
-    <div dir="rtl" className="min-h-[100dvh] bg-slate-50 text-slate-900">
+    <div dir="rtl" className="min-h-[100dvh] bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+      {showInstall && <InstallPrompt onClose={() => setShowInstall(false)} />}
+
       {/* Top bar */}
-      <div className={`border-b sticky top-0 z-20 transition-colors ${editMode ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-100'}`}>
+      <div className={`border-b sticky top-0 z-20 transition-colors ${
+        editMode
+          ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'
+          : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-700'
+      }`}>
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="text-xl">🛸</span>
-            <span className="font-black text-slate-800">Admin — חשבונאוטיקה</span>
+            <span className="font-black text-slate-800 dark:text-slate-100">Admin — חשבונאוטיקה</span>
             {editMode && (
               <span className="text-[10px] font-black uppercase tracking-widest bg-amber-500 text-white px-2 py-0.5 rounded-full">Edit</span>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {/* PWA install button */}
+            <button
+              onClick={() => setShowInstall(true)}
+              title="התקן כאפליקציה"
+              className="hidden sm:flex p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-xs font-bold"
+            >
+              📲
+            </button>
+            {/* Dark mode toggle */}
+            <button
+              onClick={toggleDarkMode}
+              title="מצב לילה"
+              className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-300 transition-colors"
+            >
+              {darkMode ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
             <button
               onClick={toggleEditMode}
               title={editMode ? 'חזרה למצב קריאה' : 'הפעלת מצב עריכה'}
               className={`text-xs font-black px-3 py-1.5 rounded-full transition-all ${
                 editMode
                   ? 'bg-amber-500 text-white hover:bg-amber-600'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
               }`}
             >
               {editMode ? '🔓 עריכה פעילה' : '🔒 קריאה בלבד'}
             </button>
-            <button onClick={handleLogout} className="text-xs font-bold text-slate-400 hover:text-slate-700">יציאה</button>
+            <button onClick={handleLogout} className="text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">יציאה</button>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b border-slate-100 overflow-x-auto">
+      <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-700 overflow-x-auto">
         <div className="max-w-5xl mx-auto px-4 flex gap-1 py-2">
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`whitespace-nowrap text-sm font-bold px-4 py-2 rounded-xl transition-all ${tab === t.id ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>
+              className={`whitespace-nowrap text-sm font-bold px-4 py-2 rounded-xl transition-all ${
+                tab === t.id
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}>
               {t.label}
             </button>
           ))}

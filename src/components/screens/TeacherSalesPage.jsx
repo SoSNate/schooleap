@@ -7,12 +7,14 @@ const CONTACT_EMAIL   = '12natanel@gmail.com';
 export default function TeacherSalesPage({ user, onLogout }) {
   const [tab, setTab]         = useState('info'); // 'info' | 'form' | 'sent'
   const [form, setForm]       = useState({ full_name: '', school: '', phone: '', notes: '' });
+  const [agreed, setAgreed]   = useState(false);
   const [sending, setSending] = useState(false);
   const [err, setErr]         = useState(null);
 
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.full_name || !form.phone) { setErr('שם וטלפון הם שדות חובה'); return; }
+    if (!agreed) { setErr('יש לאשר את תנאי השימוש ומדיניות הפרטיות'); return; }
     setSending(true);
     setErr(null);
     try {
@@ -24,6 +26,10 @@ export default function TeacherSalesPage({ user, onLogout }) {
         email:     user?.email || null,
       });
       if (error) throw error;
+      // Mark profile as pending so TeacherDashboard shows the waiting screen on next load.
+      if (user?.id) {
+        await supabase.from('profiles').update({ teacher_status: 'pending' }).eq('id', user.id);
+      }
       setTab('sent');
     } catch (e) {
       setErr('שגיאה בשליחה — נסה שוב');
@@ -138,6 +144,21 @@ export default function TeacherSalesPage({ user, onLogout }) {
                   className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-400 resize-none"
                 />
               </div>
+
+              <label className="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={agreed}
+                  onChange={e => setAgreed(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-indigo-500"
+                />
+                <span>
+                  אני מאשר/ת את{' '}
+                  <a href="/terms" target="_blank" rel="noreferrer" className="text-indigo-400 underline">תנאי השימוש</a>
+                  {' '}ואת{' '}
+                  <a href="/privacy" target="_blank" rel="noreferrer" className="text-indigo-400 underline">מדיניות הפרטיות</a>
+                </span>
+              </label>
 
               {err && <p className="text-red-400 text-sm text-center">{err}</p>}
 

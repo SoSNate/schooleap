@@ -7,6 +7,7 @@ export default function Header() {
   const currentScreen = useGameStore((s) => s.currentScreen);
   const setScreen = useGameStore((s) => s.setScreen);
   const toggleDarkMode = useGameStore((s) => s.toggleDarkMode);
+  const darkMode = useGameStore((s) => s.darkMode);
 
   const navigate = (screen) => {
     vibe(10);
@@ -35,14 +36,17 @@ export default function Header() {
         <button
           onClick={() => { vibe(10); toggleDarkMode(); }}
           className="bg-slate-100 dark:bg-slate-700 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-lg transition-transform hover:scale-110 active:scale-95"
-          title="מצב לילה"
+          title={darkMode ? 'מצב יום' : 'מצב לילה'}
+          aria-label={darkMode ? 'מצב יום' : 'מצב לילה'}
         >
-          🌗
+          {darkMode ? '☀️' : '🌙'}
         </button>
         {currentScreen !== 'menu' && (
           <button
             onClick={() => navigate('menu')}
             className="bg-slate-100 dark:bg-slate-700 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-lg transition-transform hover:scale-110 active:scale-95"
+            title="חזרה לתפריט"
+            aria-label="חזרה לתפריט"
           >
             🏠
           </button>

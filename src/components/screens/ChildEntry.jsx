@@ -16,16 +16,18 @@ function PaywallScreen() {
       <div className="text-8xl" style={{ animation: 'float3 2.5s ease-in-out infinite' }}>🛸</div>
       <div className="space-y-3 max-w-xs">
         <h2 className="text-2xl font-black text-white leading-tight">
-          בעיה במשיכת אישורים ממערכת ההורים
+          אוי! הקישור שלך הסתיים 🔗
         </h2>
         <p className="text-slate-400 text-base leading-relaxed">
-          לא הצלחנו לאמת את הגישה שלך.<br />
-          בקש מאמא או אבא לבדוק את המערכת.
+          תבקש מאמא או אבא לשלוח לך את הקישור שוב — עוד דקה ותחזור למשחק 💙
         </p>
       </div>
-      <div className="bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm text-slate-400 max-w-xs">
-        🔒 הגישה למשחקים תפתח בקרוב
-      </div>
+      <button
+        onClick={() => window.location.reload()}
+        className="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-3 px-8 rounded-2xl text-sm shadow-lg active:scale-95 transition-all"
+      >
+        🔄 נסה שוב
+      </button>
     </div>
   );
 }
@@ -58,6 +60,9 @@ export default function ChildEntry() {
   useEffect(() => {
     if (!token) { navigate('/'); return; }
     localStorage.setItem(TOKEN_KEY, token);
+    // Strip the token from the URL bar/history immediately — referrer headers
+    // sent on outbound requests must not leak the magic token.
+    try { window.history.replaceState(null, '', '/play'); } catch { /* ignore */ }
     navigate('/play', { replace: true });
   }, [token]); // eslint-disable-line
 

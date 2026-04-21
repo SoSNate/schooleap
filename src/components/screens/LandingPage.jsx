@@ -199,9 +199,23 @@ export default function LandingPage() {
             onClick={() => navigate('/teacher')}
             className="w-full flex items-center justify-center gap-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 px-8 rounded-2xl text-lg transition-all active:scale-95"
           >
-            <span>🎓 כניסת מורים</span>
+            <span>🎓 אני מורה</span>
             <span className="text-xl">→</span>
           </button>
+
+          {/* כפתור 3: תלמיד עם קוד כיתה */}
+          <button
+            onClick={() => navigate('/join')}
+            className="w-full flex items-center justify-center gap-3 bg-sky-600 hover:bg-sky-500 text-white font-black py-4 px-8 rounded-2xl text-lg transition-all active:scale-95"
+          >
+            <span>🎒 יש לי קוד כיתה מהמורה</span>
+            <span className="text-xl">→</span>
+          </button>
+
+          {/* הערה לילד שקיבל קישור */}
+          <p className="text-slate-500 text-[11px] leading-snug">
+            📱 יש לך קישור אישי מהוואטסאפ? פשוט לחץ על הקישור שההורה שלח — אין צורך להיכנס מכאן.
+          </p>
 
           {/* Trust signals — הורים */}
           <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs font-bold">

@@ -1,8 +1,11 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Navigate } from 'react-router-dom';
-import { Info, Plus } from 'lucide-react';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { Info, Plus, Moon, Sun, ShieldAlert } from 'lucide-react';
+import Swal from 'sweetalert2';
 import { supabase } from '../../lib/supabase';
+import useGameStore from '../../store/useGameStore';
 import InstallPrompt, { captureInstallEvent } from '../shared/InstallPrompt';
+import { useEdgeSwipe } from '../../hooks/useEdgeSwipe';
 import { APP_URL, buildNotifications, buildRadarData } from '../dashboard/constants';
 import DashboardNav       from '../dashboard/DashboardNav';
 import MagicLinkCard      from '../dashboard/MagicLinkCard';
@@ -13,6 +16,7 @@ import GoalsSection       from '../dashboard/GoalsSection';
 import GoalModal          from '../dashboard/GoalModal';
 import PricingView        from '../dashboard/PricingView';
 import UpgradeNudge       from '../dashboard/UpgradeNudge';
+import useSubscriptionStatus from '../../hooks/useSubscriptionStatus';
 
 // ─── EmptyState (shown before a child exists) ─────────────────────────────────
 
@@ -20,6 +24,7 @@ function EmptyState({ onAdd, loading }) {
   const [name,    setName]    = useState('');
   const [open,    setOpen]    = useState(false);
   const [nameErr, setNameErr] = useState('');
+  const [agreed,  setAgreed]  = useState(false);
 
   // כוכבים decorative — מגריל פעם אחת בלבד, לא משפיע על הלוגיקה.
   const stars = useMemo(
@@ -36,6 +41,7 @@ function EmptyState({ onAdd, loading }) {
   function submit(e) {
     e.preventDefault();
     if (!name.trim()) { setNameErr('נדרש שם לאסטרונאוט'); return; }
+    if (!agreed)      { setNameErr('יש לאשר את תנאי השימוש ומדיניות הפרטיות'); return; }
     setNameErr('');
     onAdd(name.trim());
   }
@@ -98,6 +104,21 @@ function EmptyState({ onAdd, loading }) {
               onChange={e => { setName(e.target.value); setNameErr(''); }}
               required
             />
+            <label className="flex items-start gap-2 text-[11px] text-slate-300 cursor-pointer text-right">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={e => setAgreed(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-indigo-500 flex-shrink-0"
+              />
+              <span>
+                אני מאשר/ת כהורה/אפוטרופוס את{' '}
+                <a href="/terms" target="_blank" rel="noreferrer" className="text-indigo-400 underline">תנאי השימוש</a>
+                {' '}ו-
+                <a href="/privacy" target="_blank" rel="noreferrer" className="text-indigo-400 underline">מדיניות הפרטיות</a>
+                , ומסכים/ה לאיסוף נתוני התקדמות הילד לצורך הלמידה.
+              </span>
+            </label>
             {nameErr && <p className="text-red-400 text-xs">{nameErr}</p>}
             <div className="flex gap-3">
               <button
@@ -136,6 +157,16 @@ function EmptyState({ onAdd, loading }) {
 // ─── ParentDashboard ──────────────────────────────────────────────────────────
 
 export default function ParentDashboard() {
+  const navigate       = useNavigate();
+  const initDarkMode   = useGameStore(s => s.initDarkMode);
+  const toggleDarkMode = useGameStore(s => s.toggleDarkMode);
+  const darkMode       = useGameStore(s => s.darkMode);
+
+  useEffect(() => { initDarkMode(); }, []); // eslint-disable-line
+  useEdgeSwipe({ onSwipeRight: () => navigate(-1) });
+
+  // Single source of truth for subscription state across UI bits below.
+
   const [user,           setUser]           = useState(null);
   const [profile,        setProfile]        = useState(null);
   const [child,          setChild]          = useState(null);
@@ -284,6 +315,42 @@ export default function ParentDashboard() {
     }
   }
 
+  async function handleDeleteChildData() {
+    if (!child?.id) return;
+    const { isConfirmed, value: confirmName } = await Swal.fire({
+      title: 'מחיקת נתוני הילד',
+      html: `<div style="text-align:right;direction:rtl">
+        פעולה זו תמחק לצמיתות את חשבון <b>${child.name}</b> וכל נתוני הלמידה שלו.<br/>
+        <b>לא ניתן לשחזר.</b><br/><br/>
+        להמשך — הקלד את שם הילד:
+      </div>`,
+      input: 'text',
+      showCancelButton: true,
+      confirmButtonText: 'מחק לצמיתות',
+      cancelButtonText: 'ביטול',
+      confirmButtonColor: '#dc2626',
+      allowEscapeKey: true,
+    });
+    if (!isConfirmed) return;
+    if ((confirmName || '').trim() !== child.name.trim()) {
+      await Swal.fire({ icon: 'error', title: 'השם לא תואם', text: 'המחיקה בוטלה.' });
+      return;
+    }
+    try {
+      const { error: rpcErr } = await supabase.rpc('delete_child_data', { p_child_id: child.id });
+      if (rpcErr) {
+        await supabase.from('game_events').delete().eq('child_id', child.id);
+        await supabase.from('children').delete().eq('id', child.id);
+      }
+      setChild(null);
+      setChildExists(false);
+      await Swal.fire({ icon: 'success', title: 'נמחק', text: 'כל נתוני הילד הוסרו.' });
+    } catch (e) {
+      console.error('[ParentDashboard] deleteChildData:', e);
+      await Swal.fire({ icon: 'error', title: 'שגיאה', text: e?.message || 'נכשלה המחיקה.' });
+    }
+  }
+
   async function handleLogout() {
     try { await supabase.auth.signOut(); }
     catch (e) { console.error('[ParentDashboard] signOut:', e); }
@@ -424,6 +491,8 @@ export default function ParentDashboard() {
     return 14;
   }, [profile]);
 
+  const subStatus = useSubscriptionStatus(profile);
+
   // ─── Render: loading ─────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -518,7 +587,7 @@ export default function ParentDashboard() {
 
   // ─── Render: main dashboard ──────────────────────────────────────────────
   return (
-    <div dir="rtl" className="min-h-[100dvh] bg-[#FDFDFF] text-slate-900">
+    <div dir="rtl" className="min-h-[100dvh] bg-[#FDFDFF] dark:bg-slate-900 text-slate-900 dark:text-slate-100">
 
       <DashboardNav
         profile={profile}
@@ -616,7 +685,16 @@ export default function ParentDashboard() {
 
           {/* Right sidebar */}
           <div className="lg:col-span-4 space-y-5">
-            <UpgradeNudge onPricing={() => setView('pricing')} />
+            <div className={`rounded-2xl px-4 py-2 text-xs font-black flex items-center justify-between ${
+              subStatus.isVIP ? 'bg-amber-100 text-amber-800' :
+              subStatus.isActive ? 'bg-emerald-100 text-emerald-800' :
+              subStatus.isTrial ? 'bg-indigo-100 text-indigo-800' :
+              'bg-rose-100 text-rose-800'
+            }`}>
+              <span>סטטוס מנוי</span>
+              <span>{subStatus.label}</span>
+            </div>
+            {subStatus.showUpgradeNudge && <UpgradeNudge onPricing={() => setView('pricing')} />}
 
             <TrialCard
               profile={profile}
@@ -624,6 +702,24 @@ export default function ParentDashboard() {
               planTotalDays={planTotalDays}
               onPricing={() => setView('pricing')}
             />
+
+            {/* Privacy & data controls */}
+            <div className="bg-white rounded-[2rem] p-5 border border-slate-100 shadow-sm space-y-2">
+              <h4 className="font-black text-[10px] text-slate-500 uppercase tracking-widest mb-2">פרטיות ונתונים</h4>
+              <div className="flex flex-wrap gap-2">
+                <a href="/privacy" target="_blank" rel="noreferrer" className="text-[11px] text-indigo-600 hover:underline font-bold">מדיניות פרטיות</a>
+                <span className="text-slate-300">·</span>
+                <a href="/terms" target="_blank" rel="noreferrer" className="text-[11px] text-indigo-600 hover:underline font-bold">תנאי שימוש</a>
+              </div>
+              {child?.id && (
+                <button
+                  onClick={handleDeleteChildData}
+                  className="w-full mt-2 text-[11px] font-bold text-red-600 hover:text-white hover:bg-red-600 border border-red-200 rounded-xl py-2 transition-colors"
+                >
+                  🗑️ מחק את חשבון הילד וכל הנתונים
+                </button>
+              )}
+            </div>
 
             {/* Pedagogical insight */}
             <div className="bg-indigo-50 p-5 rounded-[2rem] border border-indigo-100">

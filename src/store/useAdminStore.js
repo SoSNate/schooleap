@@ -1,43 +1,46 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
-// Store לאדמין — שולט על מצב עריכה/קריאה ועל Overwatch (impersonation).
-// לא persisted: כל session מתחיל ב-Read Mode וללא impersonation.
-const useAdminStore = create((set, get) => ({
-  // ─── Edit / Read mode ──────────────────────────────────────────────────────
-  // ברירת מחדל: Read Mode. המנהל חייב ללחוץ "עבור לעריכה" כדי לבצע מוטציות.
-  editMode: false,
+// editMode persisted so refresh/reload doesn't silently disable approval buttons.
+// Impersonation is session-only — never persisted.
+const useAdminStore = create(
+  persist(
+    (set, get) => ({
+      editMode: false,
 
-  toggleEditMode: () => set({ editMode: !get().editMode }),
-  setEditMode: (val) => set({ editMode: Boolean(val) }),
+      toggleEditMode: () => set({ editMode: !get().editMode }),
+      setEditMode: (val) => set({ editMode: Boolean(val) }),
 
-  // ─── Overwatch (Impersonation) — מוכן ל-Chunk B ────────────────────────────
-  impersonatedUserId: null,
-  impersonatedEmail: null,
-  impersonatedRole: null, // 'parent' | 'teacher' | null
+      impersonatedUserId: null,
+      impersonatedEmail: null,
+      impersonatedRole: null,
 
-  startImpersonation: ({ userId, email, role }) => set({
-    impersonatedUserId: userId,
-    impersonatedEmail: email,
-    impersonatedRole: role,
-    editMode: false, // Overwatch תמיד Read-Only
-  }),
+      startImpersonation: ({ userId, email, role }) => set({
+        impersonatedUserId: userId,
+        impersonatedEmail: email,
+        impersonatedRole: role,
+        editMode: false,
+      }),
 
-  stopImpersonation: () => set({
-    impersonatedUserId: null,
-    impersonatedEmail: null,
-    impersonatedRole: null,
-  }),
+      stopImpersonation: () => set({
+        impersonatedUserId: null,
+        impersonatedEmail: null,
+        impersonatedRole: null,
+      }),
 
-  // ─── Derived helpers ───────────────────────────────────────────────────────
-  // כל רכיב מוטציה חייב לקרוא ל-canMutate() לפני כתיבה.
-  canMutate: () => {
-    const s = get();
-    // ב-Overwatch אסור לכתוב, גם אם editMode דלוק.
-    if (s.impersonatedUserId) return false;
-    return s.editMode;
-  },
+      canMutate: () => {
+        const s = get();
+        if (s.impersonatedUserId) return false;
+        return s.editMode;
+      },
 
-  isReadOnly: () => !get().canMutate(),
-}));
+      isReadOnly: () => !get().canMutate(),
+    }),
+    {
+      name: 'nat-admin-store',
+      partialize: (s) => ({ editMode: s.editMode }),
+    }
+  )
+);
 
 export default useAdminStore;

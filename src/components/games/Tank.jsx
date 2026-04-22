@@ -3,8 +3,11 @@ import useGameStore from '../../store/useGameStore';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
 import Hearts from '../shared/Hearts';
 import Fraction from '../shared/Fraction';
+import HintButton from '../shared/HintButton';
+import HintBubble from '../shared/HintBubble';
+import useHint from '../../hooks/useHint';
 import { vibe } from '../../utils/math';
-import Swal from 'sweetalert2';
+import Swal from 'sweetalert2'; // נשאר רק ל-fail dialog (Tank שומר lives)
 import GameTutorial from '../shared/GameTutorial';
 
 export default function Tank() {
@@ -32,6 +35,27 @@ export default function Tank() {
   useEffect(() => {
     return () => timersRef.current.forEach(clearTimeout);
   }, []);
+
+  // ─── Hint (HintBubble) ───────────────────────────────────────────────────
+  const TANK_HINTS = [
+    'הקווים הכחולים מחלקים את הכוס לחלקים שווים. אם השבר הוא 1/4 — מלא רק חלק אחד מתוך 4.',
+    'שים לב: 3/6 = 1/2, 5/10 = 1/2, 50/100 = 1/2. צמצם את השבר לפני חישוב הכמות.',
+    'הכפל את הנתון בהופכי השבר. דוגמה: 50 מ"ל = 2/4 → הכוס המלאה = 50 × (4/2) = 100 מ"ל.',
+    'כפל שברים: מונה × מונה, מכנה × מכנה. חילוק: הפוך את השבר השני וכפול. שים לב לקווים הכחולים.',
+    'פתור שלב אחרי שלב: חשב כל שבר בנפרד, צמצם ל-GCD, ואז חשב כמה מ"ל מייצג התוצאה.',
+  ];
+  const getTankHint = useCallback((_, level) => ({
+    kind: 'text',
+    text: TANK_HINTS[Math.min((level ?? gameState.lvl) - 1, TANK_HINTS.length - 1)],
+  }), [gameState.lvl]);
+
+  const { cooldown: hintCooldown, bubble: hintBubble, requestHint, resetRound: resetHintRound } = useHint({
+    level: gameState.lvl,
+    getHint: getTankHint,
+    puzzle: true,
+    cooldownSec: 10,
+    bubbleMs: 5000,
+  });
 
   const initGame = useCallback(() => {
     const lvl = gameState.lvl;
@@ -64,20 +88,41 @@ export default function Tank() {
         u = frac.u;
         display = <Fraction numerator={n} denominator={d} />;
       } else if (lvl === 4) {
-        // Two fractions that add to < 1
-        const pairs = [
-          { n1: 1, d1: 4, n2: 1, d2: 4 },
-          { n1: 1, d1: 5, n2: 2, d2: 5 },
-          { n1: 1, d1: 4, n2: 1, d2: 5 },
-          { n1: 2, d1: 5, n2: 1, d2: 10 },
-          { n1: 1, d1: 5, n2: 1, d2: 10 },
+        // L4 — פעולה טהורה: כל שאלה היא *רק* כפל שברים או *רק* חילוק שברים.
+        // פילוג 50/50. מצמצמים תוצאה ל-GCD כדי לקבל u/d נקיים.
+        const isMul = Math.random() < 0.5;
+        const mulPairs = [
+          { n1: 1, d1: 2, n2: 1, d2: 2 },   // 1/2 × 1/2 = 1/4
+          { n1: 1, d1: 2, n2: 1, d2: 3 },   // 1/2 × 1/3 = 1/6
+          { n1: 2, d1: 3, n2: 1, d2: 2 },   // 2/3 × 1/2 = 1/3
+          { n1: 3, d1: 4, n2: 2, d2: 3 },   // 3/4 × 2/3 = 1/2
+          { n1: 1, d1: 5, n2: 2, d2: 5 },   // 1/5 × 2/5 = 2/25
+          { n1: 1, d1: 3, n2: 3, d2: 5 },   // 1/3 × 3/5 = 1/5
         ];
-        const pair = pairs[Math.floor(Math.random() * pairs.length)];
-        n = pair.n1 + pair.n2; d = 5; u = 100; // Result simplified
+        const divPairs = [
+          { n1: 1, d1: 2, n2: 1, d2: 4 },   // 1/2 ÷ 1/4 = 2
+          { n1: 2, d1: 3, n2: 1, d2: 3 },   // 2/3 ÷ 1/3 = 2
+          { n1: 3, d1: 4, n2: 1, d2: 2 },   // 3/4 ÷ 1/2 = 3/2
+          { n1: 1, d1: 4, n2: 1, d2: 2 },   // 1/4 ÷ 1/2 = 1/2
+          { n1: 2, d1: 5, n2: 1, d2: 5 },   // 2/5 ÷ 1/5 = 2
+          { n1: 1, d1: 6, n2: 1, d2: 3 },   // 1/6 ÷ 1/3 = 1/2
+        ];
+        const pool = isMul ? mulPairs : divPairs;
+        const pair = pool[Math.floor(Math.random() * pool.length)];
+        // תוצאה: כפל = (n1·n2)/(d1·d2), חילוק = (n1·d2)/(d1·n2).
+        let rn = isMul ? pair.n1 * pair.n2 : pair.n1 * pair.d2;
+        let rd = isMul ? pair.d1 * pair.d2 : pair.d1 * pair.n2;
+        // צמצום ל-GCD
+        const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+        const g = gcd(rn, rd);
+        rn /= g; rd /= g;
+        n = rn; d = rd;
+        // u נבחר כך ש-capacity יישאר מתחת ל-1000 מ"ל ועגול יפה.
+        u = rd <= 2 ? 200 : rd <= 4 ? 100 : 50;
         display = (
           <div className="flex items-center gap-2 math-font" dir="ltr">
             <Fraction numerator={pair.n1} denominator={pair.d1} />
-            <span className="text-xl">+</span>
+            <span className="text-xl">{isMul ? '×' : '÷'}</span>
             <Fraction numerator={pair.n2} denominator={pair.d2} />
           </div>
         );
@@ -118,7 +163,8 @@ export default function Tank() {
     setLives(3);
     setJustLost(false);
     setConsecutiveErrors(0);
-  }, [gameState.lvl]);
+    resetHintRound();
+  }, [gameState.lvl, resetHintRound]);
 
   useEffect(() => {
     initGame();
@@ -127,25 +173,6 @@ export default function Tank() {
 
   const liquidHeight = Math.min((sliderVal / totalCapacity) * 100, 100);
 
-  const showHint = () => {
-    vibe(20);
-    const lvl = gameState.lvl;
-    const hints = [
-      'זכור: אם יש לך 50 מ"ל שהם חצי מהכוס, אז הכוס המלאה = 100 מ"ל.',
-      'הכפל את הנתון בהופכי השבר. לדוגמה: 50 מ"ל = 2/4 → כוס מלאה = 50 × (4/2) = 100 מ"ל.',
-      'פתור שלב אחרי שלב: חשב כל שבר בנפרד ואח"כ חבר אותם.',
-      'חשב את הסכום/ההפרש של השברים תחילה, ואז חשב כמה מ"ל זה מייצג.',
-      'בחיסור שברים: מצא מכנה משותף, ואז חשב את הכמות הכוללת.',
-    ];
-    Swal.fire({
-      title: '💡 רמז',
-      text: hints[Math.min(lvl - 1, hints.length - 1)],
-      icon: 'info',
-      confirmButtonText: 'הבנתי, תודה!',
-      confirmButtonColor: '#f59e0b',
-      customClass: { popup: 'rounded-3xl' },
-    });
-  };
 
   const checkAnswer = () => {
     if (Math.abs(parseInt(sliderVal) - totalCapacity) < 5) {
@@ -247,19 +274,21 @@ export default function Tank() {
             id="tank-slider"
             min="10"
             max={sliderMax}
-            step={totalCapacity > 100 ? 10 : totalCapacity > 20 ? 5 : 1}
+            step={gameState.lvl >= 3 ? 10 : 5}
             value={sliderVal}
             onChange={(e) => { setSliderVal(parseInt(e.target.value)); vibe(10); }}
             className="val-track mb-6"
           />
 
+          <HintBubble text={hintBubble} className="mb-3" />
+
           <div className="flex gap-2 mt-6">
-            <button
-              onClick={showHint}
-              className={`w-16 py-4 md:py-5 rounded-3xl font-black text-xl shadow-sm transition-all active:scale-95 ${consecutiveErrors >= 2 ? 'bg-amber-400 text-white animate-pulse' : 'bg-blue-200 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-300'}`}
-            >
-              💡
-            </button>
+            <HintButton
+              cooldown={hintCooldown}
+              onClick={requestHint}
+              colorToken="sky"
+              title="רמז"
+            />
             <button
               onClick={checkAnswer}
               className="flex-1 py-4 md:py-5 bg-blue-600 dark:bg-blue-500 text-white rounded-3xl font-black text-xl md:text-2xl shadow-xl hover:bg-blue-700 transition-all active:scale-95"

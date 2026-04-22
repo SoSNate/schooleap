@@ -27,16 +27,18 @@ const useGameStore = create(
       assignments: [],
 
       // Per-game state
-      equations: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
-      balance: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
-      tank: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
-      decimal: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
-      fractionLab: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
-      magicPatterns: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
-      grid: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
-      word: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
-      multChamp: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
-      percentages: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 },
+      // recentResults = חלון נע של אחרוני 5 סיבובים (true=נצחון, false=כשלון),
+      // משמש לחישוב "3 ברצף או 4 מתוך 5" בלייבל-אפ.
+      equations: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
+      balance: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
+      tank: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
+      decimal: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
+      fractionLab: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
+      magicPatterns: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
+      grid: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
+      word: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
+      multChamp: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
+      percentages: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
 
       // Locks
       locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0, magicPatterns: 0, grid: 0, word: 0, multChamp: 0, percentages: 0 },
@@ -92,7 +94,7 @@ const useGameStore = create(
           const maxLvl  = Math.min(Math.max(...ge.map((e) => e.level)), 5);
           const stars   = ge.reduce((acc, e) => acc + (e.success ? e.level + 1 : 0), 0);
           totalStars   += stars;
-          updates[game] = { stars, lvl: maxLvl, count: 0, consecutiveWins: 0 };
+          updates[game] = { stars, lvl: maxLvl, count: 0, consecutiveWins: 0, recentResults: [] };
         }
 
         if (Object.keys(updates).length > 0) {
@@ -154,19 +156,33 @@ const useGameStore = create(
             });
           }
         } else {
-          // Normal mode: count wins toward level up
-          // Fast-track: equations L3+ and multChamp always level up on every win
-          const threshold = (game === 'multChamp' || (game === 'equations' && newLvl >= 3)) ? 1 : 3;
+          // Normal mode: level-up when ("3 ברצף") OR ("4 מתוך 5 אחרונים").
+          // Fast-track: multChamp ו-Equations L3+ עדיין מעלים רמה בכל ניצחון.
+          const fastTrack = (game === 'multChamp' || (game === 'equations' && newLvl >= 3));
+          const prevRecent = Array.isArray(s[game].recentResults) ? s[game].recentResults : [];
+          const recent = [...prevRecent, true].slice(-5);
+
+          // Assignment sub-level cap: אם הילד ברמה >= assignment.level, לא מעלים רמה.
+          const assignmentCap = (s.assignments || []).find(a => a.game_name === game)?.level;
+          const capped = (typeof assignmentCap === 'number') && newLvl >= assignmentCap;
+
+          const last3 = recent.slice(-3);
+          const threeInARow = last3.length === 3 && last3.every(Boolean);
+          const fourOfFive  = recent.length === 5 && recent.filter(Boolean).length >= 4;
+          const shouldLevelUp = fastTrack || threeInARow || fourOfFive;
+
           newCount = s[game].count + 1;
-          if (newCount >= threshold && newLvl < 5) {
+          let newRecent = recent;
+          if (shouldLevelUp && newLvl < 5 && !capped) {
             newLvl++;
             newCount = 0;
             isLevelUp = true;
+            newRecent = []; // reset window on level-up
           }
           set({
             isAnimating: true,
             totalStars: newTotalStars,
-            [game]: { ...s[game], stars: newStars, lvl: newLvl, count: newCount, consecutiveWins: 0 },
+            [game]: { ...s[game], stars: newStars, lvl: newLvl, count: newCount, consecutiveWins: 0, recentResults: newRecent },
             weeklyStats: newWeekly,
           });
         }
@@ -225,13 +241,27 @@ const useGameStore = create(
 
       handleGameFail: (game) => {
         const s = get();
+        const prevRecent = Array.isArray(s[game].recentResults) ? s[game].recentResults : [];
+        const recent = [...prevRecent, false].slice(-5);
         set({
           locks: { ...s.locks, [game]: s[game].lvl },
-          [game]: { ...s[game], count: 0, consecutiveWins: 0 }
+          [game]: { ...s[game], count: 0, consecutiveWins: 0, recentResults: recent }
         });
         // שלח אירוע כישלון ל-Supabase
         get().reportGameEvent(game, s[game].lvl, false);
         return 'locked';
+      },
+
+      // handleLightFail — למשחקים ללא lives (ניסוי-וטעייה):
+      // רושם כישלון ב-recentResults בלי להפעיל lock.
+      handleLightFail: (game) => {
+        const s = get();
+        const prevRecent = Array.isArray(s[game].recentResults) ? s[game].recentResults : [];
+        const recent = [...prevRecent, false].slice(-5);
+        set({
+          [game]: { ...s[game], recentResults: recent }
+        });
+        get().reportGameEvent(game, s[game].lvl, false);
       },
 
       cheatLevel: (game) => {
@@ -253,7 +283,7 @@ const useGameStore = create(
       })),
 
       resetProgress: () => {
-        const fresh = { stars: 0, lvl: 1, count: 0, consecutiveWins: 0 };
+        const fresh = { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] };
         set({
           totalStars: 0,
           equations: { ...fresh },
@@ -273,9 +303,9 @@ const useGameStore = create(
     }),
     {
       name: 'nat-game-store',
-      version: 2,
-      // Migration: users with a pre-percentages store (v1) get default state
-      // for the new game + lock key, so Menu/GameApp don't blow up on undefined.
+      version: 3,
+      // v2: added percentages game + lock key.
+      // v3: added recentResults[] per-game for the 3-in-a-row OR 4-of-5 rule.
       migrate: (persisted, fromVersion) => {
         if (!persisted) return persisted;
         if (fromVersion < 2) {
@@ -286,6 +316,14 @@ const useGameStore = create(
             magicPatterns: 0, grid: 0, word: 0, multChamp: 0, percentages: 0,
             ...(persisted.locks || {}),
           };
+        }
+        if (fromVersion < 3) {
+          const GAMES = ['equations','balance','tank','decimal','fractionLab','magicPatterns','grid','word','multChamp','percentages'];
+          for (const g of GAMES) {
+            if (persisted[g] && !Array.isArray(persisted[g].recentResults)) {
+              persisted[g] = { ...persisted[g], recentResults: [] };
+            }
+          }
         }
         return persisted;
       },

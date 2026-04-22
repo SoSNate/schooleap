@@ -3,7 +3,6 @@ import { ArrowRightLeft, Play } from 'lucide-react';
 import Swal from 'sweetalert2';
 import useGameStore from '../../store/useGameStore';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
-import Hearts from '../shared/Hearts';
 import GameTutorial from '../shared/GameTutorial';
 import HintButton from '../shared/HintButton';
 import HintBubble from '../shared/HintBubble';
@@ -167,12 +166,10 @@ const INSTRUCTIONS = {
 export default function PercentsLab() {
   const gameState      = useGameStore(s => s.percentages);
   const handleWinStore = useGameStore(s => s.handleWin);
-  const handleGameFail = useGameStore(s => s.handleGameFail);
   const isAnimating    = useGameStore(s => s.isAnimating);
 
   const [puzzle,    setPuzzle]    = useState(() => generatePuzzle(gameState.lvl));
   const [userLogic, setUserLogic] = useState({ operation: 'multiply', factor: 2 });
-  const [lives,     setLives]     = useState(3);
   const [justLost,  setJustLost]  = useState(false);
   const [feedback,  setFeedback]  = useState({ visible: false });
   const [hintGlow,  setHintGlow]  = useState(false);
@@ -248,7 +245,6 @@ export default function PercentsLab() {
   const nextPuzzle = useCallback(() => {
     setPuzzle(generatePuzzle(useGameStore.getState().percentages.lvl));
     setUserLogic({ operation: 'multiply', factor: 2 });
-    setLives(3);
     setJustLost(false);
     setHintGlow(false);
     resetHintRound();
@@ -265,20 +261,10 @@ export default function PercentsLab() {
       schedule(nextPuzzle, 2100);
     } else {
       vibe?.(80);
-      const next = Math.max(0, lives - 1);
-      setLives(next);
       setJustLost(true);
       schedule(() => setJustLost(false), 600);
-      if (next <= 0) {
-        handleGameFail('percentages');
-        Swal.fire({
-          icon: 'error',
-          title: 'לא נורא! ננסה שוב 💪',
-          text:  'קבל רמז: הקשת הפעילה מצביעה לכיוון הנכון.',
-          confirmButtonColor: '#0284c7',
-          confirmButtonText:  'אוקיי',
-        }).then(nextPuzzle);
-      }
+      // אין lives — ניסוי-וטעייה מותר. מסמן light-fail ב-store כדי שיושפע level-up window.
+      try { useGameStore.getState().handleLightFail('percentages'); } catch { /* noop */ }
     }
   }
 
@@ -308,9 +294,6 @@ export default function PercentsLab() {
         <div className="flex items-center gap-3 min-w-0">
           <div className="bg-sky-600 text-white w-11 h-11 flex items-center justify-center rounded-2xl font-black text-lg shadow-md">
             {gameState.lvl}
-          </div>
-          <div className="flex gap-1">
-            <Hearts lives={lives} maxLives={3} justLost={justLost} />
           </div>
         </div>
 

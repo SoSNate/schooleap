@@ -3,8 +3,11 @@ import useGameStore from '../../store/useGameStore';
 import Hearts from '../shared/Hearts';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
 import GameTutorial from '../shared/GameTutorial';
+import HintButton from '../shared/HintButton';
+import HintBubble from '../shared/HintBubble';
+import useHint from '../../hooks/useHint';
 import { vibe } from '../../utils/math';
-import Swal from 'sweetalert2';
+import Swal from 'sweetalert2'; // נשאר רק ל-fail dialog (Balance שומר lives כ-anti-cheat)
 
 /* Render pan expression with styled blocks for numbers and variables */
 function PanContent({ text }) {
@@ -74,6 +77,27 @@ export default function Balance() {
     return () => timersRef.current.forEach(clearTimeout);
   }, []);
 
+  // ─── Hint (HintBubble) ────────────────────────────────────────────────────
+  const BALANCE_HINTS = [
+    'תחשוב: מה לשים ב-🟦 כדי ששני הצדדים יהיו שווים? התחל ממספרים קטנים ונסה להרגיש איך הכף זזה!',
+    'כפל או חילוק? אם הצד השני גדול — נסה להכפיל. אם קטן — נסה לחלק. התחל מ-2, 3, 4...',
+    '🟦 נמצא בשני הצדדים! הציב אותו מספר בשני הצדדים — 1, 2, 3... מי מאזן? ⚖️',
+    'ביטוי מורכב? הציב 🟦 = 1, 2, 3... ראה את הכף זזה וגלה מי מאזן!',
+    'שני שלבים: 1) מצא את 🟦 עם הכלל. 2) חשב את 🔴. שים בכל פעם מספר אחר ב-🟦.',
+  ];
+  const getBalanceHint = useCallback((_, level) => ({
+    kind: 'text',
+    text: BALANCE_HINTS[Math.min((level ?? gameState.lvl) - 1, BALANCE_HINTS.length - 1)],
+  }), [gameState.lvl]);
+
+  const { cooldown: hintCooldown, bubble: hintBubble, requestHint, resetRound: resetHintRound } = useHint({
+    level: gameState.lvl,
+    getHint: getBalanceHint,
+    puzzle: true,   // Balance לא צריך puzzle object — תמיד truthy
+    cooldownSec: 8,
+    bubbleMs: 4500,
+  });
+
   const initGame = useCallback(() => {
     const lvl = gameState.lvl;
     setLives(3);
@@ -82,6 +106,7 @@ export default function Balance() {
     setBeamAngle(0);
     setRulesHtml('');
     setConsecutiveErrors(0);
+    resetHintRound();
 
     const x = Math.floor(Math.random() * 11) + 3; // 3–13
     ansRef.current = x;
@@ -170,25 +195,6 @@ export default function Balance() {
   }, [initGame]);
 
 
-  const showHint = () => {
-    vibe(20);
-    const lvl = gameState.lvl;
-    const hints = [
-      'תחשוב: מה לשים ב-🟦 כדי ששני הצדדים יהיו שווים? התחל ממספרים קטנים ונסה להרגיש איך הכף זזה! 💙',
-      'כפל או חילוק? אם הצד השני גדול — נסה להכפיל. אם הצד השני קטן — נסה לחלק. התחל מ-2, 3, 4... 🎯',
-      '🟦 נמצא בשני הצדדים! נסה להציב אותו מספר מצד שמאל ומצד ימין — 1, 2, 3... מי מאזן? ⚖️',
-      'יש כאן ביטוי מורכב. נסה להציב 🟦 = 1, 2, 3... תראה את הכף זזה, וגלה מי מאזן! 💪',
-      'שני שלבים: 1) מצא את 🟦 עם הכלל למעלה. 2) חשב את 🔴. שים כל פעם מספר אחר ב-🟦 וראה! 🔑',
-    ];
-    Swal.fire({
-      title: '💡 רמז',
-      text: hints[Math.min(lvl - 1, hints.length - 1)],
-      icon: 'info',
-      confirmButtonText: 'הבנתי, תודה!',
-      confirmButtonColor: '#f59e0b',
-      customClass: { popup: 'rounded-3xl' },
-    });
-  };
 
   const checkAnswer = () => {
     // Debounce: prevent rapid-fire clicks from deducting multiple lives at once.
@@ -304,7 +310,7 @@ export default function Balance() {
 
           {/* Variable display */}
           <div className="flex justify-center items-center gap-2" dir="ltr">
-            <span className="weight-var" style={{ width: 36, height: 36, fontSize: '1rem' }}>?</span>
+            <span className="weight-var" style={{ minWidth: 36, height: 36, paddingInline: 8, fontSize: '1rem', width: 'auto' }}>?</span>
             <span className="text-2xl font-bold text-slate-400 dark:text-slate-500 leading-none">=</span>
             <span className="text-4xl font-black text-green-500 leading-none min-w-[48px] text-center">{sliderVal}</span>
           </div>
@@ -322,14 +328,17 @@ export default function Balance() {
             </div>
           )}
 
+          {/* HintBubble */}
+          <HintBubble text={hintBubble} />
+
           {/* Action buttons */}
           <div className="flex gap-1.5 sm:gap-2 w-full">
-            <button
-              onClick={showHint}
-              className={`w-12 sm:w-16 py-3 sm:py-4 rounded-2xl sm:rounded-3xl font-black text-lg sm:text-xl shadow-sm transition-all active:scale-95 ${consecutiveErrors >= 2 ? 'bg-amber-400 text-white animate-pulse' : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800 hover:bg-green-200'}`}
-            >
-              💡
-            </button>
+            <HintButton
+              cooldown={hintCooldown}
+              onClick={requestHint}
+              colorToken="emerald"
+              title="רמז"
+            />
             <button
               onClick={checkAnswer}
               disabled={checking}

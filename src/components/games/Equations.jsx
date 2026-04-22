@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import useGameStore from '../../store/useGameStore';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
-import Hearts from '../shared/Hearts';
+import HintButton from '../shared/HintButton';
+import HintBubble from '../shared/HintBubble';
+import useHint from '../../hooks/useHint';
 import { vibe, opsDict, opEmojis, rnd, shuffle } from '../../utils/math';
-import Swal from 'sweetalert2';
 import GameTutorial from '../shared/GameTutorial';
 
 // Safe math evaluator (Shunting-yard, no eval).
@@ -77,22 +78,21 @@ const NUM_MAX = {
   4: [15,  25, 40],  // L4
 };
 
-// Rows per level
-const NUM_ROWS = { 1: 2, 2: 2, 3: 3, 4: 4, 5: 1 };
+// Rows per level.
+// L3: 2 משוואות (חופש קוגניטיבי — pool גדול עם distractors).
+// L4: 2 משוואות (דיוק — pool מצומצם ללא distractors).
+const NUM_ROWS = { 1: 2, 2: 2, 3: 2, 4: 2, 5: 1 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function Equations() {
   const gameState      = useGameStore((s) => s.equations);
   const handleWinStore = useGameStore((s) => s.handleWin);
-  const handleGameFail = useGameStore((s) => s.handleGameFail);
-  const setScreen      = useGameStore((s) => s.setScreen);
 
   const [rows,       setRows]       = useState([]);
   const [pool,       setPool]       = useState([]);
   const [feedback,   setFeedback]   = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
   const [errorFlash, setErrorFlash] = useState(false);
   const [, setSlotsPerRow] = useState(3);
-  const [lives,      setLives]      = useState(3);
   const [justLost,   setJustLost]   = useState(false);
 
   const dragRef      = useRef(null);
@@ -112,6 +112,28 @@ export default function Equations() {
     };
   }, []);
 
+  // ─── Hint (HintBubble, halfHintEnabled=true — אין lives, ניסוי-וטעייה) ─────
+  const EQ_HINTS = [
+    'יש לך שני סימני פעולה: + וחיסור −. בדוק: חיבור שני המספרים נותן את התוצאה? חיסור דורש שהגדול יהיה ראשון.',
+    'שורה עם תוצאה גדולה — כנראה כפל. שורה קטנה — כנראה חילוק. בחילוק: n1 ÷ n2 = תוצאה ⟹ n1 = n2 × תוצאה.',
+    'יש לך שתי פעולות שונות. זהה קודם שורת חילוק (תוצאה מתחלקת בשלמות), ואחר כך את השנייה.',
+    'ארבע פעולות — אין distractors. לכל שורה בדיוק פעולה אחת ושני מספרים מתאימים.',
+    '⚡ סדר פעולות: × ו-÷ לפני + ו-−! דוגמה: 2 + 3 × 4 = 2 + 12 = 14 (לא 20). חשב כפל/חילוק קודם.',
+  ];
+  const getEqHint = useCallback((_, level) => ({
+    kind: 'text',
+    text: EQ_HINTS[Math.min((level ?? gameState.lvl) - 1, EQ_HINTS.length - 1)],
+  }), [gameState.lvl]);
+
+  const { cooldown: hintCooldown, bubble: hintBubble, requestHint, resetRound: resetHintRound } = useHint({
+    level: gameState.lvl,
+    getHint: getEqHint,
+    puzzle: true,
+    halfHintEnabled: true,   // אין lives — חצי-רמז בלחיצה שנייה
+    cooldownSec: 6,
+    bubbleMs: 5000,
+  });
+
   // Use crypto.randomUUID for guaranteed-unique, non-resettable block IDs
   const nextId = () => crypto.randomUUID();
   const isLvl5 = gameState.lvl === 5;
@@ -122,8 +144,8 @@ export default function Equations() {
   const initGame = useCallback(() => {
     const lvl  = gameState.lvl;
     const tier = Math.min(countRef.current, 2);
-    setLives(3);
     setJustLost(false);
+    resetHintRound();
 
     const numRows  = NUM_ROWS[lvl] ?? 2;
     const rowSlots = lvl === 5 ? 9 : 3;
@@ -148,19 +170,17 @@ export default function Equations() {
       // ── L1–L4: each row = num op num ──────────────────────────────────────
       const numMax = NUM_MAX[lvl]?.[tier] ?? 10;
 
-      // Assign exactly one distinct operator per row
+      // Assign exactly one distinct operator per row.
+      // L3 ו-L4: 2 משוואות, 2 פעולות שונות (מתוך 4 האפשרויות).
       let rowOps;
       if (lvl === 1) {
         rowOps = shuffle(['+', '-']);
       } else if (lvl === 2) {
         rowOps = shuffle(['*', '/']);
-      } else if (lvl === 3) {
-        const all = ['+', '-', '*', '/'];
-        const dropIdx = rnd(0, 3);
-        rowOps = shuffle(all.filter((_, i) => i !== dropIdx));
       } else {
-        // L4: all 4 ops
-        rowOps = shuffle(['+', '-', '*', '/']);
+        // L3 / L4: בחר 2 פעולות שונות באקראי מתוך 4
+        const allOps = shuffle(['+', '-', '*', '/']);
+        rowOps = allOps.slice(0, 2);
       }
 
       for (let i = 0; i < numRows; i++) {
@@ -191,13 +211,25 @@ export default function Equations() {
         );
       }
 
-      // Exactly one operator per row in pool — NO op distractors
+      // Exactly one operator per row in pool.
+      // L3: מוסיפים גם 2 פעולות distractor כדי להרחיב את החופש הקוגניטיבי.
       rowOps.slice(0, numRows).forEach((op) =>
         poolItems.push({ id: nextId(), val: op, type: 'op' })
       );
+      if (lvl === 3) {
+        // הוסף 2 פעולות נוספות (distractors) מתוך 4 האפשרויות.
+        const extraOps = shuffle(['+', '-', '*', '/']).slice(0, 2);
+        extraOps.forEach((op) => poolItems.push({ id: nextId(), val: op, type: 'op' }));
+      }
 
-      // Number distractors only (1 on tier 0, 2 on tier 1+)
-      const numDist = tier === 0 ? 1 : 2;
+      // Number distractors לפי רמה:
+      // L1-2: 1-2 distractors (tier-based).
+      // L3: 5 distractors (pool עשיר — הילד צריך לברור).
+      // L4: 0 distractors (דיוק — אין "גיבוי").
+      let numDist;
+      if (lvl === 4) numDist = 0;
+      else if (lvl === 3) numDist = 5;
+      else numDist = tier === 0 ? 1 : 2;
       for (let i = 0; i < numDist; i++) {
         poolItems.push({ id: nextId(), val: String(rnd(1, numMax + 3)), type: 'num' });
       }
@@ -379,45 +411,12 @@ export default function Equations() {
       timersRef.current.push(setTimeout(() => { setErrorFlash(false); setJustLost(false); }, 600));
       vibe([50, 50, 50]);
 
-      // Hearts only for L1–L4; L5 encourages trial-and-error (no lock)
-      if (!isLvl5) {
-        const newLives = Math.max(0, lives - 1);
-        setLives(newLives);
-        if (newLives <= 0) {
-          handleGameFail('equations');
-          Swal.fire({
-            title: 'הרמה ננעלה 🔒',
-            text: 'השג 5 ניצחונות ברצף כדי להתקדם לרמה הבאה!',
-            icon: 'warning',
-            confirmButtonText: 'הבנתי',
-            confirmButtonColor: '#7c3aed',
-            customClass: { popup: 'rounded-3xl' },
-          }).then(() => setScreen('menu'));
-        }
-      }
+      // אין lives — ניסוי וטעייה הוא חלק מהלמידה ב-Equations.
+      // נרשום light-fail ל-recentResults (ללא lock) כדי להשפיע על level-up window.
+      try { useGameStore.getState().handleLightFail('equations'); } catch { /* noop */ }
     }
   };
 
-  // ─── Hint ───────────────────────────────────────────────────────────────────
-  const showHint = () => {
-    vibe(20);
-    const lvl = gameState.lvl;
-    const hints = {
-      1: 'יש לך שני סימני פעולה: חיבור (+) וחיסור (−). נסה לבדוק: אם אני מוסיף שני מספרים, האם אקבל את התוצאה? זכור שחיסור דורש שהמספר הגדול יהיה ראשון!',
-      2: 'יש לך כפל (×) וחילוק (÷). שורה עם תוצאה גדולה — כנראה כפל. שורה עם תוצאה קטנה — כנראה חילוק. בחילוק: n1 ÷ n2 = תוצאה, כלומר n1 = n2 × תוצאה.',
-      3: 'יש לך שלוש פעולות שונות. נסה לזהות קודם את שורת החילוק (תוצאה שניתנת לחלוקה שווה), ואז הכפל (תוצאה גדולה יחסית), ואז + או −.',
-      4: 'השתמש בכל 4 הפעולות. כפל וחילוק נותנים תוצאות גדולות, חיבור וחיסור — קטנות יותר.',
-      5: '🔑 סדר פעולות: כפל (×) וחילוק (÷) מתבצעים לפני חיבור (+) וחיסור (−)!\nדוגמה: 2 + 3 × 4 = 2 + 12 = 14 (ולא 20)\nנסה לחשב את הכפל/חילוק קודם, ואז חיבור/חיסור.',
-    };
-    Swal.fire({
-      title: '💡 רמז',
-      text: hints[lvl] || hints[4],
-      icon: 'info',
-      confirmButtonText: 'הבנתי, תודה!',
-      confirmButtonColor: '#f59e0b',
-      customClass: { popup: 'rounded-3xl' },
-    });
-  };
 
   // ─── Render item (pool chip or in-slot chip) ────────────────────────────────
   const renderItem = (item, inSlot = false, fromSlot = null) => {
@@ -445,12 +444,6 @@ export default function Equations() {
     <div ref={containerRef} className={`screen-enter flex flex-col items-center p-3 gap-3 flex-1 min-h-[calc(100dvh-80px)] ${errorFlash ? 'error-flash' : ''}`}>
       <GameTutorial gameName="equations" />
 
-      {/* Hearts — only L1–L4 */}
-      {!isLvl5 && (
-        <div className="w-full max-w-lg flex justify-end items-center px-1">
-          <Hearts lives={lives} maxLives={3} justLost={justLost} />
-        </div>
-      )}
 
       {/* Order-of-operations reminder — L5 only */}
       {isLvl5 && (
@@ -496,14 +489,15 @@ export default function Equations() {
         {pool.map((item) => renderItem(item))}
       </div>
 
-      {/* Action buttons */}
+      {/* HintBubble + Action buttons */}
+      <HintBubble text={hintBubble} className="w-full max-w-lg" />
       <div className="w-full max-w-lg flex gap-2 pb-6 mt-auto">
-        <button
-          onClick={showHint}
-          className="w-16 py-4 bg-purple-200 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 rounded-2xl font-black text-xl hover:bg-purple-300 transition-all active:scale-95 shadow-sm"
-        >
-          💡
-        </button>
+        <HintButton
+          cooldown={hintCooldown}
+          onClick={requestHint}
+          colorToken="violet"
+          title="רמז (לחץ שוב לרמז מלא)"
+        />
         <button
           onClick={checkEquations}
           className="flex-1 py-4 bg-purple-600 text-white rounded-2xl font-black text-xl shadow-lg hover:bg-purple-700 transition-all active:scale-95"

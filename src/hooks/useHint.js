@@ -29,10 +29,15 @@ export default function useHint({
   cooldownSec = 5,
   bubbleMs = 2600,
   onApplyHint,
+  // halfHintEnabled=true: לחיצה שניה על hint באותו סיבוב מציגה חצי-תשובה
+  // ומסמנת penalized=true — ה-consumer יכול לבטל כוכבים לסיבוב הזה.
+  halfHintEnabled = false,
 }) {
   const [cooldown,      setCooldown]      = useState(0);
   const [bubble,        setBubble]        = useState(null);
   const [usedThisRound, setUsedThisRound] = useState(false);
+  const [hintsUsed,     setHintsUsed]     = useState(0); // 0/1/2 בסיבוב הנוכחי
+  const [penalized,     setPenalized]     = useState(false); // true אם נפתח חצי-רמז
   const bubbleTimerRef = useRef(null);
 
   // Tick cooldown by 1s
@@ -51,10 +56,14 @@ export default function useHint({
 
   const requestHint = useCallback(() => {
     if (cooldown > 0 || !puzzle) return false;
-    const hint = getHint?.(puzzle, level);
+    // מצב חצי-רמז: לחיצה שניה → hint.kind='half' (המארח יחזיר טקסט חושפני יותר).
+    const isSecond = halfHintEnabled && hintsUsed >= 1;
+    const hint = getHint?.(puzzle, level, { halfMode: isSecond });
     if (!hint) return false;
 
     setUsedThisRound(true);
+    setHintsUsed((n) => n + 1);
+    if (isSecond) setPenalized(true);
     setCooldown(cooldownSec);
     vibe?.(30);
 
@@ -65,18 +74,20 @@ export default function useHint({
     if (hint.text) {
       setBubble(hint.text);
       if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
-      // Textual hints (example/text) get a bit more reading time
-      const duration = (hint.kind === 'example' || hint.kind === 'text') ? bubbleMs + 900 : bubbleMs;
+      // Textual hints (example/text/half) get a bit more reading time
+      const duration = (hint.kind === 'example' || hint.kind === 'text' || hint.kind === 'half') ? bubbleMs + 900 : bubbleMs;
       bubbleTimerRef.current = setTimeout(() => setBubble(null), duration);
     }
     return true;
-  }, [cooldown, puzzle, level, getHint, cooldownSec, bubbleMs, onApplyHint]);
+  }, [cooldown, puzzle, level, getHint, cooldownSec, bubbleMs, onApplyHint, halfHintEnabled, hintsUsed]);
 
   const resetRound = useCallback(() => {
     setUsedThisRound(false);
+    setHintsUsed(0);
+    setPenalized(false);
     setBubble(null);
     if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
   }, []);
 
-  return { cooldown, bubble, usedThisRound, requestHint, resetRound };
+  return { cooldown, bubble, usedThisRound, hintsUsed, penalized, requestHint, resetRound };
 }

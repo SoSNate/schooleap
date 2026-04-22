@@ -2,8 +2,11 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import useGameStore from '../../store/useGameStore';
 import Hearts from '../shared/Hearts';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
+import HintButton from '../shared/HintButton';
+import HintBubble from '../shared/HintBubble';
+import useHint from '../../hooks/useHint';
 import { vibe } from '../../utils/math';
-import Swal from 'sweetalert2';
+import Swal from 'sweetalert2'; // נשאר רק ל-fail dialog (Decimal שומר lives)
 import GameTutorial from '../shared/GameTutorial';
 
 // צעדים: index → גודל צעד → זום
@@ -244,21 +247,28 @@ const levelSets = [
     { v: 0.6,  n: 3, d: 5, w: 0, range: [-0.5, 2],   z: 1 },
     { v: 1.2,  n: 1, d: 5, w: 1, range: [0,   2.5],  z: 1 },
   ],
-  // רמה 2: רבעים + מספרים מעורבים — z=2 (דיוק 0.01)
+  // רמה 2: רבעים + חמישיות + עשיריות נקיות (נדחס ממה שהיה L2+L3 קלים) — z=2
   [
     { v: 0.25, n: 1, d: 4, w: 0, range: [-0.5, 2.5], z: 2 },
     { v: 0.75, n: 3, d: 4, w: 0, range: [-0.5, 2.5], z: 2 },
     { v: 1.25, n: 1, d: 4, w: 1, range: [0,   3],    z: 2 },
     { v: 1.75, n: 3, d: 4, w: 1, range: [0,   3],    z: 2 },
     { v: 0.4,  n: 2, d: 5, w: 0, range: [-0.5, 2],   z: 1 },
+    { v: 0.8,  n: 4, d: 5, w: 0, range: [-0.5, 2],   z: 1 },
+    { v: 0.1,  n: 1, d: 10, w: 0, range: [-0.5, 2],  z: 1 },
+    { v: 0.3,  n: 3, d: 10, w: 0, range: [-0.5, 2],  z: 1 },
+    { v: 0.7,  n: 7, d: 10, w: 0, range: [-0.5, 2],  z: 1 },
   ],
-  // רמה 3: עשיריות + שליליים קלים — z=1
+  // רמה 3 — קשה יותר: שברים לא-unit + עשרוני לא מתחלק יפה + שליליים — z=2
   [
-    { v: 0.1,  n: 1, d: 10, w: 0, range: [-0.5, 2],   z: 1 },
-    { v: 0.3,  n: 3, d: 10, w: 0, range: [-0.5, 2],   z: 1 },
-    { v: 0.7,  n: 7, d: 10, w: 0, range: [-0.5, 2],   z: 1 },
-    { v: -0.5, n: 1, d: 2,  w: 0, neg: true, range: [-2,   1.5], z: 1 },
-    { v: -0.2, n: 1, d: 5,  w: 0, neg: true, range: [-1.5, 1.5], z: 1 },
+    { v: 0.6,   n: 3, d: 5, w: 0, range: [-0.5, 2], z: 2 },
+    { v: 1.6,   n: 3, d: 5, w: 1, range: [0,   3], z: 2 },
+    { v: 0.9,   n: 9, d: 10, w: 0, range: [-0.5, 2], z: 2 },
+    { v: -0.5,  n: 1, d: 2,  w: 0, neg: true, range: [-2,   1.5], z: 2 },
+    { v: -0.2,  n: 1, d: 5,  w: 0, neg: true, range: [-1.5, 1.5], z: 2 },
+    { v: -0.7,  n: 7, d: 10, w: 0, neg: true, range: [-1.5, 1.5], z: 2 },
+    { v: -1.25, n: 1, d: 4,  w: 1, neg: true, range: [-2,   1], z: 2 },
+    { v: 2.3,   n: 3, d: 10, w: 2, range: [0,   3], z: 2 },
   ],
   // רמה 4: חמישיות/עשיריות שליליות + מאיות — z=2 (ללא שלישים)
   [
@@ -269,13 +279,18 @@ const levelSets = [
     { v: -0.15, n: 3, d: 20, w: 0, neg: true, range: [-1.5, 1.5], z: 2 },
     { v: -0.75, n: 3, d: 4,  w: 0, neg: true, range: [-1.5, 1.5], z: 2 },
   ],
-  // רמה 5: שמיניות + שליליים מורכבים — z=3 (דיוק 0.001)
+  // רמה 5: שמיניות + מאיות + שליליים מורכבים — z=3 (דיוק 0.001)
   [
     { v: 0.125,  n: 1, d: 8, w: 0, range: [-0.5, 1.5], z: 3 },
     { v: 0.375,  n: 3, d: 8, w: 0, range: [-0.5, 1.5], z: 3 },
     { v: 0.625,  n: 5, d: 8, w: 0, range: [-0.5, 1.5], z: 3 },
+    { v: 0.875,  n: 7, d: 8, w: 0, range: [-0.5, 1.5], z: 3 },
     { v: 1.875,  n: 7, d: 8, w: 1, range: [0,   3],    z: 3 },
     { v: -0.375, n: 3, d: 8, w: 0, neg: true, range: [-1.5, 1.5], z: 3 },
+    { v: -0.625, n: 5, d: 8, w: 0, neg: true, range: [-1.5, 1.5], z: 3 },
+    // גיוון — מאיות/עשיריות מורכבות
+    { v: 0.025,  n: 1, d: 40, w: 0, range: [-0.5, 1.5], z: 3 },
+    { v: 1.125,  n: 1, d: 8, w: 1, range: [0,   3],    z: 3 },
   ],
 ];
 
@@ -299,6 +314,28 @@ export default function Decimal() {
   const rangeRef = useRef([-0.5, 2.5]);
   const recentRef = useRef([]);
   const timersRef = useRef([]);
+
+  // ─── Hint (HintBubble) ───────────────────────────────────────────────────
+  const knobTip = 'טבעת חיצונית = צעד ×1. ככל שמתקרבים למרכז — הצעד קטן (×0.1, ×0.01, ×0.001).';
+  const DECIMAL_HINTS = [
+    `חצאים וחמישיות: 1/2=0.5, 1/5=0.2, 2/5=0.4. התחל בצעד ×1, ואז דייק. ${knobTip}`,
+    `רבעים: 1/4=0.25, 3/4=0.75. מספר מעורב 1¼=1.25. ${knobTip}`,
+    `עשיריות: 1/10=0.1, 3/10=0.3. שלילי? הסתובב *שמאלה* מ-0. ${knobTip}`,
+    `מאיות: 1/20=0.05, 3/20=0.15. שלילי ומורכב? פרק: −3/4=−0.5−0.25=−0.75. ${knobTip}`,
+    `שמיניות: 1/8=0.125, 3/8=0.375, 5/8=0.625, 7/8=0.875. ${knobTip}`,
+  ];
+  const getDecimalHint = useCallback((_, level) => ({
+    kind: 'text',
+    text: DECIMAL_HINTS[Math.min((level ?? gameState.lvl) - 1, DECIMAL_HINTS.length - 1)],
+  }), [gameState.lvl]);
+
+  const { cooldown: hintCooldown, bubble: hintBubble, requestHint, resetRound: resetHintRound } = useHint({
+    level: gameState.lvl,
+    getHint: getDecimalHint,
+    puzzle: true,
+    cooldownSec: 8,
+    bubbleMs: 6000,
+  });
 
   useEffect(() => {
     return () => timersRef.current.forEach(clearTimeout);
@@ -324,7 +361,11 @@ export default function Decimal() {
     setJustLost(false);
     setStepIndex(0);
     const [rMin, rMax] = f.range;
-    const startPos = Math.round(((rMin + rMax) / 2) * 10) / 10;
+    // startPos ≠ answer: מונעים תרחיש שבו המחוג כבר על התשובה בפתיחה.
+    const midPos = Math.round(((rMin + rMax) / 2) * 10) / 10;
+    const startPos = Math.abs(midPos - f.v) < 0.05
+      ? Math.round((midPos + (rMax - midPos) * 0.5) * 10) / 10
+      : midPos;
     setPosition(startPos);
     setConsecutiveErrors(0);
   }, [gameState.lvl]);
@@ -339,24 +380,6 @@ export default function Decimal() {
     setPosition(clamped);
   }, []);
 
-  const showHint = () => {
-    vibe(20);
-    const hints = [
-      'נסה קודם עם צעד גדול (×1) להגיע לאזור הנכון, ואז עבור לצעד קטן יותר.',
-      'שברים שימושיים: 1/2=0.5, 1/4=0.25, 3/4=0.75, 1/5=0.2.',
-      'מספר מעורב כמו 1¼ = 1.25. התחל מ-1 ואז הוסף 0.25.',
-      'שמינית = 0.125. כפול ב-3 תקבל 3/8 = 0.375.',
-      'מספרים שליליים נמצאים משמאל לאפס. −1/2 = −0.5.',
-    ];
-    Swal.fire({
-      title: '💡 רמז',
-      text: hints[Math.min(lvl - 1, hints.length - 1)],
-      icon: 'info',
-      confirmButtonText: 'הבנתי, תודה!',
-      confirmButtonColor: '#eab308',
-      customClass: { popup: 'rounded-3xl' },
-    });
-  };
 
   const checkAnswer = () => {
     const snappedPos = parseFloat((Math.round(position / step) * step).toFixed(4));
@@ -416,7 +439,7 @@ export default function Decimal() {
 
         {/* Target fraction */}
         <div className="w-full bg-slate-50 dark:bg-slate-900 rounded-2xl py-2 px-4 flex flex-col items-center gap-0.5 border border-slate-200 dark:border-slate-700">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">מקם על ציר המספרים</span>
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center">לפניך שבר במבנה מונה/מכנה. מצא את ערכו העשרוני על ציר המספרים</span>
           <div className="mt-1 flex items-center gap-3" dir="ltr">
             {targetFrac?.neg && (
               <span className="font-black text-rose-500" style={{ fontSize: '2.8rem', lineHeight: 1 }}>−</span>
@@ -509,17 +532,18 @@ export default function Decimal() {
           <RotaryKnob stepIndex={stepIndex} onChange={(idx) => setStepIndex(Math.min(idx, maxZoom))} maxZoom={maxZoom} />
         </div>
 
-        {/* Action buttons */}
+        {/* HintBubble + Action buttons */}
+        <HintBubble text={hintBubble} className="mb-1" />
         <div className="w-full flex gap-2 pb-1">
-          {lvl <= 2 && (
-            <button
-              onClick={showHint}
-              className={`w-16 py-4 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800 rounded-3xl font-black text-xl shadow-sm hover:bg-yellow-200 transition-all active:scale-95 ${consecutiveErrors >= 2 ? 'animate-pulse' : ''}`}
-            >💡</button>
-          )}
+          <HintButton
+            cooldown={hintCooldown}
+            onClick={requestHint}
+            colorToken="amber"
+            title="רמז"
+          />
           <button
             onClick={checkAnswer}
-            className={`${lvl <= 2 ? 'flex-1' : 'w-full'} py-4 bg-yellow-500 hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-700 text-white rounded-3xl font-black text-xl shadow-xl transition-all active:scale-95`}
+            className="flex-1 py-4 bg-yellow-500 hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-700 text-white rounded-3xl font-black text-xl shadow-xl transition-all active:scale-95"
           >תפוס! 🎯</button>
         </div>
       </div>

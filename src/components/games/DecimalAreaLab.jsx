@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import useGameStore from '../../store/useGameStore';
-import Hearts from '../shared/Hearts';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
 import GameTutorial from '../shared/GameTutorial';
 import { vibe } from '../../utils/math';
@@ -58,15 +57,13 @@ function hasCollision(r1, r2) {
 export default function DecimalAreaLab() {
   const gameState      = useGameStore((s) => s.grid);
   const handleWin      = useGameStore((s) => s.handleWin);
-  const handleGameFail = useGameStore((s) => s.handleGameFail);
-  const setScreen      = useGameStore((s) => s.setScreen);
+  const handleLightFail = useGameStore((s) => s.handleLightFail);
 
   const [levelData,    setLevelData]    = useState(null);
   const [placed,       setPlaced]       = useState([]);
   const [drawing,      setDrawing]      = useState(null);
   const [isDrawing,    setIsDrawing]    = useState(false);
   const [errorMsg,     setErrorMsg]     = useState('');
-  const [lives,        setLives]        = useState(3);
   const [justLost,     setJustLost]     = useState(false);
   const [disabled,     setDisabled]     = useState(false);
   const [feedback,     setFeedback]     = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
@@ -99,7 +96,6 @@ export default function DecimalAreaLab() {
     setDrawing(null);
     setIsDrawing(false);
     setErrorMsg('');
-    setLives(3);
     setJustLost(false);
     setDisabled(false);
     setNearEdge(false);
@@ -186,25 +182,9 @@ export default function DecimalAreaLab() {
     setJustLost(true);
     setTimeout(() => setJustLost(false), 600);
 
-    setLives((prev) => {
-      const next = Math.max(0, prev - 1);
-      if (next <= 0) {
-        setDisabled(true);
-        setTimeout(() => {
-          handleGameFail('grid');
-          Swal.fire({
-            title: 'הרמה ננעלה 🔒',
-            text: 'השג 5 ניצחונות ברצף כדי להתקדם לרמה הבאה!',
-            icon: 'warning',
-            confirmButtonText: 'הבנתי',
-            confirmButtonColor: '#14b8a6',
-            customClass: { popup: 'rounded-3xl' },
-          }).then(() => setScreen('menu'));
-        }, 700);
-      }
-      return next;
-    });
-  }, [handleGameFail, setScreen]);
+    // אין lives — ציור ניסיוני הוא חלק מהלמידה. רושמים light-fail ל-level-up window.
+    try { handleLightFail('grid'); } catch { /* noop */ }
+  }, [handleLightFail]);
 
   // ── Check answer ─────────────────────────────────────────────────────────────
   const handleCheck = useCallback(() => {
@@ -290,7 +270,6 @@ export default function DecimalAreaLab() {
             </div>
           </div>
           <div className="shrink-0">
-            <Hearts lives={lives} maxLives={3} justLost={justLost} />
           </div>
         </div>
 

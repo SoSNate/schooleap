@@ -16,7 +16,11 @@ export default {
     { pattern: /bg-(emerald|cyan|violet|indigo)-(50|900)/, variants: ['dark'] },
   ],
   theme: {
-    extend: {},
+    extend: {
+      screens: {
+        xs: '400px', // between mobile (320px) and sm (640px)
+      },
+    },
   },
   plugins: [],
 }

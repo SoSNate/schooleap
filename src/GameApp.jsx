@@ -185,6 +185,26 @@ export default function GameApp() {
     onSwipeRight: goToMenu,
   });
 
+  // Hardware back button (Android) + browser back gesture (iOS swipe-from-edge):
+  // Push a dummy history entry each time a game is active so the OS back action
+  // intercepts before leaving /play. On popstate → return to menu.
+  useEffect(() => {
+    const inGame = currentScreen !== 'menu' && currentScreen !== 'settings';
+    if (!inGame) return;
+
+    // Push a state so "back" doesn't navigate away from /play
+    window.history.pushState({ hsBack: true }, '');
+
+    function handlePopState() {
+      setScreen('menu');
+      // Re-push so repeated back presses keep working from menu
+      window.history.pushState({ hsBack: true }, '');
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [currentScreen, setScreen]);
+
   const [showOnboarding,    setShowOnboarding]    = useState(false);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [goals,             setGoals]             = useState([]);

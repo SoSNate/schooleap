@@ -251,32 +251,34 @@ export default function DecimalAreaLab() {
   };
 
   return (
-    <div className="screen-enter flex flex-col flex-1 min-h-[calc(100dvh-80px)]">
+    <div className="screen-enter flex flex-col flex-1 min-h-[calc(100dvh-80px)] bg-slate-100 dark:bg-slate-900">
       <GameTutorial gameName="grid" level={gameState.lvl} />
-      <div className="flex-1 flex flex-col items-center p-4 gap-4 overflow-y-auto">
+      <div className="flex-1 flex flex-col items-center justify-center pt-2 pb-6 px-2 gap-3 overflow-y-auto">
 
-        {/* Target card */}
-        <div className="bg-white dark:bg-slate-800 rounded-[2rem] w-full max-w-md px-5 py-4 shadow-sm border-2 border-teal-200 dark:border-teal-800/40 border-b-4 border-b-teal-400 dark:border-b-teal-700 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-bold text-slate-400 mb-0.5 whitespace-nowrap">יעד — שטח כולל</p>
-            <div className="math-font font-black text-4xl text-teal-600 dark:text-teal-400 tracking-tight" dir="ltr">
-              {levelData.target.toFixed(2)}
+        {/* Main container — centered and compact */}
+        <div className="w-full max-w-sm">
+
+        {/* Target card — compact */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl w-full px-4 py-3 shadow-sm border-2 border-teal-200 dark:border-teal-800/40 border-b-4 border-b-teal-400 dark:border-b-teal-700">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-400 mb-0.5">יעד — שטח כולל</p>
+              <div className="math-font font-black text-3xl text-teal-600 dark:text-teal-400 tracking-tight" dir="ltr">
+                {levelData.target.toFixed(2)}
+              </div>
             </div>
-            {/* הוראה בולטת — מספר מלבנים */}
-            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-              <span className="inline-flex items-center gap-1 bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 font-black text-sm px-2.5 py-0.5 rounded-full whitespace-nowrap">
-                צייר {levelData.pieces} מלבנים{levelData.unique ? ' שונים' : ''}
+            <div className="shrink-0">
+              <span className="inline-flex items-center gap-1 bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 font-black text-xs px-2 py-1 rounded-full whitespace-nowrap">
+                {levelData.pieces} מלבנ{levelData.unique ? 'ים שונים' : 'ים'}
               </span>
             </div>
-          </div>
-          <div className="shrink-0">
           </div>
         </div>
 
         {/* Grid card — ref here for ResizeObserver */}
         <div
           ref={containerRef}
-          className="bg-white dark:bg-slate-800 rounded-[2rem] w-full max-w-md p-5 shadow-sm border-2 border-teal-200 dark:border-teal-800/40 flex flex-col items-center gap-3 overflow-hidden"
+          className="bg-white dark:bg-slate-800 rounded-2xl w-full p-3 shadow-sm border-2 border-teal-200 dark:border-teal-800/40 flex flex-col items-center gap-2 overflow-hidden mt-2"
         >
 
           {/* ── Grid layout: X-label row / [Y-labels | Grid] ── */}
@@ -462,6 +464,8 @@ export default function DecimalAreaLab() {
             </button>
           </div>
         </div>
+
+        </div>{/* end max-w-sm container */}
       </div>
 
       <FeedbackOverlay

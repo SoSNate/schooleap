@@ -286,44 +286,43 @@ export default function PercentsLab() {
   ];
 
   return (
-    <div dir="rtl" className="min-h-full bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 p-4 md:p-6 select-none">
+    <div dir="rtl" className="min-h-full bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 select-none flex flex-col items-center pt-4 pb-8">
       <GameTutorial gameName="percentages" />
 
-      {/* Top bar: back/lives/score (minimal — Header already exists outside) */}
-      <div className="max-w-3xl mx-auto flex flex-wrap items-center justify-between gap-2 mb-4 bg-white dark:bg-slate-800 rounded-[1.5rem] px-4 py-3 border border-slate-100 dark:border-slate-700 shadow-sm">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="bg-sky-600 text-white w-11 h-11 flex items-center justify-center rounded-2xl font-black text-lg shadow-md">
+      {/* Main container — centered and compact */}
+      <div className="w-full max-w-2xl px-3 sm:px-4">
+
+        {/* Top bar: level + hint + stars (compact, centered) */}
+        <div className="flex items-center justify-center gap-2 sm:gap-3 mb-3 bg-white dark:bg-slate-800 rounded-2xl px-3 sm:px-4 py-2 border border-slate-100 dark:border-slate-700 shadow-sm w-fit mx-auto">
+          <div className="bg-sky-600 text-white w-10 h-10 flex items-center justify-center rounded-xl font-black text-base shadow-md">
             {gameState.lvl}
           </div>
-        </div>
-
-        <div className="flex items-center gap-2">
+          <div className="w-px h-5 bg-slate-200 dark:bg-slate-700"></div>
           {/* Hint button */}
           <HintButton cooldown={hintCooldown} onClick={requestHint} />
-
+          <div className="w-px h-5 bg-slate-200 dark:bg-slate-700"></div>
           {/* Star score */}
-          <div className="flex items-center gap-2 bg-sky-50 dark:bg-sky-900/30 border border-sky-100 dark:border-sky-800 rounded-2xl px-4 py-2">
-            <span className="text-lg">⭐</span>
-            <span className="text-lg font-black text-sky-700 dark:text-sky-300">{gameState.stars}</span>
+          <div className="flex items-center gap-1.5 bg-sky-50 dark:bg-sky-900/30 border border-sky-100 dark:border-sky-800 rounded-xl px-2.5 py-1">
+            <span>⭐</span>
+            <span className="text-sm font-black text-sky-700 dark:text-sky-300">{gameState.stars}</span>
           </div>
         </div>
-      </div>
 
-      {/* Title */}
-      <div className="text-center mb-4">
-        <h1 className="text-2xl md:text-3xl font-black text-slate-800 dark:text-slate-100 flex items-center justify-center gap-2">
-          מעבדת אחוזים <ArrowRightLeft className="text-sky-500" size={22} />
-        </h1>
-        {INSTRUCTIONS[gameState.lvl] && (
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-            {INSTRUCTIONS[gameState.lvl]}
-          </p>
-        )}
-      </div>
+        {/* Title */}
+        <div className="text-center mb-4">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center justify-center gap-2">
+            מעבדת אחוזים <ArrowRightLeft className="text-sky-500" size={20} />
+          </h1>
+          {INSTRUCTIONS[gameState.lvl] && (
+            <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-2">
+              {INSTRUCTIONS[gameState.lvl]}
+            </p>
+          )}
+        </div>
 
-      {/* Board */}
-      <div className="flex justify-center w-full overflow-hidden">
-        <div className="relative" style={{ width: 448 * boardScale + (puzzle.puzzleType === 'vertical' ? 44 : 0), maxWidth: '100%' }}>
+        {/* Board — centered and scaled to fit */}
+        <div className="flex justify-center w-full overflow-hidden">
+          <div className="relative" style={{ width: 448 * boardScale + (puzzle.puzzleType === 'vertical' ? 44 : 0), maxWidth: '100%' }}>
           {/* Column labels — vertical layout only */}
           {puzzle.puzzleType === 'vertical' && (
             <div className="flex mb-1" dir="ltr" style={{ width: 448 * boardScale, marginRight: 44, paddingLeft: 80 * boardScale, paddingRight: 80 * boardScale }}>
@@ -449,16 +448,18 @@ export default function PercentsLab() {
       <HintBubble text={hintBubbleText} />
 
       {/* CTA */}
-      <div className="flex justify-center mt-8 pb-10">
+      <div className="flex justify-center mt-6">
         <button
           onClick={handleValidate}
           disabled={isAnimating}
-          className="flex items-center gap-3 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white px-14 py-4 rounded-full font-black text-xl shadow-xl active:scale-95 transition-all"
+          className="flex items-center gap-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white px-10 sm:px-14 py-3 sm:py-4 rounded-full font-black text-base sm:text-lg shadow-xl active:scale-95 transition-all"
         >
           בדיקת תשובה
-          <Play className="w-5 h-5 fill-white" />
+          <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-white" />
         </button>
       </div>
+
+      </div>{/* end max-w-2xl container */}
 
       <FeedbackOverlay
         visible={feedback.visible}

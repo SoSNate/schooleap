@@ -79,14 +79,16 @@ export default function Header() {
           ⭐ <span>{totalStars}</span>
         </div>
 
-        {/* Settings */}
-        <button
-          onClick={() => navigate('settings')}
-          className="bg-slate-100 dark:bg-slate-700 p-2 min-w-[40px] min-h-[40px] sm:min-w-[44px] sm:min-h-[44px] flex items-center justify-center rounded-xl text-base sm:text-lg transition-transform hover:scale-110 active:scale-95"
-          title="מאחורי הקלעים"
-        >
-          ⚙️
-        </button>
+        {/* Settings — only show when not already on settings page */}
+        {currentScreen !== 'settings' && (
+          <button
+            onClick={() => navigate('settings')}
+            className="bg-slate-100 dark:bg-slate-700 p-2 min-w-[40px] min-h-[40px] sm:min-w-[44px] sm:min-h-[44px] flex items-center justify-center rounded-xl text-base sm:text-lg transition-transform hover:scale-110 active:scale-95"
+            title="מאחורי הקלעים"
+          >
+            ⚙️
+          </button>
+        )}
 
         {/* Dark mode toggle */}
         <button

@@ -28,6 +28,7 @@ export default function Tank() {
   const [lives, setLives] = useState(3);
   const [justLost, setJustLost] = useState(false);
   const [consecutiveErrors, setConsecutiveErrors] = useState(0);
+  const [gameOver, setGameOver] = useState(false);
 
   const recentRef = useRef([]);
   const timersRef = useRef([]);
@@ -36,13 +37,18 @@ export default function Tank() {
     return () => timersRef.current.forEach(clearTimeout);
   }, []);
 
-  // ─── Hint (HintBubble) ───────────────────────────────────────────────────
+  // ─── Hint (HintBubble) — per-level guidance ─────────────────────────────
   const TANK_HINTS = [
-    'הקווים הכחולים מחלקים את הכוס לחלקים שווים. אם השבר הוא 1/4 — מלא רק חלק אחד מתוך 4.',
-    'שים לב: 3/6 = 1/2, 5/10 = 1/2, 50/100 = 1/2. צמצם את השבר לפני חישוב הכמות.',
-    'הכפל את הנתון בהופכי השבר. דוגמה: 50 מ"ל = 2/4 → הכוס המלאה = 50 × (4/2) = 100 מ"ל.',
-    'כפל שברים: מונה × מונה, מכנה × מכנה. חילוק: הפוך את השבר השני וכפול. שים לב לקווים הכחולים.',
-    'פתור שלב אחרי שלב: חשב כל שבר בנפרד, צמצם ל-GCD, ואז חשב כמה מ"ל מייצג התוצאה.',
+    // L1 — unit fractions & equivalency
+    'הקווים הכחולים מחלקים את הכוס לחלקים שווים. 1/4 = חלק אחד מתוך 4. נסה: אם יש לך 50 מ"ל והם 1/4 — הכוס המלאה היא 50 × 4 = 200 מ"ל.',
+    // L2 — richer fractions
+    'שברים שנראים שונים יכולים להיות שווים: 4/10 = 2/5, 6/10 = 3/5. כדי למצוא את הכוס המלאה: חלק את הכמות הידועה במונה וכפול במכנה.',
+    // L3 — tricky denominators (6, 8, 9, 12)
+    'מצא קודם כמה מ"ל שווה "חלק אחד". אם 120 מ"ל = 4/9 — אז חלק אחד = 120÷4 = 30 מ"ל. הכוס המלאה = 30 × 9 = 270 מ"ל.',
+    // L4 — pure mul/div
+    'כפל שברים: מונה×מונה למעלה, מכנה×מכנה למטה. חילוק: הפוך את השבר השני (מכנה למעלה, מונה למטה) ואז כפול. אחרי החישוב — צמצם.',
+    // L5 — LCD addition/subtraction
+    'מכנה משותף: 1/2 + 1/4 → הפוך ל-2/4 + 1/4 = 3/4. מצא מספר שמתחלק בשני המכנים, המר את שני השברים, ואז חשב.',
   ];
   const getTankHint = useCallback((_, level) => ({
     kind: 'text',
@@ -63,62 +69,83 @@ export default function Tank() {
     let attempts = 0;
     const recent = recentRef.current;
 
-    // Whitelist of valid fractions: only clean, easy-to-understand fractions
-    // Denominators: 2, 4, 5, 10 (divide nicely into 100)
-    // Units: 100 for d=2, 100 for d=4, 100 for d=5, 100 for d=10
-    const VALID_FRACTIONS = [
-      // u=100 (answer is n/d × 100)
-      { n: 1, d: 2, u: 100 }, { n: 1, d: 4, u: 100 }, { n: 3, d: 4, u: 100 },
-      { n: 1, d: 5, u: 100 }, { n: 2, d: 5, u: 100 }, { n: 3, d: 5, u: 100 }, { n: 4, d: 5, u: 100 },
-      { n: 1, d: 10, u: 100 }, { n: 3, d: 10, u: 100 }, { n: 7, d: 10, u: 100 }, { n: 9, d: 10, u: 100 },
-      // u=50: answers like 25, 10, 40 — different slider range
-      { n: 1, d: 2, u: 50 }, { n: 1, d: 5, u: 50 }, { n: 2, d: 5, u: 50 },
-      { n: 1, d: 10, u: 50 }, { n: 3, d: 10, u: 50 },
-      // u=200: answers like 100, 50, 80, 150
-      { n: 1, d: 2, u: 200 }, { n: 1, d: 4, u: 200 }, { n: 3, d: 4, u: 200 },
-      { n: 1, d: 5, u: 200 }, { n: 2, d: 5, u: 200 }, { n: 4, d: 5, u: 200 },
+    // ── Level-specific fraction pools (Reverse-Solvable: answer = u×d, always clean integer) ──
+    // L1: unit fractions only + easy equivalency (same as 1/2)
+    const FRACS_L1 = [
+      { n:1, d:2, u:100 }, { n:1, d:2, u:50  }, { n:1, d:2, u:200 },
+      { n:1, d:4, u:100 }, { n:1, d:4, u:50  },
+      { n:1, d:5, u:100 }, { n:1, d:5, u:50  },
+      { n:1, d:10, u:50 },
+      // Equivalency variants — same value, different notation
+      { n:2, d:4,  u:50  },  // = 1/2, total=200
+      { n:5, d:10, u:50  },  // = 1/2, total=500
+      { n:3, d:6,  u:50  },  // = 1/2, total=300
+    ];
+    // L2: richer proper fractions + equivalency with 5 & 10
+    const FRACS_L2 = [
+      { n:3, d:4, u:100 }, { n:3, d:4, u:50 },
+      { n:2, d:5, u:100 }, { n:3, d:5, u:100 }, { n:4, d:5, u:100 },
+      { n:2, d:5, u:50  }, { n:4, d:5, u:50  },
+      { n:3, d:10, u:50 }, { n:7, d:10, u:50 }, { n:9, d:10, u:50 },
+      // Equivalency (n/10 form, not simplified)
+      { n:4, d:10, u:50  },  // = 2/5, total=500
+      { n:6, d:10, u:50  },  // = 3/5, total=500
+      { n:8, d:10, u:50  },  // = 4/5, total=500
+    ];
+    // L3: tricky denominators 3, 6, 8, 9, 12 — u chosen so total ≤ 500
+    const FRACS_L3 = [
+      { n:1, d:3, u:100 }, { n:2, d:3, u:100 },           // total=300
+      { n:1, d:6, u:50  }, { n:5, d:6, u:50  },           // total=300
+      { n:1, d:8, u:25  }, { n:3, d:8, u:25  },           // total=200
+      { n:5, d:8, u:25  }, { n:7, d:8, u:25  },           // total=200
+      { n:1, d:9, u:30  }, { n:2, d:9, u:30  }, { n:4, d:9, u:30 }, // total=270
+      { n:1, d:12, u:25 }, { n:5, d:12, u:25 },           // total=300
     ];
 
+    const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+
     do {
-      if (lvl <= 3) {
-        // Single simple fraction
-        const frac = VALID_FRACTIONS[Math.floor(Math.random() * VALID_FRACTIONS.length)];
-        n = frac.n;
-        d = frac.d;
-        u = frac.u;
+      if (lvl === 1) {
+        const frac = FRACS_L1[Math.floor(Math.random() * FRACS_L1.length)];
+        n = frac.n; d = frac.d; u = frac.u;
         display = <Fraction numerator={n} denominator={d} />;
+
+      } else if (lvl === 2) {
+        const frac = FRACS_L2[Math.floor(Math.random() * FRACS_L2.length)];
+        n = frac.n; d = frac.d; u = frac.u;
+        display = <Fraction numerator={n} denominator={d} />;
+
+      } else if (lvl === 3) {
+        const frac = FRACS_L3[Math.floor(Math.random() * FRACS_L3.length)];
+        n = frac.n; d = frac.d; u = frac.u;
+        display = <Fraction numerator={n} denominator={d} />;
+
       } else if (lvl === 4) {
-        // L4 — פעולה טהורה: כל שאלה היא *רק* כפל שברים או *רק* חילוק שברים.
-        // פילוג 50/50. מצמצמים תוצאה ל-GCD כדי לקבל u/d נקיים.
+        // L4 — pure mul or pure div (50/50)
         const isMul = Math.random() < 0.5;
         const mulPairs = [
-          { n1: 1, d1: 2, n2: 1, d2: 2 },   // 1/2 × 1/2 = 1/4
-          { n1: 1, d1: 2, n2: 1, d2: 3 },   // 1/2 × 1/3 = 1/6
-          { n1: 2, d1: 3, n2: 1, d2: 2 },   // 2/3 × 1/2 = 1/3
-          { n1: 3, d1: 4, n2: 2, d2: 3 },   // 3/4 × 2/3 = 1/2
-          { n1: 1, d1: 5, n2: 2, d2: 5 },   // 1/5 × 2/5 = 2/25
-          { n1: 1, d1: 3, n2: 3, d2: 5 },   // 1/3 × 3/5 = 1/5
+          { n1:1, d1:2, n2:1, d2:2 },  // = 1/4
+          { n1:1, d1:2, n2:1, d2:3 },  // = 1/6
+          { n1:2, d1:3, n2:1, d2:2 },  // = 1/3
+          { n1:3, d1:4, n2:2, d2:3 },  // = 1/2
+          { n1:1, d1:3, n2:3, d2:5 },  // = 1/5
+          { n1:2, d1:3, n2:3, d2:4 },  // = 1/2
         ];
         const divPairs = [
-          { n1: 1, d1: 2, n2: 1, d2: 4 },   // 1/2 ÷ 1/4 = 2
-          { n1: 2, d1: 3, n2: 1, d2: 3 },   // 2/3 ÷ 1/3 = 2
-          { n1: 3, d1: 4, n2: 1, d2: 2 },   // 3/4 ÷ 1/2 = 3/2
-          { n1: 1, d1: 4, n2: 1, d2: 2 },   // 1/4 ÷ 1/2 = 1/2
-          { n1: 2, d1: 5, n2: 1, d2: 5 },   // 2/5 ÷ 1/5 = 2
-          { n1: 1, d1: 6, n2: 1, d2: 3 },   // 1/6 ÷ 1/3 = 1/2
+          { n1:1, d1:2, n2:1, d2:4 },  // = 2
+          { n1:2, d1:3, n2:1, d2:3 },  // = 2
+          { n1:3, d1:4, n2:1, d2:2 },  // = 3/2
+          { n1:1, d1:4, n2:1, d2:2 },  // = 1/2
+          { n1:2, d1:5, n2:1, d2:5 },  // = 2
+          { n1:1, d1:6, n2:1, d2:3 },  // = 1/2
         ];
         const pool = isMul ? mulPairs : divPairs;
         const pair = pool[Math.floor(Math.random() * pool.length)];
-        // תוצאה: כפל = (n1·n2)/(d1·d2), חילוק = (n1·d2)/(d1·n2).
         let rn = isMul ? pair.n1 * pair.n2 : pair.n1 * pair.d2;
         let rd = isMul ? pair.d1 * pair.d2 : pair.d1 * pair.n2;
-        // צמצום ל-GCD
-        const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
-        const g = gcd(rn, rd);
-        rn /= g; rd /= g;
+        const g = gcd(rn, rd); rn /= g; rd /= g;
         n = rn; d = rd;
-        // u נבחר כך ש-capacity יישאר מתחת ל-1000 מ"ל ועגול יפה.
-        u = rd <= 2 ? 200 : rd <= 4 ? 100 : 50;
+        u = rd <= 2 ? 100 : rd <= 4 ? 100 : 50;
         display = (
           <div className="flex items-center gap-2 math-font" dir="ltr">
             <Fraction numerator={pair.n1} denominator={pair.d1} />
@@ -126,21 +153,31 @@ export default function Tank() {
             <Fraction numerator={pair.n2} denominator={pair.d2} />
           </div>
         );
+
       } else {
-        // Two fractions that subtract to > 0
-        const pairs = [
-          { n1: 3, d1: 4, n2: 1, d2: 4 },
-          { n1: 4, d1: 5, n2: 1, d2: 5 },
-          { n1: 3, d1: 5, n2: 1, d2: 5 },
-          { n1: 7, d1: 10, n2: 2, d2: 10 },
-          { n1: 3, d1: 4, n2: 1, d2: 5 },
+        // L5 — add/subtract fractions with DIFFERENT denominators (LCD required)
+        const L5_PAIRS = [
+          { n1:1, d1:2, n2:1, d2:4, op:'+', u:100 },  // 3/4 × 400 = 300; total=400
+          { n1:1, d1:3, n2:1, d2:6, op:'+', u:100 },  // 1/2 × 200 = 100; total=200
+          { n1:5, d1:6, n2:1, d2:3, op:'-', u:100 },  // 1/2 × 200 = 100; total=200
+          { n1:3, d1:4, n2:1, d2:2, op:'-', u:100 },  // 1/4 × 400 = 100; total=400
+          { n1:7, d1:10,n2:1, d2:5, op:'-', u:100 },  // 1/2 × 200 = 100; total=200
+          { n1:1, d1:2, n2:1, d2:6, op:'+', u:150 },  // 2/3 × 450 = 300; total=450
+          { n1:2, d1:3, n2:1, d2:6, op:'+', u:60  },  // 5/6 × 360 = 300; total=360
+          { n1:3, d1:4, n2:1, d2:8, op:'+', u:25  },  // 7/8 × 200 = 175; total=200
         ];
-        const pair = pairs[Math.floor(Math.random() * pairs.length)];
-        n = pair.n1 - pair.n2; d = 4; u = 100; // Result simplified
+        const pair = L5_PAIRS[Math.floor(Math.random() * L5_PAIRS.length)];
+        const opSign = pair.op === '+' ? 1 : -1;
+        // Compute result fraction: LCD
+        const lcmVal = (pair.d1 * pair.d2) / gcd(pair.d1, pair.d2);
+        let rn = (pair.n1 * (lcmVal / pair.d1)) + opSign * (pair.n2 * (lcmVal / pair.d2));
+        let rd = lcmVal;
+        const g = gcd(Math.abs(rn), rd); rn /= g; rd /= g;
+        n = rn; d = rd; u = pair.u;
         display = (
           <div className="flex items-center gap-2 math-font" dir="ltr">
             <Fraction numerator={pair.n1} denominator={pair.d1} />
-            <span className="text-xl">-</span>
+            <span className="text-xl">{pair.op}</span>
             <Fraction numerator={pair.n2} denominator={pair.d2} />
           </div>
         );
@@ -191,14 +228,7 @@ export default function Tank() {
 
       if (newLives <= 0) {
         handleGameFail('tank');
-        Swal.fire({
-          title: 'הרמה ננעלה 🔒',
-          text: 'השג 5 ניצחונות ברצף כדי להתקדם לרמה הבאה!',
-          icon: 'warning',
-          confirmButtonText: 'הבנתי',
-          confirmButtonColor: '#3b82f6',
-          customClass: { popup: 'rounded-3xl' },
-        }).then(() => setScreen('menu'));
+        setGameOver(true);
       }
     }
   };
@@ -206,6 +236,23 @@ export default function Tank() {
   return (
     <div className={`screen-enter flex flex-col items-center p-4 flex-1 min-h-[calc(100dvh-80px)] ${errorFlash ? 'error-flash' : ''}`}>
       <GameTutorial gameName="tank" />
+
+      {/* Game-over overlay — replaces Swal (protocol: no Swal) */}
+      {gameOver && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" dir="rtl">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 mx-4 max-w-xs w-full text-center shadow-2xl flex flex-col gap-4">
+            <div className="text-5xl">🔒</div>
+            <h3 className="text-xl font-black text-slate-800 dark:text-slate-100">הרמה ננעלה</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">השג 3 ניצחונות ברצף כדי להתקדם לרמה הבאה</p>
+            <button
+              onClick={() => setScreen('menu')}
+              className="bg-blue-600 hover:bg-blue-500 text-white font-black py-3 rounded-2xl active:scale-95 transition-all"
+            >
+              חזרה לתפריט
+            </button>
+          </div>
+        </div>
+      )}
       <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-6 md:p-8 w-full max-w-md shadow-xl flex flex-col gap-6 md:gap-8 border-2 border-blue-200 dark:border-blue-800/40 border-b-4 border-b-blue-400 dark:border-b-blue-700 transition-colors">
 
         {/* Lives */}

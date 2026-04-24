@@ -1,6 +1,5 @@
-import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import useGameStore from '../../store/useGameStore';
-import { ranks, vibe, anims } from '../../utils/math';
+import { ranks, vibe } from '../../utils/math';
 import { GAMES, GAME_BY_ID, getGameColorClasses } from '../../utils/games';
 
 // Assignment Wall — המשימה הראשונה בתור חוסמת את שאר המשחקים.
@@ -71,12 +70,6 @@ export default function Menu({ goals = [] }) {
     <div className="screen-enter flex flex-col items-center p-6 flex-1 min-h-[calc(100dvh-80px)]">
       <div className="text-center mb-6">
         <h2 className="text-2xl font-black tracking-tight">מרכז הלמידה</h2>
-        <p className="text-xs text-slate-400 dark:text-slate-400 font-bold mb-2">
-          התקדמות כל 3 הצלחות (לחיצה על הדרגה לדילוג)
-        </p>
-        <div className="w-full max-w-[320px] h-32 md:h-40 opacity-90 mx-auto pointer-events-none">
-          <DotLottieReact src={anims.menuHero} autoplay loop />
-        </div>
       </div>
 
       {/* Assignment Wall banner — מוצג רק כשיש משימה פתוחה פעילה */}

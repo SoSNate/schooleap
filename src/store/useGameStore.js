@@ -43,6 +43,14 @@ const useGameStore = create(
       // Locks
       locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0, magicPatterns: 0, grid: 0, word: 0, multChamp: 0, percentages: 0 },
 
+      // Practice levels — child-chosen drill level per game (0 = off, 1-5 = practicing that level).
+      // Not a restriction; child picks this themselves. Real lvl is unaffected.
+      practiceLevels: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0, magicPatterns: 0, grid: 0, word: 0, multChamp: 0, percentages: 0 },
+
+      // Practice streak tracking — how many consecutive sessions a child practiced below their real level.
+      // Used to alert parent/teacher.
+      practiceAlerts: {},
+
       // Weekly stats
       weeklyStats: emptyWeek(),
 
@@ -106,7 +114,11 @@ const useGameStore = create(
         const s = get();
         if (s.isAnimating) return { isLevelUp: false, unlocked: false, pts: 0 };
 
-        const pts = s[game].lvl + 1;
+        // In practice mode: award stars for the practice level, but don't advance real level
+        const practiceLevel = s.practiceLevels[game] || 0;
+        const effectiveLvl = practiceLevel || s[game].lvl;
+
+        const pts = effectiveLvl + 1;
         const newStars = s[game].stars + pts;
         const newTotalStars = s.totalStars + pts;
         let newCount = s[game].count;
@@ -115,6 +127,24 @@ const useGameStore = create(
         let unlocked = false;
         let isCapped = false;
         let newConsecutiveWins = s[game].consecutiveWins;
+
+        // ── Practice mode: stars only, no progression changes ──────────────
+        if (practiceLevel > 0) {
+          const today = new Date().getDay();
+          const shortGame = getGameShort(game);
+          const newWeekly = { ...s.weeklyStats };
+          if (newWeekly.weekId !== getWeekId()) Object.assign(newWeekly, emptyWeek());
+          newWeekly.days = newWeekly.days.map((d, i) =>
+            i !== today ? d : { pts: d.pts + pts, games: { ...d.games, [shortGame]: (d.games[shortGame] || 0) + pts } }
+          );
+          set({ isAnimating: true, totalStars: newTotalStars, [game]: { ...s[game], stars: newStars }, weeklyStats: newWeekly });
+          get().reportGameEvent(game, practiceLevel, true);
+          if (typeof window !== 'undefined') {
+            if (window.__animGuardId) clearTimeout(window.__animGuardId);
+            window.__animGuardId = setTimeout(() => { if (get().isAnimating) set({ isAnimating: false }); }, 3000);
+          }
+          return { isLevelUp: false, unlocked: false, pts, isPractice: true };
+        }
 
         // Update weekly stats
         const today = new Date().getDay();
@@ -158,8 +188,10 @@ const useGameStore = create(
           }
         } else {
           // Normal mode: level-up when ("3 ברצף") OR ("4 מתוך 5 אחרונים").
-          // Fast-track: multChamp ו-Equations L3+ עדיין מעלים רמה בכל ניצחון.
-          const fastTrack = (game === 'multChamp' || (game === 'equations' && newLvl >= 3));
+          // Fast-track: multChamp עולה בכל ניצחון.
+          // equations ברמות 3-4: עולה אחרי 2 ניצחונות ברצף ללא כישלון.
+          const eqFastTrack = game === 'equations' && (newLvl === 3 || newLvl === 4);
+          const fastTrack = game === 'multChamp';
           const prevRecent = Array.isArray(s[game].recentResults) ? s[game].recentResults : [];
           const recent = [...prevRecent, true].slice(-5);
 
@@ -170,7 +202,10 @@ const useGameStore = create(
           const last3 = recent.slice(-3);
           const threeInARow = last3.length === 3 && last3.every(Boolean);
           const fourOfFive  = recent.length === 5 && recent.filter(Boolean).length >= 4;
-          const shouldLevelUp = fastTrack || threeInARow || fourOfFive;
+          // equations L3-4: 2 ניצחונות ברצף (ללא כישלון באמצע) = עלייה
+          const last2 = recent.slice(-2);
+          const twoInARow = eqFastTrack && last2.length === 2 && last2.every(Boolean);
+          const shouldLevelUp = fastTrack || twoInARow || threeInARow || fourOfFive;
 
           newCount = s[game].count + 1;
           let newRecent = recent;
@@ -217,12 +252,15 @@ const useGameStore = create(
       reportGameEvent: async (game, level, success) => {
         const token = localStorage.getItem(CHILD_TOKEN_KEY);
         if (!token) return;
+        const s = get();
+        const practiceLevel = s.practiceLevels[game] || 0;
         try {
           await supabase.from('game_events').insert({
             child_token: token,
             game_name: game,
             level,
             success,
+            ...(practiceLevel > 0 ? { practice_level: practiceLevel } : {}),
           });
           // הטריגר ב-DB סוגר assignments שעמדו ביעד. רענן את הרשימה בלקוח,
           // וסמן את היום כהושלם אם נסגרה משימה — Menu יפתח את שאר המשחקים.
@@ -244,8 +282,25 @@ const useGameStore = create(
 
       handleGameFail: (game) => {
         const s = get();
+        const practiceLevel = s.practiceLevels[game] || 0;
         const prevRecent = Array.isArray(s[game].recentResults) ? s[game].recentResults : [];
         const recent = [...prevRecent, false].slice(-5);
+
+        if (practiceLevel > 0) {
+          // Practice mode — no lock. Just record fail and track alert if child drills below real level.
+          set({ [game]: { ...s[game], count: 0, consecutiveWins: 0, recentResults: recent } });
+          get().reportGameEvent(game, practiceLevel, false);
+
+          // Track how many times child practiced below their real level (for parent alert)
+          if (practiceLevel < s[game].lvl) {
+            const key = game;
+            const prev = s.practiceAlerts[key] || 0;
+            set({ practiceAlerts: { ...s.practiceAlerts, [key]: prev + 1 } });
+          }
+          return 'practice';
+        }
+
+        // Normal mode — lock as before
         set({
           locks: { ...s.locks, [game]: s[game].lvl },
           [game]: { ...s[game], count: 0, consecutiveWins: 0, recentResults: recent }
@@ -267,6 +322,20 @@ const useGameStore = create(
         get().reportGameEvent(game, s[game].lvl, false);
       },
 
+      // setPracticeLevel — child picks a drill level (0 = exit practice mode)
+      setPracticeLevel: (game, lvl) => {
+        const s = get();
+        const newLevels = { ...s.practiceLevels, [game]: lvl };
+        set({ practiceLevels: newLevels });
+        // Reset alert counter when child exits practice mode or switches level
+        if (lvl === 0) {
+          const newAlerts = { ...s.practiceAlerts };
+          delete newAlerts[game];
+          set({ practiceAlerts: newAlerts });
+        }
+      },
+
+      // cheatLevel kept for backward compat (used in older code paths)
       cheatLevel: (game) => {
         const s = get();
         if (s.locks[game] > 0) return false;
@@ -352,6 +421,8 @@ const useGameStore = create(
         multChamp: state.multChamp,
         percentages: state.percentages,
         locks: state.locks,
+        practiceLevels: state.practiceLevels,
+        practiceAlerts: state.practiceAlerts,
         weeklyStats: state.weeklyStats,
         darkMode: state.darkMode,
       }),

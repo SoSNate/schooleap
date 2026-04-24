@@ -72,15 +72,64 @@ const L5_BANK = [
 // ─── Level configuration ──────────────────────────────────────────────────────
 // Number range max by (level, tier). Tier = count within level (0=easy, 1=medium, 2=hard)
 const NUM_MAX = {
-  1: [10, 18, 28],   // L1 +/-
-  2: [4,   6,  9],   // L2 */÷ (max factor)
-  3: [12,  20, 30],  // L3
-  4: [15,  25, 40],  // L4
+  1: [10, 18, 28],   // L1 +/-  (1 op per row)
+  2: [4,   6,  9],   // L2 */÷  (1 op per row, max factor)
+  3: [10,  15, 20],  // L3 mixed 2-op per row (keep numbers moderate)
+  4: [12,  20, 30],  // L4 mixed 2-op per row
 };
 
+// ─── Two-operator row generator (L3 / L4) ────────────────────────────────────
+// Always picks exactly one high-precedence op (×÷) and one low-precedence op (±).
+// Returns { nums:[a,b,c], ops:[op1,op2], target } or null on failure.
+function generateTwoOpRow(numMax) {
+  const highOp   = Math.random() < 0.5 ? '*' : '/';
+  const lowOp    = Math.random() < 0.5 ? '+' : '-';
+  const highFirst = Math.random() < 0.5; // true → (a HIGH b) LOW c, false → a LOW (b HIGH c)
+  const op1 = highFirst ? highOp : lowOp;
+  const op2 = highFirst ? lowOp  : highOp;
+  const max = Math.min(numMax, 12);
+
+  let a, b, c;
+
+  if (highFirst) {
+    // high-prec part is a [highOp] b
+    if (highOp === '*') {
+      a = rnd(2, max); b = rnd(2, max);
+    } else {                                   // ÷
+      b = rnd(2, Math.min(max, 9));
+      a = b * rnd(2, Math.max(2, Math.floor(max / b)));
+    }
+    c = rnd(1, max);
+    const highResult = highOp === '*' ? a * b : a / b;
+    if (lowOp === '-') {
+      // ensure positive result
+      if (highResult <= c) c = Math.max(1, Math.floor(highResult) - rnd(1, 3));
+    }
+  } else {
+    // high-prec part is b [highOp] c
+    if (highOp === '*') {
+      b = rnd(2, max); c = rnd(2, max);
+    } else {                                   // ÷
+      c = rnd(2, Math.min(max, 9));
+      b = c * rnd(2, Math.max(2, Math.floor(max / c)));
+    }
+    a = rnd(2, numMax);
+    const highResult = highOp === '*' ? b * c : b / c;
+    if (lowOp === '-') {
+      // ensure a > highResult for positive result
+      if (a <= highResult) a = Math.floor(highResult) + rnd(1, 8);
+    }
+  }
+
+  const expr   = `${a}${op1}${b}${op2}${c}`;
+  const target = safeEval(expr);
+  if (!Number.isFinite(target) || target <= 0 || !Number.isInteger(target) || target > 200) return null;
+  return { nums: [a, b, c], ops: [op1, op2], target };
+}
+
 // Rows per level.
-// L3: 2 משוואות (חופש קוגניטיבי — pool גדול עם distractors).
-// L4: 2 משוואות (דיוק — pool מצומצם ללא distractors).
+// L3/L4: 2-operator rows (5 slots each — num op num op num).
+// L5: 1 hardcoded 9-slot equation.
 const NUM_ROWS = { 1: 2, 2: 2, 3: 2, 4: 2, 5: 1 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -148,7 +197,8 @@ export default function Equations() {
     resetHintRound();
 
     const numRows  = NUM_ROWS[lvl] ?? 2;
-    const rowSlots = lvl === 5 ? 9 : 3;
+    // L1/L2: 3 slots (num op num). L3/L4: 5 slots (num op num op num). L5: 9 slots.
+    const rowSlots = lvl === 5 ? 9 : lvl >= 3 ? 5 : 3;
     setSlotsPerRow(rowSlots);
 
     let newRows   = [];
@@ -166,22 +216,36 @@ export default function Equations() {
       pick.nums.forEach((n) => poolItems.push({ id: nextId(), val: String(n), type: 'num' }));
       pick.ops.forEach((op)  => poolItems.push({ id: nextId(), val: op,       type: 'op'  }));
 
-    } else {
-      // ── L1–L4: each row = num op num ──────────────────────────────────────
+    } else if (lvl >= 3) {
+      // ── L3–L4: each row = num op num op num (5 slots, mixed precedence) ───
       const numMax = NUM_MAX[lvl]?.[tier] ?? 10;
 
-      // Assign exactly one distinct operator per row.
-      // L3 ו-L4: 2 משוואות, 2 פעולות שונות (מתוך 4 האפשרויות).
-      let rowOps;
-      if (lvl === 1) {
-        rowOps = shuffle(['+', '-']);
-      } else if (lvl === 2) {
-        rowOps = shuffle(['*', '/']);
-      } else {
-        // L3 / L4: בחר 2 פעולות שונות באקראי מתוך 4
-        const allOps = shuffle(['+', '-', '*', '/']);
-        rowOps = allOps.slice(0, 2);
+      for (let i = 0; i < numRows; i++) {
+        // Try up to 25 times to generate a clean 2-op row
+        let row = null;
+        for (let attempt = 0; attempt < 25 && !row; attempt++) {
+          row = generateTwoOpRow(numMax);
+        }
+        if (!row) row = { nums: [3, 4, 2], ops: ['*', '+'], target: 14 }; // safe fallback
+
+        newRows.push({ target: row.target, slots: Array(5).fill(null) });
+        row.nums.forEach((n) => poolItems.push({ id: nextId(), val: String(n), type: 'num' }));
+        row.ops.forEach((op)  => poolItems.push({ id: nextId(), val: op,       type: 'op'  }));
       }
+
+      // Distractors: L3 gets 2 extra numbers, L4 gets none (exactness drill)
+      if (lvl === 3) {
+        const numMax3 = NUM_MAX[3]?.[tier] ?? 10;
+        for (let i = 0; i < 2; i++) {
+          poolItems.push({ id: nextId(), val: String(rnd(2, numMax3 + 3)), type: 'num' });
+        }
+      }
+
+    } else {
+      // ── L1–L2: each row = num op num (3 slots) ────────────────────────────
+      const numMax = NUM_MAX[lvl]?.[tier] ?? 10;
+
+      const rowOps = lvl === 1 ? shuffle(['+', '-']) : shuffle(['*', '/']);
 
       for (let i = 0; i < numRows; i++) {
         const op = rowOps[i];
@@ -211,25 +275,12 @@ export default function Equations() {
         );
       }
 
-      // Exactly one operator per row in pool.
-      // L3: מוסיפים גם 2 פעולות distractor כדי להרחיב את החופש הקוגניטיבי.
       rowOps.slice(0, numRows).forEach((op) =>
         poolItems.push({ id: nextId(), val: op, type: 'op' })
       );
-      if (lvl === 3) {
-        // הוסף 2 פעולות נוספות (distractors) מתוך 4 האפשרויות.
-        const extraOps = shuffle(['+', '-', '*', '/']).slice(0, 2);
-        extraOps.forEach((op) => poolItems.push({ id: nextId(), val: op, type: 'op' }));
-      }
 
-      // Number distractors לפי רמה:
-      // L1-2: 1-2 distractors (tier-based).
-      // L3: 5 distractors (pool עשיר — הילד צריך לברור).
-      // L4: 0 distractors (דיוק — אין "גיבוי").
-      let numDist;
-      if (lvl === 4) numDist = 0;
-      else if (lvl === 3) numDist = 5;
-      else numDist = tier === 0 ? 1 : 2;
+      // Number distractors: 1-2 based on tier
+      const numDist = tier === 0 ? 1 : 2;
       for (let i = 0; i < numDist; i++) {
         poolItems.push({ id: nextId(), val: String(rnd(1, numMax + 3)), type: 'num' });
       }
@@ -439,6 +490,8 @@ export default function Equations() {
     );
   };
 
+  const isLvl34 = gameState.lvl === 3 || gameState.lvl === 4;
+
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
     <div ref={containerRef} className={`screen-enter flex flex-col items-center p-3 gap-3 flex-1 min-h-[calc(100dvh-80px)] ${errorFlash ? 'error-flash' : ''}`}>
@@ -463,7 +516,7 @@ export default function Equations() {
         {rows.map((row, ri) => (
           <div
             key={ri}
-            className={`equation-row bg-white dark:bg-slate-700/50 border border-purple-200 dark:border-purple-800/30 ${isLvl5 ? 'lvl5-row flex-wrap justify-center' : ''}`}
+            className={`equation-row bg-white dark:bg-slate-700/50 border border-purple-200 dark:border-purple-800/30 ${isLvl5 ? 'lvl5-row flex-wrap justify-center' : isLvl34 ? 'flex-wrap justify-center gap-1.5 px-2' : ''}`}
           >
             {row.slots.map((slot, si) => (
               <div
@@ -484,8 +537,8 @@ export default function Equations() {
         ))}
       </div>
 
-      {/* Pool */}
-      <div className="flex flex-wrap justify-center content-start gap-2 min-h-[120px] max-h-36 overflow-y-auto bg-slate-100 dark:bg-slate-800 p-4 rounded-[2rem] shadow-inner w-full max-w-lg border-2 border-purple-300 dark:border-purple-800/50 relative z-20">
+      {/* Pool — dynamic height, no internal scroll */}
+      <div className="flex flex-wrap justify-center content-start gap-2 min-h-[72px] bg-slate-100 dark:bg-slate-800 p-4 rounded-[2rem] shadow-inner w-full max-w-lg border-2 border-purple-300 dark:border-purple-800/50 relative z-20">
         {pool.map((item) => renderItem(item))}
       </div>
 

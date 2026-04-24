@@ -17,6 +17,7 @@ import MultiplicationChamp from './components/games/MultiplicationChamp';
 import PercentsLab from './components/games/PercentsLab';
 import { supabase } from './lib/supabase';
 import InstallPrompt, { captureInstallEvent, shouldAutoShowInstallPrompt } from './components/shared/InstallPrompt';
+import FlyingPlanesBackground from './components/shared/FlyingPlanesBackground';
 
 const screens = {
   menu: Menu,
@@ -366,6 +367,7 @@ export default function GameApp() {
 
   return (
     <div className="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors duration-300 flex flex-col min-h-[100dvh]">
+      {currentScreen === 'menu' && <FlyingPlanesBackground />}
       {showOnboarding && (
         <OnboardingScreen onDone={() => setShowOnboarding(false)} />
       )}

@@ -88,20 +88,22 @@ function DynamicArc({
     pointsStandard = isShekelBigger ? operation !== 'multiply' : operation === 'multiply';
   }
 
+  // Board canvas: 384×400 (cells 160×160, col-gap 64, row-gap 80)
+  // Cell centers: left-col x=80, right-col x=320, top-row y=80, bottom-row y=320
   let d = '';
-  if (position === 'top')    d = pointsStandard ? 'M 80,0 Q 224,-80 368,0'     : 'M 368,0 Q 224,-80 80,0';
-  if (position === 'bottom') d = pointsStandard ? 'M 80,384 Q 224,464 368,384' : 'M 368,384 Q 224,464 80,384';
-  if (position === 'left')   d = pointsStandard ? 'M 0,80 Q -80,192 0,304'     : 'M 0,304 Q -80,192 0,80';
-  if (position === 'right')  d = pointsStandard ? 'M 448,80 Q 528,192 448,304' : 'M 448,304 Q 528,192 448,80';
+  if (position === 'top')    d = pointsStandard ? 'M 80,0 Q 200,-72 320,0'     : 'M 320,0 Q 200,-72 80,0';
+  if (position === 'bottom') d = pointsStandard ? 'M 80,400 Q 200,472 320,400' : 'M 320,400 Q 200,472 80,400';
+  if (position === 'left')   d = pointsStandard ? 'M 0,80 Q -72,200 0,320'     : 'M 0,320 Q -72,200 0,80';
+  if (position === 'right')  d = pointsStandard ? 'M 384,80 Q 456,200 384,320' : 'M 384,320 Q 456,200 384,80';
 
   const color    = isInteractive ? '#0284c7' : '#94a3b8';
   const markerId = `ah-${position}-${isInteractive ? 'on' : 'off'}`;
 
   let box = {};
-  if (position === 'top')    box = { top: -40,  left: 224, transform: 'translate(-50%,-50%)' };
-  if (position === 'bottom') box = { top: 424,  left: 224, transform: 'translate(-50%,-50%)' };
-  if (position === 'left')   box = { top: 192,  left: -40, transform: 'translate(-50%,-50%)' };
-  if (position === 'right')  box = { top: 192,  left: 488, transform: 'translate(-50%,-50%)' };
+  if (position === 'top')    box = { top: -40,  left: 200, transform: 'translate(-50%,-50%)' };
+  if (position === 'bottom') box = { top: 440,  left: 200, transform: 'translate(-50%,-50%)' };
+  if (position === 'left')   box = { top: 200,  left: -40, transform: 'translate(-50%,-50%)' };
+  if (position === 'right')  box = { top: 200,  left: 424, transform: 'translate(-50%,-50%)' };
 
   return (
     <>

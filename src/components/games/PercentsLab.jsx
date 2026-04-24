@@ -284,7 +284,7 @@ export default function PercentsLab() {
   return (
     <div dir="rtl" className="screen-enter flex flex-col flex-1 min-h-[calc(100dvh-80px)] bg-slate-100 dark:bg-slate-900 select-none">
       <GameTutorial gameName="percentages" />
-      <div className="flex-1 flex flex-col items-center pt-3 pb-6 gap-3 overflow-y-auto overflow-x-hidden">
+      <div className="flex-1 flex flex-col items-center pt-5 pb-10 gap-5 overflow-y-auto overflow-x-hidden">
 
         {/* Top bar */}
         <div className="flex items-center justify-center gap-2 sm:gap-3 bg-white dark:bg-slate-800 rounded-2xl px-3 sm:px-4 py-2 border border-slate-100 dark:border-slate-700 shadow-sm w-fit mx-auto">
@@ -363,7 +363,7 @@ export default function PercentsLab() {
         <button
           onClick={handleValidate}
           disabled={isAnimating}
-          className="w-full max-w-sm mx-4 font-bold py-4 rounded-2xl text-lg bg-sky-600 hover:bg-sky-500 text-white shadow-[0_5px_0_#0369a1] active:translate-y-[5px] active:shadow-none transition-all disabled:opacity-40"
+          className="w-full max-w-sm mx-4 mt-2 font-bold py-4 rounded-2xl text-lg bg-sky-600 hover:bg-sky-500 text-white shadow-[0_5px_0_#0369a1] active:translate-y-[5px] active:shadow-none transition-all disabled:opacity-40"
         >
           בדיקת תשובה ▶
         </button>

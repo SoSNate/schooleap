@@ -34,7 +34,11 @@ const TOKEN_KEY = 'hasbaonautica_child_token';
 // the subscription check has run.  If the user hits /play directly (no token),
 // redirect them to the landing page.  If blocked, GameApp itself shows the paywall.
 function SubscriptionGuard({ children }) {
+  const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
   const hasToken     = !!localStorage.getItem(TOKEN_KEY);
+
+  // On localhost, allow access without token (dev mode)
+  if (isLocalhost) return children;
 
   // No token → not a valid child session, send to landing
   if (!hasToken) return <Navigate to="/" replace />;

@@ -181,8 +181,7 @@ export default function LandingPage() {
               className="w-full flex items-center justify-center gap-3 bg-amber-500 hover:bg-amber-400 text-white font-black py-4 px-8 rounded-2xl text-lg transition-all active:scale-95 shadow-lg shadow-amber-500/30"
             >
               <span>🚀 המשך כ-{returningChild.name}</span>
-              <span className="text-xl">→</span>
-            </button>
+              </button>
           )}
 
           {/* כפתור 1: הורים */}
@@ -191,7 +190,6 @@ export default function LandingPage() {
             className="glow-btn w-full flex items-center justify-center gap-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 px-8 rounded-2xl text-lg transition-all active:scale-95"
           >
             <span>👨‍👩‍👧 כניסת הורים</span>
-            <span className="text-xl">→</span>
           </button>
 
           {/* כפתור 2: מורים */}
@@ -200,7 +198,6 @@ export default function LandingPage() {
             className="w-full flex items-center justify-center gap-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 px-8 rounded-2xl text-lg transition-all active:scale-95"
           >
             <span>🎓 אני מורה</span>
-            <span className="text-xl">→</span>
           </button>
 
           {/* כפתור 3: תלמיד עם קוד כיתה */}
@@ -209,7 +206,6 @@ export default function LandingPage() {
             className="w-full flex items-center justify-center gap-3 bg-sky-600 hover:bg-sky-500 text-white font-black py-4 px-8 rounded-2xl text-lg transition-all active:scale-95"
           >
             <span>🎒 יש לי קוד כיתה מהמורה</span>
-            <span className="text-xl">→</span>
           </button>
 
           {/* הערה לילד שקיבל קישור */}

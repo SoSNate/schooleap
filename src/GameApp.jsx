@@ -284,7 +284,9 @@ export default function GameApp() {
   }, [subscription.checked]); // eslint-disable-line
 
   // ── No token: accessed /play directly without a magic link ──────────────
-  if (!localStorage.getItem(TOKEN_KEY)) {
+  // Skip auth check on localhost for development
+  const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  if (!isLocalhost && !localStorage.getItem(TOKEN_KEY)) {
     return (
       <div dir="rtl" className="min-h-[100dvh] flex items-center justify-center bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 p-8 text-center">
         <div className="max-w-sm space-y-4">
@@ -300,6 +302,12 @@ export default function GameApp() {
         </div>
       </div>
     );
+  }
+
+  // ── Dev mode: localhost bypass — set token + init game state ──────────────
+  if (isLocalhost && !localStorage.getItem(TOKEN_KEY)) {
+    localStorage.setItem(TOKEN_KEY, 'dev-mode-local');
+    setSubscription({ status: 'trial', expiresAt: null });
   }
 
   // ── Waiting for ChildEntry to finish the subscription check ──────────────

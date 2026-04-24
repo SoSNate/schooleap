@@ -270,6 +270,15 @@ export default function ParentDashboard() {
     captureInstallEvent();
     let mounted = true;
 
+    // Dev mode: localhost bypass
+    const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (isLocalhost) {
+      // Skip auth on localhost, show dashboard immediately
+      setUser({ id: 'dev-user', email: 'dev@localhost' });
+      setLoading(false);
+      return () => { mounted = false; };
+    }
+
     // Fast path: getSession reads from localStorage — no network, near-instant.
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!mounted) return;

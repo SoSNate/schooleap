@@ -303,7 +303,7 @@ export default function PercentsLab() {
         )}
 
         {/* Board */}
-        <div className="flex justify-center w-full">
+        <div className="flex justify-center w-full pl-2">
           <div className="relative" style={{ width: 448 * boardScale + (puzzle.puzzleType === 'vertical' ? 44 : 0) }}>
             {puzzle.puzzleType === 'vertical' && (
               <div className="flex mb-1 transition-opacity duration-300" dir="ltr" style={{ width: 448 * boardScale, marginRight: 44, paddingLeft: 80 * boardScale, paddingRight: 80 * boardScale, opacity: showLabels ? 1 : 0, pointerEvents: showLabels ? 'auto' : 'none' }}>
@@ -358,7 +358,7 @@ export default function PercentsLab() {
           </div>
         </div>
 
-        <HintBubble text={hintBubbleText} />
+        <HintBubble text={hintBubbleText} colorToken="sky" />
 
         <button
           onClick={handleValidate}

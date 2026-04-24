@@ -73,10 +73,10 @@ const RotaryKnob = ({ stepIndex, onChange }) => {
   const rotation = stepIndex * 90; // 0°, 90°, 180°, 270°
 
   const labelDefs = [
-    { idx: 0, content: <span className="text-sm font-black">×1</span>,                                                                          style: { top: '-2rem',   left: '50%', transform: 'translateX(-50%)' } },
-    { idx: 1, content: <div className="flex items-center gap-0.5 text-sm font-black" dir="ltr"><span>×</span><Fraction n={1} d={10}   /></div>, style: { top: '50%',    right: '-4.5rem', transform: 'translateY(-50%)' } },
-    { idx: 2, content: <div className="flex flex-col items-center gap-0 text-sm font-black" dir="ltr"><span>×</span><Fraction n={1} d={100}  /></div>, style: { bottom: '-2.8rem', left: '50%', transform: 'translateX(-50%)' } },
-    { idx: 3, content: <div className="flex items-center gap-0.5 text-sm font-black" dir="ltr"><span>×</span><Fraction n={1} d={1000} /></div>, style: { top: '50%',    left:  '-5rem',   transform: 'translateY(-50%)' } },
+    { idx: 0, content: <span className="text-xs font-black">×1</span>,                                                                          style: { top: '-1.4rem',  left: '50%', transform: 'translateX(-50%)' } },
+    { idx: 1, content: <div className="flex items-center gap-0.5 text-xs font-black" dir="ltr"><span>×</span><Fraction n={1} d={10}   /></div>, style: { top: '50%',    right: '-3.5rem', transform: 'translateY(-50%)' } },
+    { idx: 2, content: <div className="flex flex-col items-center gap-0 text-xs font-black" dir="ltr"><span>×</span><Fraction n={1} d={100}  /></div>, style: { bottom: '-2.2rem', left: '50%', transform: 'translateX(-50%)' } },
+    { idx: 3, content: <div className="flex items-center gap-0.5 text-xs font-black" dir="ltr"><span>×</span><Fraction n={1} d={1000} /></div>, style: { top: '50%',    left:  '-4rem',   transform: 'translateY(-50%)' } },
   ];
 
   return (
@@ -533,12 +533,12 @@ export default function Decimal() {
 
         {/* RotaryKnob — בוחר גודל צעד */}
         <div className="w-full flex flex-col items-center gap-2 pb-2 mt-0">
-          <div className="text-xs font-black text-slate-400 uppercase tracking-widest">🔍 דיוק הצעד</div>
+          <div className="text-xs font-black text-slate-400 uppercase tracking-widest self-end ml-2">גודל קפיצה 🔍</div>
           <RotaryKnob stepIndex={stepIndex} onChange={(idx) => setStepIndex(Math.min(idx, maxZoom))} maxZoom={maxZoom} />
         </div>
 
         {/* HintBubble + Action buttons */}
-        <HintBubble text={hintBubble} className="mb-1" />
+        <HintBubble text={hintBubble} colorToken="amber" className="mb-1" />
         <div className="w-full flex gap-2 pb-1">
           <HintButton
             cooldown={hintCooldown}

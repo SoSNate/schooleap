@@ -728,7 +728,7 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
       </div>
 
       {/* Hint bubble */}
-      <HintBubble text={hintBubbleText} />
+      <HintBubble text={hintBubbleText} colorToken="red" />
 
       <FeedbackOverlay
         visible={feedback.visible}

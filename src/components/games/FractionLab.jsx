@@ -295,7 +295,7 @@ export default function FractionLab() {
               <Hearts lives={lives} maxLives={3} justLost={justLost} />
             </div>
           </div>
-          {hintBubble && <HintBubble text={hintBubble} className="w-full" />}
+          {hintBubble && <HintBubble text={hintBubble} colorToken="orange" className="w-full" />}
 
           <div className="flex-1 flex items-center justify-center min-h-[150px] w-full">
             {question.mode === 'visual' && <VisualShape n={question.targetN} d={question.targetD} visualMode={question.visualMode} />}

@@ -329,7 +329,7 @@ export default function Tank() {
             className="val-track mb-6"
           />
 
-          <HintBubble text={hintBubble} className="mb-3" />
+          <HintBubble text={hintBubble} colorToken="sky" className="mb-3" />
 
           <div className="flex gap-2 mt-6">
             <HintButton

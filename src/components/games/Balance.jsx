@@ -329,7 +329,7 @@ export default function Balance() {
           )}
 
           {/* HintBubble */}
-          <HintBubble text={hintBubble} />
+          <HintBubble text={hintBubble} colorToken="emerald" />
 
           {/* Action buttons */}
           <div className="flex gap-1.5 sm:gap-2 w-full">

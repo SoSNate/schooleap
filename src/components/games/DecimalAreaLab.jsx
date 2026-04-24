@@ -290,7 +290,7 @@ export default function DecimalAreaLab() {
               {' '}באמצעות <span className="text-teal-600 dark:text-teal-400">{levelData.pieces} מלבנ{levelData.unique ? 'ים שונים' : 'ים'}</span>
             </p>
           </div>
-          {hintBubble && <HintBubble text={hintBubble} className="mt-2" />}
+          {hintBubble && <HintBubble text={hintBubble} colorToken="teal" className="mt-2" />}
         </div>
 
         {/* Grid card — ref here for ResizeObserver */}

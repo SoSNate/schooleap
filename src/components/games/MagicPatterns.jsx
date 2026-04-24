@@ -345,7 +345,9 @@ function renderVisualPart(part, i, hideColors) {
   if (part.t === 'sh') {
     return <div key={i} className={`w-7 h-7 ${sc(part.s).text}`}><ShapeIcon shape={part.s} /></div>;
   }
-  if (part.t === 'op')  return <span key={i} className="math-font font-black text-lg text-slate-400 mx-0.5">{part.v}</span>;
+  if (part.t === 'op')  return part.v === '='
+    ? <span key={i} className="math-font font-black text-2xl text-amber-400 mx-1.5">{part.v}</span>
+    : <span key={i} className="math-font font-black text-lg text-slate-400 mx-0.5">{part.v}</span>;
   if (part.t === 'par') return <span key={i} className="math-font font-light text-slate-300 text-2xl">{part.v}</span>;
 
   if (part.t === 'mixed_shape') {
@@ -717,7 +719,7 @@ export default function MagicPatterns() {
                 : (scaffoldStage === 0 ? '🔵 מלא עזרים' : scaffoldStage === 1 ? '🟡 עזרים חלקיים' : '🔴 ללא עזרים')}
             </span>
             <div className="flex gap-1 items-center">
-              <HintButton cooldown={hintCooldown} onClick={requestHint} colorToken="violet" />
+              <HintButton cooldown={hintCooldown} onClick={requestHint} colorToken="amber" />
               {gameState.lvl >= 4 && (
                 <Hearts count={lives} />
               )}
@@ -861,7 +863,7 @@ export default function MagicPatterns() {
       </div>
 
       {/* Hint bubble */}
-      <HintBubble text={hintBubbleText} />
+      <HintBubble text={hintBubbleText} colorToken="violet" />
 
       {/* ── Win overlay ── */}
       <FeedbackOverlay

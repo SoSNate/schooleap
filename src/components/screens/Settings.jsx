@@ -237,15 +237,6 @@ export default function Settings() {
 
       {showInstall && <InstallPrompt forceShow onClose={() => setShowInstall(false)} />}
 
-      {/* Reset */}
-      <div className="w-full max-w-md">
-        <button
-          onClick={handleReset}
-          className="w-full text-sm font-bold text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/20 dark:hover:bg-rose-900/40 px-4 py-4 rounded-[2rem] border border-rose-100 dark:border-rose-900 transition-colors active:scale-95"
-        >
-          🔄 איפוס התקדמות, כוכבים ושבוע
-        </button>
-      </div>
       <div className="h-10" />
     </div>
   );

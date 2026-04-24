@@ -375,9 +375,10 @@ const useGameStore = create(
     }),
     {
       name: 'nat-game-store',
-      version: 3,
+      version: 4,
       // v2: added percentages game + lock key.
       // v3: added recentResults[] per-game for the 3-in-a-row OR 4-of-5 rule.
+      // v4: added practiceLevels + practiceAlerts (child-chosen drill level).
       migrate: (persisted, fromVersion) => {
         if (!persisted) return persisted;
         if (fromVersion < 2) {
@@ -397,6 +398,13 @@ const useGameStore = create(
             }
           }
         }
+        if (fromVersion < 4) {
+          persisted.practiceLevels = persisted.practiceLevels || {
+            equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0,
+            magicPatterns: 0, grid: 0, word: 0, multChamp: 0, percentages: 0,
+          };
+          persisted.practiceAlerts = persisted.practiceAlerts || {};
+        }
         return persisted;
       },
       // Safety net even when version matches — any missing per-game key falls
@@ -405,7 +413,9 @@ const useGameStore = create(
       merge: (persisted, current) => {
         const merged = { ...current, ...(persisted || {}) };
         if (!merged.percentages) merged.percentages = current.percentages;
-        merged.locks = { ...current.locks, ...(persisted?.locks || {}) };
+        merged.locks          = { ...current.locks,          ...(persisted?.locks          || {}) };
+        merged.practiceLevels = { ...current.practiceLevels, ...(persisted?.practiceLevels || {}) };
+        merged.practiceAlerts = { ...(persisted?.practiceAlerts || {}) };
         return merged;
       },
       partialize: (state) => ({

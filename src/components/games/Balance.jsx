@@ -51,7 +51,8 @@ function PanContent({ text }) {
 }
 
 export default function Balance() {
-  const gameState = useGameStore((s) => s.balance);
+  const gameState    = useGameStore((s) => s.balance);
+  const practiceLvl  = useGameStore((s) => s.practiceLevels.balance || 0);
   const handleWin = useGameStore((s) => s.handleWin);
   const handleGameFail = useGameStore((s) => s.handleGameFail);
   const setScreen = useGameStore((s) => s.setScreen);
@@ -99,7 +100,7 @@ export default function Balance() {
   });
 
   const initGame = useCallback(() => {
-    const lvl = gameState.lvl;
+    const lvl = practiceLvl || gameState.lvl;
     setLives(3);
     setJustLost(false);
     setSliderVal(1);
@@ -188,7 +189,7 @@ export default function Balance() {
         rFnRef.current = () => t;
       }
     }
-  }, [gameState.lvl]);
+  }, [gameState.lvl, practiceLvl]);
 
   useEffect(() => {
     initGame();

@@ -480,6 +480,7 @@ function renderLhsPart(part, i, hideColors) {
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function MagicPatterns() {
   const gameState    = useGameStore((s) => s.magicPatterns);
+  const practiceLvl  = useGameStore((s) => s.practiceLevels.magicPatterns || 0);
   const handleWin    = useGameStore((s) => s.handleWin);
 
   const [question,     setQuestion]     = useState(null);
@@ -510,7 +511,7 @@ export default function MagicPatterns() {
 
   // ── New question ────────────────────────────────────────────────────────────
   const newQuestion = useCallback(() => {
-    const q = generateQuestion(gameState.lvl, recentRef.current);
+    const q = generateQuestion(practiceLvl || gameState.lvl, recentRef.current);
     recentRef.current = [q.key, ...recentRef.current].slice(0, 3);
     setQuestion(q);
     setBankCards(q.bankCards);
@@ -525,7 +526,7 @@ export default function MagicPatterns() {
       setLives(3);
       setColorsHidden(true);
     }
-  }, [gameState.lvl]);
+  }, [gameState.lvl, practiceLvl]);
 
   useEffect(() => { newQuestion(); }, [newQuestion]);
 

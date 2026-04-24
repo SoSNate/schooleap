@@ -167,7 +167,8 @@ const modeLabels = {
 };
 
 export default function FractionLab() {
-  const gameState = useGameStore((s) => s.fractionLab);
+  const gameState   = useGameStore((s) => s.fractionLab);
+  const practiceLvl = useGameStore((s) => s.practiceLevels.fractionLab || 0);
   const handleWinStore = useGameStore((s) => s.handleWin);
   const handleGameFail = useGameStore((s) => s.handleGameFail);
   const setScreen = useGameStore((s) => s.setScreen);
@@ -190,7 +191,7 @@ export default function FractionLab() {
   }, []);
 
   const newQuestion = useCallback(() => {
-    const q = generateQuestion(gameState.lvl, recentRef.current);
+    const q = generateQuestion(practiceLvl || gameState.lvl, recentRef.current);
     recentRef.current = [q.key, ...recentRef.current].slice(0, 3);
     setQuestion(q);
     setUserN(1);
@@ -199,7 +200,7 @@ export default function FractionLab() {
     setJustLost(false);
     setConsecutiveErrors(0);
     setLives(3);
-  }, [gameState.lvl]);
+  }, [gameState.lvl, practiceLvl]);
 
   useEffect(() => { newQuestion(); }, [newQuestion]);
 

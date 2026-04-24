@@ -135,6 +135,7 @@ const NUM_ROWS = { 1: 2, 2: 2, 3: 2, 4: 2, 5: 1 };
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function Equations() {
   const gameState      = useGameStore((s) => s.equations);
+  const practiceLvl    = useGameStore((s) => s.practiceLevels.equations || 0);
   const handleWinStore = useGameStore((s) => s.handleWin);
 
   const [rows,       setRows]       = useState([]);
@@ -185,13 +186,14 @@ export default function Equations() {
 
   // Use crypto.randomUUID for guaranteed-unique, non-resettable block IDs
   const nextId = () => crypto.randomUUID();
-  const isLvl5 = gameState.lvl === 5;
+  const effectiveLvl = practiceLvl || gameState.lvl;
+  const isLvl5 = effectiveLvl === 5;
 
   useEffect(() => { countRef.current = gameState.count; }, [gameState.count]);
 
   // ─── Game init ──────────────────────────────────────────────────────────────
   const initGame = useCallback(() => {
-    const lvl  = gameState.lvl;
+    const lvl  = practiceLvl || gameState.lvl;
     const tier = Math.min(countRef.current, 2);
     setJustLost(false);
     resetHintRound();
@@ -294,7 +296,7 @@ export default function Equations() {
 
     setRows(newRows);
     setPool(poolItems);
-  }, [gameState.lvl]);
+  }, [gameState.lvl, practiceLvl]);
 
   useEffect(() => { initGame(); }, [initGame]);
 

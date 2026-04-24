@@ -72,55 +72,86 @@ const RotaryKnob = ({ stepIndex, onChange }) => {
 
   const rotation = stepIndex * 90; // 0°, 90°, 180°, 270°
 
-  const labelDefs = [
-    { idx: 0, content: <span className="text-xs font-black">×1</span>,                                                                          style: { top: '-1.4rem',  left: '50%', transform: 'translateX(-50%)' } },
-    { idx: 1, content: <div className="flex items-center gap-0.5 text-xs font-black" dir="ltr"><span>×</span><Fraction n={1} d={10}   /></div>, style: { top: '50%',    right: '-3.5rem', transform: 'translateY(-50%)' } },
-    { idx: 2, content: <div className="flex flex-col items-center gap-0 text-xs font-black" dir="ltr"><span>×</span><Fraction n={1} d={100}  /></div>, style: { bottom: '-2.2rem', left: '50%', transform: 'translateX(-50%)' } },
-    { idx: 3, content: <div className="flex items-center gap-0.5 text-xs font-black" dir="ltr"><span>×</span><Fraction n={1} d={1000} /></div>, style: { top: '50%',    left:  '-4rem',   transform: 'translateY(-50%)' } },
+  // 4 arms: each arm has a line from knob-edge to the label, plus a clickable label
+  // Container: 220×220 SVG, center at (110,110). Knob radius=44. Arm tip radius=88.
+  const C = 110, KNOB_R = 44, TIP_R = 82, LABEL_R = 96;
+  const arms = [
+    { idx: 0, cx: C,       cy: C - TIP_R,  lx: C,         ly: C - LABEL_R,   labelEl: <span>×1</span> },
+    { idx: 1, cx: C + TIP_R, cy: C,        lx: C + LABEL_R, ly: C,            labelEl: <><span>×</span><Fraction n={1} d={10} /></> },
+    { idx: 2, cx: C,       cy: C + TIP_R,  lx: C,           ly: C + LABEL_R,  labelEl: <><span>×</span><Fraction n={1} d={100} /></> },
+    { idx: 3, cx: C - TIP_R, cy: C,        lx: C - LABEL_R, ly: C,            labelEl: <><span>×</span><Fraction n={1} d={1000} /></> },
   ];
 
   return (
-    <div className="flex flex-col items-center gap-1">
-      {/* מעגל חיצוני עם תוויות טקסט */}
-      <div className="relative flex items-center justify-center w-full h-44 mt-1" style={{ paddingBottom: '1.5rem' }}>
+    <div className="flex flex-col items-center">
+      <div className="relative" style={{ width: 220, height: 220 }}>
 
-        {/* תוויות ניתנות ללחיצה — ללא עיגול */}
-        {labelDefs.map(({ idx, content, style }) => (
-          <button
-            key={idx}
-            onClick={() => { onChange(idx); vibe(10); }}
-            className={`absolute font-black text-sm leading-none transition-all active:scale-90 ${
-              stepIndex === idx
-                ? 'text-yellow-500'
-                : 'text-slate-400 dark:text-slate-500'
-            }`}
-            style={{ position: 'absolute', ...style }}
-            dir="ltr"
-          >
-            {content}
-          </button>
-        ))}
+        {/* SVG: minor ticks + arm lines */}
+        <svg width={220} height={220} className="absolute inset-0 pointer-events-none">
+          {/* Minor ticks — every 10°, skip the 4 major positions (0,90,180,270) */}
+          {Array.from({ length: 36 }).map((_, i) => {
+            if (i % 9 === 0) return null; // skip major — arm handles those
+            const angle = (i * 10 - 90) * (Math.PI / 180);
+            const ir = KNOB_R + 6, or = KNOB_R + 12;
+            return (
+              <line key={i}
+                x1={C + ir * Math.cos(angle)} y1={C + ir * Math.sin(angle)}
+                x2={C + or * Math.cos(angle)} y2={C + or * Math.sin(angle)}
+                stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round"
+              />
+            );
+          })}
+          {/* Major arms — from knob edge to label tip */}
+          {arms.map(({ idx, cx, cy }) => {
+            const angle = Math.atan2(cy - C, cx - C);
+            const active = stepIndex === idx;
+            return (
+              <line key={idx}
+                x1={C + KNOB_R * Math.cos(angle)} y1={C + KNOB_R * Math.sin(angle)}
+                x2={cx} y2={cy}
+                stroke={active ? '#eab308' : '#cbd5e1'}
+                strokeWidth={active ? 3 : 2}
+                strokeLinecap="round"
+              />
+            );
+          })}
+        </svg>
 
-        {/* שנתות קישוט */}
-        {Array.from({ length: 36 }).map((_, i) => (
-          <div key={i} className="absolute pointer-events-none" style={{ width: '100%', height: '100%', transform: `rotate(${i * 10}deg)` }}>
-            <div className={`mx-auto w-0.5 rounded-full ${i % 9 === 0 ? 'h-2.5 bg-slate-300 dark:bg-slate-600' : 'h-1.5 bg-slate-200 dark:bg-slate-700'}`} />
-          </div>
-        ))}
+        {/* Labels at arm tips — HTML for fraction support */}
+        {arms.map(({ idx, lx, ly, labelEl }) => {
+          const active = stepIndex === idx;
+          return (
+            <button
+              key={idx}
+              onClick={() => { onChange(idx); vibe(10); }}
+              className={`absolute flex items-center gap-0.5 text-xs font-black leading-none transition-all active:scale-90 ${
+                active ? 'text-yellow-500' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600'
+              }`}
+              dir="ltr"
+              style={{ left: lx, top: ly, transform: 'translate(-50%, -50%)' }}
+            >
+              {labelEl}
+            </button>
+          );
+        })}
 
-        {/* הרולר עצמו */}
+        {/* Knob */}
         <div
           ref={knobRef}
-          className="rounded-full bg-slate-100 dark:bg-slate-700 shadow-[inset_0_4px_8px_rgba(0,0,0,0.1),0_8px_16px_rgba(0,0,0,0.2)] border-4 border-slate-200 dark:border-slate-600 flex items-center justify-center cursor-pointer relative touch-none z-10"
+          className="absolute rounded-full bg-slate-100 dark:bg-slate-700 shadow-[inset_0_4px_8px_rgba(0,0,0,0.1),0_8px_16px_rgba(0,0,0,0.2)] border-4 border-slate-200 dark:border-slate-600 flex items-center justify-center cursor-pointer touch-none z-10"
           onMouseDown={handleStart}
           onTouchStart={handleStart}
-          style={{ width: '7rem', height: '7rem', transform: `rotate(${rotation}deg)`, transition: 'transform 0.2s ease-out' }}
+          style={{
+            width: KNOB_R * 2, height: KNOB_R * 2,
+            left: C - KNOB_R, top: C - KNOB_R,
+            transform: `rotate(${rotation}deg)`,
+            transition: 'transform 0.2s ease-out',
+          }}
         >
           <div className="absolute top-2 w-3 h-3 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.8)]" />
           <div className="w-8 h-8 rounded-full border-2 border-slate-200 dark:border-slate-500 opacity-50" />
         </div>
       </div>
-
     </div>
   );
 };
@@ -295,7 +326,8 @@ const levelSets = [
 ];
 
 export default function Decimal() {
-  const gameState = useGameStore((s) => s.decimal);
+  const gameState   = useGameStore((s) => s.decimal);
+  const practiceLvl = useGameStore((s) => s.practiceLevels.decimal || 0);
   const handleWinStore = useGameStore((s) => s.handleWin);
   const handleGameFail = useGameStore((s) => s.handleGameFail);
   const setScreen = useGameStore((s) => s.setScreen);
@@ -351,7 +383,7 @@ export default function Decimal() {
   const lvl = gameState.lvl;
 
   const initGame = useCallback(() => {
-    const pool = levelSets[(gameState.lvl - 1)] || levelSets[0];
+    const pool = levelSets[((practiceLvl || gameState.lvl) - 1)] || levelSets[0];
     const recent = recentRef.current;
     const available = pool.filter((f) => !recent.includes(f.v));
     const candidates = available.length > 0 ? available : pool;
@@ -373,7 +405,7 @@ export default function Decimal() {
       : midPos;
     setPosition(startPos);
     setConsecutiveErrors(0);
-  }, [gameState.lvl]);
+  }, [gameState.lvl, practiceLvl]);
 
   useEffect(() => { initGame(); }, [initGame]);
 

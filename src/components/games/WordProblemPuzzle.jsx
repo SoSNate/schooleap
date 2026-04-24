@@ -433,6 +433,7 @@ function Numpad({ onInput, onDelete }) {
 /* ── Main Component ──────────────────────────────────────────────────────── */
 export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
   const gameState      = useGameStore(s => s.word);
+  const practiceLvl    = useGameStore(s => s.practiceLevels.word || 0);
   const handleWin      = useGameStore(s => s.handleWin);
   const handleGameFail = useGameStore(s => s.handleGameFail);
   const setScreen      = useGameStore(s => s.setScreen);
@@ -475,7 +476,7 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
 
   /* ── new question ──────────────────────────────────────────────────────── */
   const newQuestion = useCallback(() => {
-    const q = generateQuestion(gameState.lvl, recentRef.current, config);
+    const q = generateQuestion(practiceLvl || gameState.lvl, recentRef.current, config);
     recentRef.current = [q.schemaId, ...recentRef.current].slice(0, 3);
     setQuestion(q);
     setStep('collect');
@@ -489,7 +490,7 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
     setErrorMsg('');
     setConsErrors(0);
     resetHintRound();
-  }, [gameState.lvl, config, resetHintRound]);
+  }, [gameState.lvl, practiceLvl, config, resetHintRound]);
 
   useEffect(() => { newQuestion(); }, [newQuestion]);
 

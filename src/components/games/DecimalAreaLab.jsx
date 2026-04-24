@@ -59,6 +59,7 @@ function hasCollision(r1, r2) {
 // ── Component ──────────────────────────────────────────────────────────────────
 export default function DecimalAreaLab() {
   const gameState      = useGameStore((s) => s.grid);
+  const practiceLvl    = useGameStore((s) => s.practiceLevels.grid || 0);
   const handleWin      = useGameStore((s) => s.handleWin);
   const handleLightFail = useGameStore((s) => s.handleLightFail);
 
@@ -111,7 +112,7 @@ export default function DecimalAreaLab() {
 
   // ── Init level ──────────────────────────────────────────────────────────────
   const newLevel = useCallback(() => {
-    const ld = generateLevel(gameState.lvl, recentTargetsRef.current);
+    const ld = generateLevel(practiceLvl || gameState.lvl, recentTargetsRef.current);
     recentTargetsRef.current = [ld.target, ...recentTargetsRef.current].slice(0, 2);
     setLevelData(ld);
     setPlaced([]);
@@ -121,7 +122,7 @@ export default function DecimalAreaLab() {
     setJustLost(false);
     setDisabled(false);
     setNearEdge(false);
-  }, [gameState.lvl]);
+  }, [gameState.lvl, practiceLvl]);
 
   useEffect(() => { newLevel(); }, [newLevel]);
 

@@ -11,7 +11,8 @@ import Swal from 'sweetalert2'; // נשאר רק ל-fail dialog (Tank שומר l
 import GameTutorial from '../shared/GameTutorial';
 
 export default function Tank() {
-  const gameState = useGameStore((s) => s.tank);
+  const gameState   = useGameStore((s) => s.tank);
+  const practiceLvl = useGameStore((s) => s.practiceLevels.tank || 0);
   const handleWin = useGameStore((s) => s.handleWin);
   const handleGameFail = useGameStore((s) => s.handleGameFail);
   const setScreen = useGameStore((s) => s.setScreen);
@@ -64,7 +65,7 @@ export default function Tank() {
   });
 
   const initGame = useCallback(() => {
-    const lvl = gameState.lvl;
+    const lvl = practiceLvl || gameState.lvl;
     let d, n, u, display;
     let attempts = 0;
     const recent = recentRef.current;
@@ -201,7 +202,7 @@ export default function Tank() {
     setJustLost(false);
     setConsecutiveErrors(0);
     resetHintRound();
-  }, [gameState.lvl, resetHintRound]);
+  }, [gameState.lvl, practiceLvl, resetHintRound]);
 
   useEffect(() => {
     initGame();

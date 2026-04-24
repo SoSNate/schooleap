@@ -153,10 +153,11 @@ const INSTRUCTIONS = {
 // ─── Main component ──────────────────────────────────────────────────────────
 export default function PercentsLab() {
   const gameState      = useGameStore(s => s.percentages);
+  const practiceLvl    = useGameStore(s => s.practiceLevels.percentages || 0);
   const handleWinStore = useGameStore(s => s.handleWin);
   const isAnimating    = useGameStore(s => s.isAnimating);
 
-  const [puzzle,    setPuzzle]    = useState(() => generatePuzzle(gameState.lvl));
+  const [puzzle,    setPuzzle]    = useState(() => generatePuzzle(practiceLvl || gameState.lvl));
   const [userLogic, setUserLogic] = useState({ operation: 'multiply', factor: 2 });
   const [justLost,  setJustLost]  = useState(false);
   const [feedback,  setFeedback]  = useState({ visible: false });
@@ -240,7 +241,8 @@ export default function PercentsLab() {
   }, [gameState.lvl]);
 
   const nextPuzzle = useCallback(() => {
-    setPuzzle(generatePuzzle(useGameStore.getState().percentages.lvl));
+    const s = useGameStore.getState();
+    setPuzzle(generatePuzzle(s.practiceLevels.percentages || s.percentages.lvl));
     setUserLogic({ operation: 'multiply', factor: 2 });
     setJustLost(false);
     setHintGlow(false);

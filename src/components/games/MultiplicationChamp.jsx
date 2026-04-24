@@ -89,6 +89,7 @@ function generateRound(lvl) {
 
 export default function MultiplicationChamp() {
   const gameState       = useGameStore((s) => s.multChamp);
+  const practiceLvl     = useGameStore((s) => s.practiceLevels.multChamp || 0);
   const handleWin       = useGameStore((s) => s.handleWin);
   const handleGameFail  = useGameStore((s) => s.handleGameFail);
   const setScreen       = useGameStore((s) => s.setScreen);
@@ -129,14 +130,14 @@ export default function MultiplicationChamp() {
   }, []);
 
   const startRound = useCallback(() => {
-    const r = generateRound(gameState.lvl);
+    const r = generateRound(practiceLvl || gameState.lvl);
     setRound(r);
     setSelected([]);
     setFlash(null);
-  }, [gameState.lvl]);
+  }, [gameState.lvl, practiceLvl]);
 
   const startGame = useCallback(() => {
-    const cfg = LEVELS[gameState.lvl];
+    const cfg = LEVELS[practiceLvl || gameState.lvl];
     setScore(0);
     setCorrectPairs(0);
     setTimeLeft(cfg.timeLimit);
@@ -144,7 +145,7 @@ export default function MultiplicationChamp() {
     startTimeRef.current = performance.now();
     setGameOver(false);
     startRound();
-  }, [gameState.lvl, startRound]);
+  }, [gameState.lvl, practiceLvl, startRound]);
 
   useEffect(() => { startGame(); }, [startGame]);
 

@@ -273,9 +273,9 @@ export default function DecimalAreaLab() {
   };
 
   return (
-    <div className="screen-enter flex flex-col flex-1 min-h-[calc(100dvh-80px)] bg-slate-100 dark:bg-slate-900">
+    <div className="screen-enter flex flex-col flex-1 h-[calc(100dvh-56px)] sm:h-[calc(100dvh-64px)] bg-slate-100 dark:bg-slate-900 overflow-hidden">
       <GameTutorial gameName="grid" level={gameState.lvl} />
-      <div className="flex-1 flex flex-col items-center justify-center pt-2 pb-6 px-2 gap-3 overflow-y-auto">
+      <div className="flex-1 flex flex-col items-center justify-center pt-2 pb-6 px-2 gap-3 overflow-hidden">
 
         {/* Main container — centered and compact */}
         <div className="w-full max-w-sm">

@@ -704,11 +704,11 @@ export default function MagicPatterns() {
 
 
   return (
-    <div className={`screen-enter flex flex-col flex-1 min-h-[calc(100dvh-80px)] ${errorFlash ? 'error-flash' : ''}`}>
+    <div className={`screen-enter flex flex-col flex-1 h-[calc(100dvh-56px)] sm:h-[calc(100dvh-64px)] overflow-hidden ${errorFlash ? 'error-flash' : ''}`}>
       <GameTutorial gameName="magicPatterns" level={gameState.lvl} />
 
-      {/* ── Scrollable content ── */}
-      <div className="flex-1 flex flex-col items-center p-4 gap-4 overflow-y-auto">
+      {/* ── Content ── */}
+      <div className="flex-1 flex flex-col items-center p-4 gap-4 overflow-hidden">
         <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] w-full max-w-md shadow-xl flex flex-col items-center gap-5 p-6 border-2 border-pink-200 dark:border-pink-800/40 border-b-4 border-b-pink-400 dark:border-b-pink-700 transition-colors">
 
           {/* Scaffold stage indicator + hint button + hearts for L4-L5 */}

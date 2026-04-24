@@ -282,9 +282,9 @@ export default function PercentsLab() {
   ];
 
   return (
-    <div dir="rtl" className="screen-enter flex flex-col flex-1 min-h-[calc(100dvh-80px)] bg-slate-100 dark:bg-slate-900 select-none">
+    <div dir="rtl" className="screen-enter flex flex-col flex-1 h-[calc(100dvh-56px)] sm:h-[calc(100dvh-64px)] bg-slate-100 dark:bg-slate-900 select-none overflow-hidden">
       <GameTutorial gameName="percentages" />
-      <div className="flex-1 flex flex-col items-center pt-5 pb-10 gap-5 overflow-y-auto overflow-x-hidden">
+      <div className="flex-1 flex flex-col items-center pt-5 pb-6 gap-5 overflow-hidden">
 
         {/* Top bar */}
         <div className="flex items-center justify-center gap-2 sm:gap-3 bg-white dark:bg-slate-800 rounded-2xl px-3 sm:px-4 py-2 border border-slate-100 dark:border-slate-700 shadow-sm w-fit mx-auto">

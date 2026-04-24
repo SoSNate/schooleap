@@ -159,6 +159,7 @@ export default function PercentsLab() {
   const [justLost,  setJustLost]  = useState(false);
   const [feedback,  setFeedback]  = useState({ visible: false });
   const [hintGlow,  setHintGlow]  = useState(false);
+  const [showLabels, setShowLabels] = useState(false);
 
   // Track pending timeouts so unmount doesn't fire setters on dead component.
   const timersRef = useRef([]);
@@ -210,6 +211,9 @@ export default function PercentsLab() {
       setHintGlow(true);
       schedule(() => setHintGlow(false), 1600);
     }
+    // Show axis labels when hint is used
+    setShowLabels(true);
+    schedule(() => setShowLabels(false), 3000);
   }, []);
 
   const {
@@ -238,6 +242,7 @@ export default function PercentsLab() {
     setUserLogic({ operation: 'multiply', factor: 2 });
     setJustLost(false);
     setHintGlow(false);
+    setShowLabels(false);
     resetHintRound();
   }, [resetHintRound]);
 
@@ -301,16 +306,16 @@ export default function PercentsLab() {
         <div className="flex justify-center w-full">
           <div className="relative" style={{ width: 448 * boardScale + (puzzle.puzzleType === 'vertical' ? 44 : 0) }}>
             {puzzle.puzzleType === 'vertical' && (
-              <div className="flex mb-1" dir="ltr" style={{ width: 448 * boardScale, marginRight: 44, paddingLeft: 80 * boardScale, paddingRight: 80 * boardScale }}>
-                <span className="flex-1 text-[10px] sm:text-xs font-bold text-slate-400 text-center">₪ שקלים</span>
-                <span className="flex-1 text-[10px] sm:text-xs font-bold text-slate-400 text-center">% אחוזים</span>
+              <div className="flex mb-1 transition-opacity duration-300" dir="ltr" style={{ width: 448 * boardScale, marginRight: 44, paddingLeft: 80 * boardScale, paddingRight: 80 * boardScale, opacity: showLabels ? 1 : 0, pointerEvents: showLabels ? 'auto' : 'none' }}>
+                <span className="flex-1 text-[10px] sm:text-xs font-bold text-sky-400 text-center">₪ שקלים</span>
+                <span className="flex-1 text-[10px] sm:text-xs font-bold text-sky-400 text-center">% אחוזים</span>
               </div>
             )}
             <div className="flex items-start">
               {puzzle.puzzleType === 'vertical' && (
-                <div className="flex flex-col justify-around pr-1" style={{ width: 44, height: 384 * boardScale }}>
-                  <span className="text-[10px] sm:text-xs font-bold text-slate-400 text-center leading-tight">חלק</span>
-                  <span className="text-[10px] sm:text-xs font-bold text-slate-400 text-center leading-tight">סכום<br/>כולל</span>
+                <div className="flex flex-col justify-around pr-1 transition-opacity duration-300" style={{ width: 44, height: 384 * boardScale, opacity: showLabels ? 1 : 0, pointerEvents: showLabels ? 'auto' : 'none' }}>
+                  <span className="text-[10px] sm:text-xs font-bold text-sky-400 text-center leading-tight">חלק</span>
+                  <span className="text-[10px] sm:text-xs font-bold text-sky-400 text-center leading-tight">סכום<br/>כולל</span>
                 </div>
               )}
               <div className="relative" dir="ltr" style={{ width: 448 * boardScale, height: 384 * boardScale }}>

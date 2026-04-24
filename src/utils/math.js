@@ -13,6 +13,7 @@ export const GAME_COLORS = {
   grid:          { token: 'teal',    bar: 'bg-teal-500' },
   word:          { token: 'red',     bar: 'bg-red-800' },
   multChamp:     { token: 'lime',    bar: 'bg-lime-500' },
+  percentages:   { token: 'sky',     bar: 'bg-sky-500' },
 };
 
 export const anims = {

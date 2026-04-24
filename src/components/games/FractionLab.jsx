@@ -323,7 +323,7 @@ export default function FractionLab() {
 
           {consecutiveErrors >= 2 && (
             <button
-              onClick={showHint}
+              onClick={requestHint}
               className="w-full text-sm font-bold text-amber-700 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300 px-4 py-2 rounded-xl border border-amber-200 dark:border-amber-800 animate-pulse active:scale-95 transition-transform"
             >
               💡 לחץ לרמז — זה עוזר!
@@ -363,7 +363,7 @@ export default function FractionLab() {
           </div>
 
           <button
-            onClick={showHint}
+            onClick={requestHint}
             className="w-full py-2 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 rounded-xl font-bold text-sm transition-all active:scale-95"
           >
             💡 רמז

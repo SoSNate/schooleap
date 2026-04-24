@@ -17,6 +17,7 @@ const gameOptions = [
   { value: 'grid', label: 'מעבדת השטחים' },
   { value: 'word', label: 'המעבדה המילולית' },
   { value: 'multChamp', label: 'אלוף הכפל' },
+  { value: 'percentages', label: 'מעבדת אחוזים' },
 ];
 
 const GAME_LEGEND = [
@@ -29,6 +30,7 @@ const GAME_LEGEND = [
   { key: 'grid', color: GAME_COLORS.grid.bar,          label: 'שטחים' },
   { key: 'word', color: GAME_COLORS.word.bar,          label: 'מילולי' },
   { key: 'mult', color: GAME_COLORS.multChamp.bar,     label: 'כפל' },
+  { key: 'pct',  color: GAME_COLORS.percentages.bar,  label: 'אחוזים' },
 ];
 
 const dayNames = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
@@ -45,6 +47,7 @@ const getGameBarClass = (shortKey) => {
     grid: GAME_COLORS.grid.bar,
     word: GAME_COLORS.word.bar,
     mult: GAME_COLORS.multChamp.bar,
+    pct:  GAME_COLORS.percentages.bar,
   };
   return map[shortKey] || 'bg-slate-300';
 };

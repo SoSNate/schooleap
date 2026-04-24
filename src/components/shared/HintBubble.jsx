@@ -8,7 +8,7 @@ export default function HintBubble({ text, className = '' }) {
     <div
       dir="rtl"
       className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md
-        bg-amber-50 dark:bg-amber-900/40 border-2 border-amber-300 dark:border-amber-600
+        bg-amber-100 dark:bg-amber-900 border-2 border-amber-400 dark:border-amber-500
         rounded-2xl px-5 py-3 text-center shadow-xl
         animate-[hint-pop_0.25s_ease-out] ${className}`}
       role="status"

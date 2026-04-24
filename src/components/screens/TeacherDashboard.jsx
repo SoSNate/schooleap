@@ -75,6 +75,14 @@ export default function TeacherDashboard() {
   useEffect(() => {
     let mounted = true;
 
+    // Dev mode: localhost bypass
+    const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (isLocalhost) {
+      setUser({ id: 'dev-teacher', email: 'teacher@localhost' });
+      setLoading(false);
+      return () => { mounted = false; };
+    }
+
     // Fast path: getSession reads from localStorage — no network, near-instant.
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!mounted) return;

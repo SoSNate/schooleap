@@ -555,6 +555,15 @@ export default function AdminDashboard() {
   useEffect(() => {
     let mounted = true;
 
+    // Dev mode: localhost bypass
+    const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (isLocalhost) {
+      setUser({ id: 'dev-admin', email: 'admin@localhost' });
+      setIsAdmin(true);
+      setLoading(false);
+      return () => { mounted = false; };
+    }
+
     async function resolve(session) {
       const u = session?.user ?? null;
       setUser(u);

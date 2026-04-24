@@ -113,6 +113,7 @@ const useGameStore = create(
         let newLvl = s[game].lvl;
         let isLevelUp = false;
         let unlocked = false;
+        let isCapped = false;
         let newConsecutiveWins = s[game].consecutiveWins;
 
         // Update weekly stats
@@ -162,8 +163,8 @@ const useGameStore = create(
           const prevRecent = Array.isArray(s[game].recentResults) ? s[game].recentResults : [];
           const recent = [...prevRecent, true].slice(-5);
 
-          // Assignment sub-level cap: אם הילד ברמה >= assignment.level, לא מעלים רמה.
-          const assignmentCap = (s.assignments || []).find(a => a.game_name === game)?.level;
+          // Assignment sub-level cap: אם הילד ברמה >= assignment.target_level, לא מעלים רמה.
+          const assignmentCap = (s.assignments || []).find(a => a.game_name === game)?.target_level;
           const capped = (typeof assignmentCap === 'number') && newLvl >= assignmentCap;
 
           const last3 = recent.slice(-3);
@@ -178,6 +179,8 @@ const useGameStore = create(
             newCount = 0;
             isLevelUp = true;
             newRecent = []; // reset window on level-up
+          } else if (shouldLevelUp && capped) {
+            isCapped = true; // would level up but assignment cap prevents it
           }
           set({
             isAnimating: true,
@@ -200,7 +203,7 @@ const useGameStore = create(
           }, 3000);
         }
 
-        return { isLevelUp, unlocked, pts };
+        return { isLevelUp, unlocked, pts, isCapped };
       },
 
       finishAnimation: () => {

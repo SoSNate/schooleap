@@ -92,7 +92,7 @@ export default function Menu({ goals = [] }) {
                 {currentAssignment.title || `הגע לרמה ${currentAssignment.target_level} ב${currentGameMeta.label}`}
               </p>
               <p className="text-[11px] text-indigo-100 mt-0.5">
-                רמת יעד: {currentAssignment.target_level} • שאר המשחקים נעולים עד לסיום
+                תוכל לשחק ברמות 1–{currentAssignment.target_level} • שאר המשחקים נעולים עד לסיום
               </p>
             </div>
           </div>

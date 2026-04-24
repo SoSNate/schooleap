@@ -215,8 +215,11 @@ export default function GameApp() {
     captureInstallEvent();
     let mounted = true;
 
+    // Dev mode: skip onboarding on localhost
+    const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
     try {
-      if (!localStorage.getItem(ONBOARD_KEY)) setShowOnboarding(true);
+      if (!isLocalhost && !localStorage.getItem(ONBOARD_KEY)) setShowOnboarding(true);
+      if (isLocalhost) localStorage.setItem(ONBOARD_KEY, '1'); // Mark onboarding as seen
     } catch { /* storage blocked */ }
 
     const installTimer = setTimeout(() => {
@@ -239,7 +242,8 @@ export default function GameApp() {
     if (isLocalhost && !token) {
       // Auto-set dev token for localhost
       localStorage.setItem(TOKEN_KEY, 'dev-mode-local');
-      setSubscription({ status: 'trial', expiresAt: null });
+      useGameStore.setState({ subscription: { status: 'trial', expiresAt: null, checked: true } });
+      setSubscription({ status: 'trial', expiresAt: null, checked: true });
       return;
     }
 
@@ -317,7 +321,7 @@ export default function GameApp() {
   // ── Dev mode: localhost bypass — set token + init game state ──────────────
   if (isLocalhost && !localStorage.getItem(TOKEN_KEY)) {
     localStorage.setItem(TOKEN_KEY, 'dev-mode-local');
-    setSubscription({ status: 'trial', expiresAt: null });
+    setSubscription({ status: 'trial', expiresAt: null, checked: true });
   }
 
   // ── Waiting for ChildEntry to finish the subscription check ──────────────

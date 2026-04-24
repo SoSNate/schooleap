@@ -181,7 +181,17 @@ export default function LandingPage() {
               className="w-full flex items-center justify-center gap-3 bg-amber-500 hover:bg-amber-400 text-white font-black py-4 px-8 rounded-2xl text-lg transition-all active:scale-95 shadow-lg shadow-amber-500/30"
             >
               <span>🚀 המשך כ-{returningChild.name}</span>
-              </button>
+            </button>
+          )}
+
+          {/* כפתור 0.5: משחקים (dev mode) */}
+          {typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
+            <button
+              onClick={() => navigate('/play')}
+              className="w-full flex items-center justify-center gap-3 bg-orange-500 hover:bg-orange-400 text-white font-black py-4 px-8 rounded-2xl text-lg transition-all active:scale-95 shadow-lg shadow-orange-500/30"
+            >
+              <span>🎮 משחקים</span>
+            </button>
           )}
 
           {/* כפתור 1: הורים */}

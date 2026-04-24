@@ -51,29 +51,10 @@ export default function Header() {
         <h1 className="font-black text-base sm:text-lg md:text-xl tracking-tight hidden xs:block sm:block truncate">
           חשבונאוטיקה
         </h1>
-        {rank && (
-          <span
-            className={`hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${rank.cls} transition-colors flex-shrink-0`}
-            title={`דרגה נוכחית במשחק: ${rank.label}`}
-            aria-label={`דרגה: ${rank.label}`}
-          >
-            {rank.label}
-          </span>
-        )}
       </div>
 
       {/* ── Right: actions — flex-shrink-0 so buttons never get clipped ── */}
       <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
-        {/* Rank badge — mobile only (shown instead of left-side badge) */}
-        {rank && (
-          <span
-            className={`sm:hidden inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border ${rank.cls} transition-colors`}
-            aria-label={`דרגה: ${rank.label}`}
-          >
-            {rank.label}
-          </span>
-        )}
-
         {/* Stars counter */}
         <div className="bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 px-2 sm:px-3 py-1 rounded-full text-xs font-bold border border-amber-100 dark:border-amber-800/50 whitespace-nowrap flex items-center gap-1 transition-colors">
           ⭐ <span>{totalStars}</span>

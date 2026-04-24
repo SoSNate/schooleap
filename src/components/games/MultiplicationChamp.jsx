@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import useGameStore from '../../store/useGameStore';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
 import Fraction from '../shared/Fraction';
+import HintButton from '../shared/HintButton';
 import { vibe, gcd, shuffle } from '../../utils/math';
 import Swal from 'sweetalert2';
 import GameTutorial from '../shared/GameTutorial';
@@ -283,12 +284,12 @@ export default function MultiplicationChamp() {
             </div>
           </div>
 
-          <button
+          <HintButton
+            cooldown={0}
             onClick={() => setShowHint(!showHint)}
-            className="w-10 h-10 rounded-full bg-lime-100 dark:bg-lime-900/40 text-lime-600 dark:text-lime-400 font-black text-lg flex items-center justify-center hover:bg-lime-200 transition-colors"
-          >
-            💡
-          </button>
+            colorToken="lime"
+            title="רמז"
+          />
         </div>
 
         {/* Hint (fraction levels) */}

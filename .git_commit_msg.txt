@@ -1,0 +1,51 @@
+Sprint 5: Level-up window (3/3 or 4/5), hint unification, lives removal, header rank badge
+
+Core Changes:
+- Store: New level-up rule (3 consecutive OR 4-of-5 recent wins); recentResults sliding window
+- Store: Assignment sub-level cap (child plays at/below assigned level, no level-up above)
+- Store: Migration v3 for backward-compat (recentResults init)
+- Header: RankBadge (טירון/מתקדם/אלוף/רמטכ״ל) replaces game name
+
+Hint System Homogenization:
+- useHint: Added half-hint support (1st=direction, 2nd=partial answer+stars penalty)
+- HintButton + HintBubble now used across all 10 games (replaced Swal.fire inline hints)
+- Per-game hint arrays (EQ_HINTS, BALANCE_HINTS, TANK_HINTS, DECIMAL_HINTS)
+- Cooldown + penalized state tracking
+
+Game-Specific Updates:
+
+Equations:
+- Removed lives (trial-and-error game, half-hint instead)
+- L3: 2 rows, 2 random ops, rich pool (5 distractors) + cognitive freedom
+- L4: 2 rows, 2 random ops, sparse pool (0 distractors) + precision
+- L5: Single complex equation (a+b-c×d÷e=?)
+
+Balance:
+- Fixed weight-var clipping: minWidth:36, paddingInline:8, width:auto
+- Migrated to HintButton + HintBubble
+- Kept lives (anti-cheat mechanism)
+
+Tank:
+- L4 restructured: Pure operations (all-multiply or all-divide, 50/50 split)
+- Slider step adaptive: L1-3=5, L4+=10
+- Liquid: Opaque blue + noise gradient (anti-cheat visual)
+- Enhanced hints: operation-specific + blue-line guidance
+
+Decimal:
+- startPos: Never equals answer (shift by >=1 step if midpoint matches)
+- L2/L3: Merged (32 items, harder items in L3)
+- L5: Added eighths (1/8, 3/8, 5/8, 7/8)
+- Opening text: "לפניך שבר במבנה מונה/מכנה. עליך למצוא את ערכו העשרוני."
+- Migrated hints; fixed mobile overlap (RotaryKnob scaling on small screens)
+- Kept lives (anti-cheat)
+
+PercentsLab, DecimalAreaLab:
+- Removed lives (trial-and-error games)
+- Migrated to half-hint system
+
+Documentation:
+- DESIGN_TIPS.md: 18 principles for future game design (lives, hints, level-up, anti-cheat, RTL, etc.)
+
+Build: ✓ Clean
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>

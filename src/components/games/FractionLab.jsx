@@ -4,8 +4,10 @@ import useGameStore from '../../store/useGameStore';
 import Fraction from '../shared/Fraction';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
 import Hearts from '../shared/Hearts';
+import HintButton from '../shared/HintButton';
+import HintBubble from '../shared/HintBubble';
+import useHint from '../../hooks/useHint';
 import { vibe, gcd } from '../../utils/math';
-import Swal from 'sweetalert2';
 import GameTutorial from '../shared/GameTutorial';
 
 // Circle (pie) visual
@@ -202,30 +204,28 @@ export default function FractionLab() {
   useEffect(() => { newQuestion(); }, [newQuestion]);
 
 
-  const showHint = () => {
-    vibe(20);
-    if (!question) return;
-    const { mode, targetN, targetD } = question;
+  const getFractionHint = useCallback((q) => {
+    if (!q) return null;
+    const { mode, targetN, targetD } = q;
     let text = '';
     if (mode === 'visual' || mode === 'improper') {
       text = 'ספור את מספר החלקים הצבועים ואת סך כל החלקים — זה השבר שלך.';
     } else if (mode === 'equivalent') {
-      text = `שבר שווה ערך נוצר כשמכפילים גם את המונה וגם את המכנה באותו מספר. המכנה החדש הוא ${question.lockedD} — חלק אותו ב-${targetD} כדי למצוא בכמה צריך להכפיל. ואז — כפול את המונה באותו מספר!`;
+      text = `שבר שווה ערך נוצר כשמכפילים גם את המונה וגם את המכנה באותו מספר. המכנה החדש הוא ${q.lockedD} — חלק אותו ב-${targetD} כדי למצוא בכמה צריך להכפיל. ואז — כפול את המונה באותו מספר!`;
     } else if (mode === 'simplify') {
       const g = gcd(targetN, targetD);
       text = `צמצום = לחלק גם את המונה וגם את המכנה במחלק משותף. המחלק הגדול כאן הוא ${g}. חלק ב-${g} לקבל את השבר הפשוט.`;
     } else {
       text = 'שבר מדומה הוא שבר שהמונה שלו גדול מהמכנה. צייר צורה שלמה נוספת כשחלפת את המכנה.';
     }
-    Swal.fire({
-      title: '💡 רמז',
-      text,
-      icon: 'info',
-      confirmButtonText: 'הבנתי, תודה!',
-      confirmButtonColor: '#f59e0b',
-      customClass: { popup: 'rounded-3xl' },
-    });
-  };
+    return { kind: 'text', text };
+  }, []);
+
+  const { cooldown: hintCooldown, bubble: hintBubble, requestHint, resetRound: resetHint } = useHint({
+    level: gameState.lvl,
+    getHint: getFractionHint,
+    puzzle: question,
+  });
 
   const checkAnswer = () => {
     if (!question) return;
@@ -291,9 +291,11 @@ export default function FractionLab() {
               {modeLabels[question.mode]}
             </span>
             <div className="flex gap-1 items-center">
+              <HintButton cooldown={hintCooldown} onClick={requestHint} colorToken="orange" title="רמז" className="self-stretch" />
               <Hearts lives={lives} maxLives={3} justLost={justLost} />
             </div>
           </div>
+          {hintBubble && <HintBubble text={hintBubble} className="w-full" />}
 
           <div className="flex-1 flex items-center justify-center min-h-[150px] w-full">
             {question.mode === 'visual' && <VisualShape n={question.targetN} d={question.targetD} visualMode={question.visualMode} />}

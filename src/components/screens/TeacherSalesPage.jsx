@@ -64,7 +64,7 @@ export default function TeacherSalesPage({ user, onLogout }) {
             { emoji: '📋', title: 'ניהול כיתה מלא', desc: 'קוד הזמנה ייחודי — תלמידים מצטרפים בעצמם' },
             { emoji: '📊', title: 'מעקב התקדמות', desc: 'ראה את ביצועי כל תלמיד בזמן אמת' },
             { emoji: '🎯', title: 'משימות ייעודיות', desc: 'הגדר שיעורי בית ומעקב השלמה אוטומטי' },
-            { emoji: '🚀', title: '9 משחקים אינטראקטיביים', desc: 'חיזוק מיומנויות מתמטיקה בצורה משחקית' },
+            { emoji: '🚀', title: '10 משחקים אינטראקטיביים', desc: 'חיזוק מיומנויות מתמטיקה בצורה משחקית' },
           ].map(f => (
             <div key={f.title} className="flex items-start gap-3 bg-white/5 border border-white/10 rounded-2xl p-4">
               <span className="text-2xl">{f.emoji}</span>

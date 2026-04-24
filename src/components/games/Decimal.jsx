@@ -545,6 +545,7 @@ export default function Decimal() {
             onClick={requestHint}
             colorToken="amber"
             title="רמז"
+            className="self-stretch"
           />
           <button
             onClick={checkAnswer}

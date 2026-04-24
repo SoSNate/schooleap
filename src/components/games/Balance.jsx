@@ -79,11 +79,11 @@ export default function Balance() {
 
   // ─── Hint (HintBubble) ────────────────────────────────────────────────────
   const BALANCE_HINTS = [
-    'תחשוב: מה לשים ב-🟦 כדי ששני הצדדים יהיו שווים? התחל ממספרים קטנים ונסה להרגיש איך הכף זזה!',
+    'תחשוב: מה לשים ב-🟡 כדי ששני הצדדים יהיו שווים? התחל ממספרים קטנים ונסה להרגיש איך הכף זזה!',
     'כפל או חילוק? אם הצד השני גדול — נסה להכפיל. אם קטן — נסה לחלק. התחל מ-2, 3, 4...',
-    '🟦 נמצא בשני הצדדים! הציב אותו מספר בשני הצדדים — 1, 2, 3... מי מאזן? ⚖️',
-    'ביטוי מורכב? הציב 🟦 = 1, 2, 3... ראה את הכף זזה וגלה מי מאזן!',
-    'שני שלבים: 1) מצא את 🟦 עם הכלל. 2) חשב את 🔴. שים בכל פעם מספר אחר ב-🟦.',
+    '🟡 נמצא בשני הצדדים! הציב אותו מספר בשני הצדדים — 1, 2, 3... מי מאזן? ⚖️',
+    'ביטוי מורכב? הציב 🟡 = 1, 2, 3... ראה את הכף זזה וגלה מי מאזן!',
+    'שני שלבים: 1) מצא את 🟡 עם הכלל. 2) חשב את 🔴. שים בכל פעם מספר אחר ב-🟡.',
   ];
   const getBalanceHint = useCallback((_, level) => ({
     kind: 'text',
@@ -309,10 +309,10 @@ export default function Balance() {
         <div className="flex flex-col items-center gap-2 sm:gap-4 w-full pb-1 sm:pb-2">
 
           {/* Variable display */}
-          <div className="flex justify-center items-center gap-2" dir="ltr">
-            <span className="weight-var" style={{ minWidth: 36, height: 36, paddingInline: 8, fontSize: '1rem', width: 'auto' }}>?</span>
-            <span className="text-2xl font-bold text-slate-400 dark:text-slate-500 leading-none">=</span>
-            <span className="text-4xl font-black text-green-500 leading-none min-w-[48px] text-center">{sliderVal}</span>
+          <div className="flex justify-center items-center gap-3" dir="ltr">
+            <span className="weight-var" style={{ minWidth: 44, height: 44, paddingInline: 8, fontSize: '1.1rem', width: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>?</span>
+            <span className="text-3xl font-bold text-slate-400 dark:text-slate-500 leading-none self-center">＝</span>
+            <span className="text-4xl font-black text-green-500 leading-none min-w-[48px] text-center self-center">{sliderVal}</span>
           </div>
 
           {/* +/- control */}
@@ -338,6 +338,7 @@ export default function Balance() {
               onClick={requestHint}
               colorToken="emerald"
               title="רמז"
+              className="self-stretch"
             />
             <button
               onClick={checkAnswer}

@@ -167,7 +167,7 @@ export default function LandingPage() {
 
         {/* Feature pills */}
         <div className="flex flex-wrap justify-center gap-2">
-          <Pill emoji="🎮" text="9 משחקים אינטראקטיביים (ויגיעו עוד בהמשך!)" />
+          <Pill emoji="🎮" text="10 משחקים אינטראקטיביים (ויגיעו עוד בהמשך!)" />
           <Pill emoji="📊" text="דוחות הורים בזמן אמת" />
           <Pill emoji="🔗" text="קישור קסם ייעודי לילד" />
         </div>

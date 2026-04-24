@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import useGameStore from '../../store/useGameStore';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
 import GameTutorial from '../shared/GameTutorial';
+import HintButton from '../shared/HintButton';
+import HintBubble from '../shared/HintBubble';
+import useHint from '../../hooks/useHint';
 import { vibe } from '../../utils/math';
 import Swal from 'sweetalert2';
 
@@ -86,6 +89,25 @@ export default function DecimalAreaLab() {
     ro.observe(containerRef.current);
     return () => ro.disconnect();
   }, []);
+
+  const getGridHint = useCallback((ld) => {
+    if (!ld) return null;
+    const { target, pieces, unique } = ld;
+    const perPiece = (target / pieces).toFixed(2);
+    const hints = [
+      `שטח מלבן = אורך × רוחב. צריך ${pieces} מלבנים שסכום (חיבור) שטחיהם = ${target.toFixed(2)}. נסה למשל מלבן של 1 × ${perPiece}.`,
+      `שטח = אורך × רוחב. הסכום (חיבור) של כל השטחים יחד צריך להיות ${target.toFixed(2)}. נסה חלוקה שווה: ${perPiece} לכל מלבן.`,
+      `כל תא = 0.1 × 0.1 = 0.01. שטח = אורך × רוחב, וסך כולל = סכום (חיבור) כל המלבנים. חלק את ${target.toFixed(2)} ל-${pieces} חלקים שווים: ${perPiece} כל אחד.`,
+    ];
+    const idx = Math.min((ld.lvl ?? 1) - 1, hints.length - 1);
+    return { kind: 'text', text: hints[Math.max(0, idx)] };
+  }, []);
+
+  const { cooldown: hintCooldown, bubble: hintBubble, requestHint, resetRound: resetHint } = useHint({
+    level: gameState.lvl,
+    getHint: getGridHint,
+    puzzle: levelData,
+  });
 
   // ── Init level ──────────────────────────────────────────────────────────────
   const newLevel = useCallback(() => {
@@ -245,7 +267,7 @@ export default function DecimalAreaLab() {
     ].join(', '),
     // Neon Glow when pointer is near the edge
     boxShadow: nearEdge
-      ? '0 0 0 3px #2dd4bf, 0 0 16px 6px rgba(45,212,191,0.45)'
+      ? '0 0 0 9px #2dd4bf, 0 0 48px 18px rgba(45,212,191,0.55)'
       : undefined,
     transition: 'box-shadow 0.12s ease',
   };
@@ -258,21 +280,17 @@ export default function DecimalAreaLab() {
         {/* Main container — centered and compact */}
         <div className="w-full max-w-sm">
 
-        {/* Target card — compact */}
+        {/* Target card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl w-full px-4 py-3 shadow-sm border-2 border-teal-200 dark:border-teal-800/40 border-b-4 border-b-teal-400 dark:border-b-teal-700">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 mb-0.5">יעד — שטח כולל</p>
-              <div className="math-font font-black text-3xl text-teal-600 dark:text-teal-400 tracking-tight" dir="ltr">
-                {levelData.target.toFixed(2)}
-              </div>
-            </div>
-            <div className="shrink-0">
-              <span className="inline-flex items-center gap-1 bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 font-black text-xs px-2 py-1 rounded-full whitespace-nowrap">
-                {levelData.pieces} מלבנ{levelData.unique ? 'ים שונים' : 'ים'}
-              </span>
-            </div>
+          <div className="flex items-center gap-3">
+            <HintButton cooldown={hintCooldown} onClick={requestHint} colorToken="teal" title="רמז" />
+            <p className="flex-1 text-center font-black text-base text-slate-700 dark:text-slate-100 leading-snug" dir="rtl">
+              צור שטח של{' '}
+              <span className="math-font text-teal-600 dark:text-teal-400">{levelData.target.toFixed(2)}</span>
+              {' '}באמצעות <span className="text-teal-600 dark:text-teal-400">{levelData.pieces} מלבנ{levelData.unique ? 'ים שונים' : 'ים'}</span>
+            </p>
           </div>
+          {hintBubble && <HintBubble text={hintBubble} className="mt-2" />}
         </div>
 
         {/* Grid card — ref here for ResizeObserver */}
@@ -281,58 +299,9 @@ export default function DecimalAreaLab() {
           className="bg-white dark:bg-slate-800 rounded-2xl w-full p-3 shadow-sm border-2 border-teal-200 dark:border-teal-800/40 flex flex-col items-center gap-2 overflow-hidden mt-2"
         >
 
-          {/* ── Grid layout: X-label row / [Y-labels | Grid] ── */}
-          <div className="mt-4" style={{ direction: 'ltr' }}>
-
-            {/* X-axis label row */}
-            {levelData.showAxis ? (
-              <div style={{ display: 'flex' }}>
-                {/* spacer matching Y-axis column width */}
-                <div style={{ width: 28, flexShrink: 0 }} />
-                {/* label strip exactly as wide as the grid */}
-                <div className="relative" style={{ width: gpix, height: 20 }}>
-                  {AXIS_MARKS.map((m) => (
-                    <span
-                      key={m}
-                      className="absolute text-[11px] font-black text-teal-400 select-none"
-                      style={{
-                        left: `${(m / UNITS) * 100}%`,
-                        transform: 'translateX(-50%)',
-                        bottom: 2,
-                      }}
-                    >
-                      {m}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div style={{ height: 8 }} />
-            )}
-
-            {/* Y-axis + Grid row */}
+          {/* ── Grid layout: centered, no axis labels ── */}
+          <div className="flex justify-center" style={{ direction: 'ltr' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-
-              {/* Y-axis labels column */}
-              {levelData.showAxis ? (
-                <div className="relative shrink-0" style={{ width: 28, height: gpix }}>
-                  {AXIS_MARKS.map((m) => (
-                    <span
-                      key={m}
-                      className="absolute text-[11px] font-black text-teal-400 select-none"
-                      style={{
-                        top:  `${(m / UNITS) * 100}%`,
-                        right: 4,
-                        transform: 'translateY(-50%)',
-                      }}
-                    >
-                      {m}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ width: 8 }} />
-              )}
 
               {/* Grid canvas */}
               <div
@@ -351,7 +320,7 @@ export default function DecimalAreaLab() {
                     const px = (mx / UNITS) * gpix;
                     const py = (my / UNITS) * gpix;
                     const isOuterCorner = (mx === 0 || mx === UNITS) && (my === 0 || my === UNITS);
-                    const size = isOuterCorner ? 7 : 5;
+                    const size = isOuterCorner ? 14 : 9;
                     return (
                       <div
                         key={`dot-${mx}-${my}`}
@@ -359,11 +328,11 @@ export default function DecimalAreaLab() {
                         style={{
                           width:  size,
                           height: size,
-                          background: isOuterCorner ? '#2dd4bf' : '#64748b',
+                          background: isOuterCorner ? '#2dd4bf' : '#94a3b8',
                           left: px - size / 2,
                           top:  py - size / 2,
                           zIndex: 4,
-                          boxShadow: isOuterCorner ? '0 0 5px 2px rgba(45,212,191,0.55)' : undefined,
+                          boxShadow: isOuterCorner ? '0 0 8px 3px rgba(45,212,191,0.7)' : undefined,
                         }}
                       />
                     );

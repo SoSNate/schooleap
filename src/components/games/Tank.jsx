@@ -208,7 +208,9 @@ export default function Tank() {
   }, [initGame]);
 
 
-  const liquidHeight = Math.min((sliderVal / totalCapacity) * 100, 100);
+  // Anti-cheat: above 80% of target the tank looks full so kids can't eyeball it
+  const rawPct = (sliderVal / totalCapacity) * 100;
+  const liquidHeight = rawPct >= 80 ? 100 : Math.min(rawPct, 100);
 
 
   const checkAnswer = () => {
@@ -335,6 +337,7 @@ export default function Tank() {
               onClick={requestHint}
               colorToken="sky"
               title="רמז"
+              className="self-stretch"
             />
             <button
               onClick={checkAnswer}

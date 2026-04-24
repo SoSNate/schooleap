@@ -1,6 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ArrowRightLeft, Play } from 'lucide-react';
-import Swal from 'sweetalert2';
 import useGameStore from '../../store/useGameStore';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
 import GameTutorial from '../shared/GameTutorial';
@@ -85,7 +83,6 @@ function DynamicArc({
 }) {
   if (hide) return null;
 
-  // direction of arrow head
   let pointsStandard = operation === 'multiply';
   if (position === 'top' || position === 'bottom') {
     pointsStandard = isShekelBigger ? operation !== 'multiply' : operation === 'multiply';
@@ -101,10 +98,10 @@ function DynamicArc({
   const markerId = `ah-${position}-${isInteractive ? 'on' : 'off'}`;
 
   let box = {};
-  if (position === 'top')    box = { top: -40, left: 224, transform: 'translate(-50%,-50%)' };
-  if (position === 'bottom') box = { top: 424, left: 224, transform: 'translate(-50%,-50%)' };
-  if (position === 'left')   box = { top: 192, left: -40, transform: 'translate(-50%,-50%)' };
-  if (position === 'right')  box = { top: 192, left: 488, transform: 'translate(-50%,-50%)' };
+  if (position === 'top')    box = { top: -40,  left: 224, transform: 'translate(-50%,-50%)' };
+  if (position === 'bottom') box = { top: 424,  left: 224, transform: 'translate(-50%,-50%)' };
+  if (position === 'left')   box = { top: 192,  left: -40, transform: 'translate(-50%,-50%)' };
+  if (position === 'right')  box = { top: 192,  left: 488, transform: 'translate(-50%,-50%)' };
 
   return (
     <>
@@ -114,13 +111,10 @@ function DynamicArc({
             <path d="M 0 1 L 10 5 L 0 9 z" fill={color} />
           </marker>
         </defs>
-        <path
-          d={d} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round"
+        <path d={d} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round"
           strokeDasharray={isInteractive ? '' : '8,8'}
-          markerEnd={`url(#${markerId})`}
-        />
+          markerEnd={`url(#${markerId})`} />
       </svg>
-
       <div className="absolute z-20" style={box}>
         {isInteractive ? (
           <div className={`flex items-center gap-2 p-2 rounded-2xl bg-white dark:bg-slate-800 border-[3px] shadow-xl transition-all ${
@@ -132,20 +126,12 @@ function DynamicArc({
             >
               {operation === 'multiply' ? '×' : '÷'}
             </button>
-            <SwipeRoller
-              value={factor}
-              onChange={(val) => onUpdate(prev => ({ ...prev, factor: val }))}
-              highlight={hintGlow}
-            />
+            <SwipeRoller value={factor} onChange={(val) => onUpdate(prev => ({ ...prev, factor: val }))} highlight={hintGlow} />
           </div>
         ) : (
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 shadow-sm opacity-80">
-            <span className="text-2xl font-black text-slate-400">
-              {showOperator ? (operation === 'multiply' ? '×' : '÷') : '?'}
-            </span>
-            <span className="text-2xl font-black text-slate-400">
-              {showFactor ? factor : '?'}
-            </span>
+            <span className="text-2xl font-black text-slate-400">{showOperator ? (operation === 'multiply' ? '×' : '÷') : '?'}</span>
+            <span className="text-2xl font-black text-slate-400">{showFactor ? factor : '?'}</span>
           </div>
         )}
       </div>
@@ -189,9 +175,14 @@ export default function PercentsLab() {
     timersRef.current = [];
   }, []);
 
-  // Responsive board scale — recompute on resize / orientation change.
-  const computeScale = () =>
-    typeof window === 'undefined' ? 1 : Math.min(1, (window.innerWidth - 32) / 500);
+  // Responsive board scale — accounts for arc widgets that extend 100px beyond each side.
+  // Vertical arcs (left/right): effective width = 44(labels) + 100(left arc) + 448(board) + 100(right arc) = 692px
+  // Horizontal arcs (top/bottom): effective width = 448px (no horizontal overflow)
+  const computeScale = () => {
+    if (typeof window === 'undefined') return 1;
+    const isV = puzzle?.puzzleType === 'vertical';
+    return Math.min(1, (window.innerWidth - 32) / (isV ? 692 : 500));
+  };
   const [boardScale, setBoardScale] = useState(computeScale);
   useEffect(() => {
     const onResize = () => setBoardScale(computeScale());
@@ -286,180 +277,92 @@ export default function PercentsLab() {
   ];
 
   return (
-    <div dir="rtl" className="min-h-full bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 select-none flex flex-col items-center pt-4 pb-8">
+    <div dir="rtl" className="screen-enter flex flex-col flex-1 min-h-[calc(100dvh-80px)] bg-slate-100 dark:bg-slate-900 select-none">
       <GameTutorial gameName="percentages" />
+      <div className="flex-1 flex flex-col items-center pt-3 pb-6 gap-3 overflow-y-auto overflow-x-hidden">
 
-      {/* Main container — centered and compact */}
-      <div className="w-full max-w-2xl px-3 sm:px-4">
-
-        {/* Top bar: level + hint + stars (compact, centered) */}
-        <div className="flex items-center justify-center gap-2 sm:gap-3 mb-3 bg-white dark:bg-slate-800 rounded-2xl px-3 sm:px-4 py-2 border border-slate-100 dark:border-slate-700 shadow-sm w-fit mx-auto">
-          <div className="bg-sky-600 text-white w-10 h-10 flex items-center justify-center rounded-xl font-black text-base shadow-md">
-            {gameState.lvl}
-          </div>
-          <div className="w-px h-5 bg-slate-200 dark:bg-slate-700"></div>
-          {/* Hint button */}
-          <HintButton cooldown={hintCooldown} onClick={requestHint} />
-          <div className="w-px h-5 bg-slate-200 dark:bg-slate-700"></div>
-          {/* Star score */}
+        {/* Top bar */}
+        <div className="flex items-center justify-center gap-2 sm:gap-3 bg-white dark:bg-slate-800 rounded-2xl px-3 sm:px-4 py-2 border border-slate-100 dark:border-slate-700 shadow-sm w-fit mx-auto">
+          <div className="bg-sky-600 text-white w-10 h-10 flex items-center justify-center rounded-xl font-black text-base shadow-md">{gameState.lvl}</div>
+          <div className="w-px h-5 bg-slate-200 dark:bg-slate-700" />
+          <HintButton cooldown={hintCooldown} onClick={requestHint} colorToken="sky" />
+          <div className="w-px h-5 bg-slate-200 dark:bg-slate-700" />
           <div className="flex items-center gap-1.5 bg-sky-50 dark:bg-sky-900/30 border border-sky-100 dark:border-sky-800 rounded-xl px-2.5 py-1">
             <span>⭐</span>
             <span className="text-sm font-black text-sky-700 dark:text-sky-300">{gameState.stars}</span>
           </div>
         </div>
 
-        {/* Title */}
-        <div className="text-center mb-4">
-          <h1 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center justify-center gap-2">
-            מעבדת אחוזים <ArrowRightLeft className="text-sky-500" size={20} />
-          </h1>
-          {INSTRUCTIONS[gameState.lvl] && (
-            <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-2">
-              {INSTRUCTIONS[gameState.lvl]}
-            </p>
-          )}
-        </div>
+        {INSTRUCTIONS[gameState.lvl] && (
+          <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm text-center px-4">{INSTRUCTIONS[gameState.lvl]}</p>
+        )}
 
-        {/* Board — centered and scaled to fit */}
-        <div className="flex justify-center w-full overflow-hidden">
-          <div className="relative" style={{ width: 448 * boardScale + (puzzle.puzzleType === 'vertical' ? 44 : 0), maxWidth: '100%' }}>
-          {/* Column labels — vertical layout only */}
-          {puzzle.puzzleType === 'vertical' && (
-            <div className="flex mb-1" dir="ltr" style={{ width: 448 * boardScale, marginRight: 44, paddingLeft: 80 * boardScale, paddingRight: 80 * boardScale }}>
-              <span className="flex-1 text-[10px] sm:text-xs font-bold text-slate-400 text-center">₪ שקלים</span>
-              <span className="flex-1 text-[10px] sm:text-xs font-bold text-slate-400 text-center">% אחוזים</span>
-            </div>
-          )}
-
-          {/* Board + row labels */}
-          <div className="flex items-start">
-            {/* Row labels — vertical layout only */}
+        {/* Board */}
+        <div className="flex justify-center w-full">
+          <div className="relative" style={{ width: 448 * boardScale + (puzzle.puzzleType === 'vertical' ? 44 : 0) }}>
             {puzzle.puzzleType === 'vertical' && (
-              <div className="flex flex-col justify-around pr-1" style={{ width: 44, height: 384 * boardScale }}>
-                <span className="text-[10px] sm:text-xs font-bold text-slate-400 text-center leading-tight">חלק</span>
-                <span className="text-[10px] sm:text-xs font-bold text-slate-400 text-center leading-tight">סכום<br/>כולל</span>
+              <div className="flex mb-1" dir="ltr" style={{ width: 448 * boardScale, marginRight: 44, paddingLeft: 80 * boardScale, paddingRight: 80 * boardScale }}>
+                <span className="flex-1 text-[10px] sm:text-xs font-bold text-slate-400 text-center">₪ שקלים</span>
+                <span className="flex-1 text-[10px] sm:text-xs font-bold text-slate-400 text-center">% אחוזים</span>
               </div>
             )}
-
-        <div className="relative" dir="ltr" style={{
-          width: 448 * boardScale,
-          height: 384 * boardScale,
-        }}>
-        <div className="absolute top-0 left-0 w-[448px] h-[384px]" style={{
-          transform: `scale(${boardScale})`,
-          transformOrigin: 'top left',
-        }}>
-          {puzzle.puzzleType === 'horizontal' ? (
-            <>
-              <DynamicArc
-                position="top"
-                operation={puzzle.activeArc === 'top' ? userLogic.operation : puzzle.correctOperation}
-                factor={puzzle.activeArc === 'top' ? userLogic.factor : puzzle.correctFactor}
-                isInteractive={puzzle.activeArc === 'top'}
-                onUpdate={setUserLogic}
-                isShekelBigger={puzzle.isShekelBigger}
-                showOperator={scaffold.showHintOperator}
-                showFactor={scaffold.showHintFactor}
-                hide={puzzle.activeArc !== 'top' && scaffold.hidePlaceholderArc}
-                hintGlow={hintGlow && puzzle.activeArc === 'top'}
-              />
-              <DynamicArc
-                position="bottom"
-                operation={puzzle.activeArc === 'bottom' ? userLogic.operation : puzzle.correctOperation}
-                factor={puzzle.activeArc === 'bottom' ? userLogic.factor : puzzle.correctFactor}
-                isInteractive={puzzle.activeArc === 'bottom'}
-                onUpdate={setUserLogic}
-                isShekelBigger={puzzle.isShekelBigger}
-                showOperator={scaffold.showHintOperator}
-                showFactor={scaffold.showHintFactor}
-                hide={puzzle.activeArc !== 'bottom' && scaffold.hidePlaceholderArc}
-                hintGlow={hintGlow && puzzle.activeArc === 'bottom'}
-              />
-            </>
-          ) : (
-            <>
-              <DynamicArc
-                position="left"
-                operation={puzzle.activeArc === 'left' ? userLogic.operation : puzzle.correctOperation}
-                factor={puzzle.activeArc === 'left' ? userLogic.factor : puzzle.correctFactor}
-                isInteractive={puzzle.activeArc === 'left'}
-                onUpdate={setUserLogic}
-                showOperator={scaffold.showHintOperator}
-                showFactor={scaffold.showHintFactor}
-                hide={puzzle.activeArc !== 'left' && scaffold.hidePlaceholderArc}
-                hintGlow={hintGlow && puzzle.activeArc === 'left'}
-              />
-              <DynamicArc
-                position="right"
-                operation={puzzle.activeArc === 'right' ? userLogic.operation : puzzle.correctOperation}
-                factor={puzzle.activeArc === 'right' ? userLogic.factor : puzzle.correctFactor}
-                isInteractive={puzzle.activeArc === 'right'}
-                onUpdate={setUserLogic}
-                showOperator={scaffold.showHintOperator}
-                showFactor={scaffold.showHintFactor}
-                hide={puzzle.activeArc !== 'right' && scaffold.hidePlaceholderArc}
-                hintGlow={hintGlow && puzzle.activeArc === 'right'}
-              />
-            </>
-          )}
-
-          {/* 2x2 table */}
-          <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-[128px] z-10 pointer-events-none">
-            {cells.map((cell, i) => (
-              <div key={i} className={`
-                relative w-[160px] h-[160px] flex flex-col items-center justify-center rounded-[2rem] border-4 transition-all duration-300 pointer-events-auto
-                ${cell.isTarget
-                  ? 'bg-sky-50 dark:bg-sky-900/40 border-sky-400 dark:border-sky-600 shadow-[0_0_0_6px_rgba(14,165,233,0.12)]'
-                  : cell.isAccent
-                    ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
-                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-lg'}
-              `}>
-                {cell.isTarget && (
-                  <div className="absolute -top-3 bg-sky-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-md animate-bounce">
-                    נעלם
-                  </div>
-                )}
-                <div className="flex items-baseline gap-1">
-                  <span className={`text-5xl font-black ${
-                    cell.isTarget
-                      ? 'text-sky-600 dark:text-sky-300'
-                      : cell.isAccent
-                        ? 'text-slate-400 dark:text-slate-500'
-                        : 'text-slate-800 dark:text-slate-100'
-                  }`}>
-                    {cell.val}
-                  </span>
-                  {cell.val !== '?' && (
-                    <span className={`text-xl font-bold ${cell.isAccent ? 'text-slate-300 dark:text-slate-600' : 'text-slate-400 dark:text-slate-500'}`}>
-                      {cell.label}
-                    </span>
+            <div className="flex items-start">
+              {puzzle.puzzleType === 'vertical' && (
+                <div className="flex flex-col justify-around pr-1" style={{ width: 44, height: 384 * boardScale }}>
+                  <span className="text-[10px] sm:text-xs font-bold text-slate-400 text-center leading-tight">חלק</span>
+                  <span className="text-[10px] sm:text-xs font-bold text-slate-400 text-center leading-tight">סכום<br/>כולל</span>
+                </div>
+              )}
+              <div className="relative" dir="ltr" style={{ width: 448 * boardScale, height: 384 * boardScale }}>
+                <div className="absolute top-0 left-0 w-[448px] h-[384px]" style={{ transform: `scale(${boardScale})`, transformOrigin: 'top left' }}>
+                  {puzzle.puzzleType === 'horizontal' ? (
+                    <>
+                      <DynamicArc position="top"    operation={puzzle.activeArc === 'top'    ? userLogic.operation : puzzle.correctOperation} factor={puzzle.activeArc === 'top'    ? userLogic.factor : puzzle.correctFactor} isInteractive={puzzle.activeArc === 'top'}    onUpdate={setUserLogic} isShekelBigger={puzzle.isShekelBigger} showOperator={scaffold.showHintOperator} showFactor={scaffold.showHintFactor} hide={puzzle.activeArc !== 'top'    && scaffold.hidePlaceholderArc} hintGlow={hintGlow && puzzle.activeArc === 'top'} />
+                      <DynamicArc position="bottom" operation={puzzle.activeArc === 'bottom' ? userLogic.operation : puzzle.correctOperation} factor={puzzle.activeArc === 'bottom' ? userLogic.factor : puzzle.correctFactor} isInteractive={puzzle.activeArc === 'bottom'} onUpdate={setUserLogic} isShekelBigger={puzzle.isShekelBigger} showOperator={scaffold.showHintOperator} showFactor={scaffold.showHintFactor} hide={puzzle.activeArc !== 'bottom' && scaffold.hidePlaceholderArc} hintGlow={hintGlow && puzzle.activeArc === 'bottom'} />
+                    </>
+                  ) : (
+                    <>
+                      <DynamicArc position="left"  operation={puzzle.activeArc === 'left'  ? userLogic.operation : puzzle.correctOperation} factor={puzzle.activeArc === 'left'  ? userLogic.factor : puzzle.correctFactor} isInteractive={puzzle.activeArc === 'left'}  onUpdate={setUserLogic} showOperator={scaffold.showHintOperator} showFactor={scaffold.showHintFactor} hide={puzzle.activeArc !== 'left'  && scaffold.hidePlaceholderArc} hintGlow={hintGlow && puzzle.activeArc === 'left'} />
+                      <DynamicArc position="right" operation={puzzle.activeArc === 'right' ? userLogic.operation : puzzle.correctOperation} factor={puzzle.activeArc === 'right' ? userLogic.factor : puzzle.correctFactor} isInteractive={puzzle.activeArc === 'right'} onUpdate={setUserLogic} showOperator={scaffold.showHintOperator} showFactor={scaffold.showHintFactor} hide={puzzle.activeArc !== 'right' && scaffold.hidePlaceholderArc} hintGlow={hintGlow && puzzle.activeArc === 'right'} />
+                    </>
                   )}
+                  {/* 2×2 cells */}
+                  <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-[128px] z-10 pointer-events-none">
+                    {cells.map((cell, i) => (
+                      <div key={i} className={`relative w-[160px] h-[160px] flex flex-col items-center justify-center rounded-[2rem] border-4 transition-all duration-300 pointer-events-auto
+                        ${cell.isTarget ? 'bg-sky-50 dark:bg-sky-900/40 border-sky-400 dark:border-sky-600 shadow-[0_0_0_6px_rgba(14,165,233,0.12)]'
+                          : cell.isAccent ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-lg'}`}>
+                        {cell.isTarget && (
+                          <div className="absolute -top-3 bg-sky-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-md animate-bounce">נעלם</div>
+                        )}
+                        <div className="flex items-baseline gap-1">
+                          <span className={`text-5xl font-black ${cell.isTarget ? 'text-sky-600 dark:text-sky-300' : cell.isAccent ? 'text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100'}`}>
+                            {cell.val}
+                          </span>
+                          {cell.val !== '?' && (
+                            <span className={`text-xl font-bold ${cell.isAccent ? 'text-slate-300 dark:text-slate-600' : 'text-slate-400 dark:text-slate-500'}`}>{cell.label}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            ))}
+            </div>
           </div>
         </div>
-        </div>{/* end scaled inner board */}
-          </div>{/* end flex items-start */}
-        </div>{/* end relative wrapper */}
-      </div>
 
-      {/* Hint bubble */}
-      <HintBubble text={hintBubbleText} />
+        <HintBubble text={hintBubbleText} />
 
-      {/* CTA */}
-      <div className="flex justify-center mt-6">
         <button
           onClick={handleValidate}
           disabled={isAnimating}
-          className="flex items-center gap-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white px-10 sm:px-14 py-3 sm:py-4 rounded-full font-black text-base sm:text-lg shadow-xl active:scale-95 transition-all"
+          className="w-full max-w-sm mx-4 font-bold py-4 rounded-2xl text-lg bg-sky-600 hover:bg-sky-500 text-white shadow-[0_5px_0_#0369a1] active:translate-y-[5px] active:shadow-none transition-all disabled:opacity-40"
         >
-          בדיקת תשובה
-          <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-white" />
+          בדיקת תשובה ▶
         </button>
       </div>
-
-      </div>{/* end max-w-2xl container */}
 
       <FeedbackOverlay
         visible={feedback.visible}

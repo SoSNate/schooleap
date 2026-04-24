@@ -497,6 +497,7 @@ export default function Equations() {
           onClick={requestHint}
           colorToken="violet"
           title="רמז (לחץ שוב לרמז מלא)"
+          className="self-stretch"
         />
         <button
           onClick={checkEquations}

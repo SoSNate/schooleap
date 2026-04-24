@@ -233,6 +233,16 @@ export default function GameApp() {
   useEffect(() => {
     if (subscription.checked) return;          // ChildEntry already did this
     const token = localStorage.getItem(TOKEN_KEY);
+
+    // Dev mode: localhost bypass
+    const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (isLocalhost && !token) {
+      // Auto-set dev token for localhost
+      localStorage.setItem(TOKEN_KEY, 'dev-mode-local');
+      setSubscription({ status: 'trial', expiresAt: null });
+      return;
+    }
+
     if (!token) return;                         // no token → "ask parent" screen shown
 
     let mounted = true;

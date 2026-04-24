@@ -74,7 +74,7 @@ const RotaryKnob = ({ stepIndex, onChange }) => {
 
   // 4 arms: each arm has a line from knob-edge to the label, plus a clickable label
   // Container: 220×220 SVG, center at (110,110). Knob radius=44. Arm tip radius=88.
-  const C = 110, KNOB_R = 44, TIP_R = 82, LABEL_R = 96;
+  const C = 110, KNOB_R = 44, TIP_R = 63, LABEL_R = 77;
   const arms = [
     { idx: 0, cx: C,       cy: C - TIP_R,  lx: C,         ly: C - LABEL_R,   labelEl: <span>×1</span> },
     { idx: 1, cx: C + TIP_R, cy: C,        lx: C + LABEL_R, ly: C,            labelEl: <><span>×</span><Fraction n={1} d={10} /></> },

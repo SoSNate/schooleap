@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import confetti from 'canvas-confetti';
 import { anims } from '../../utils/math';
@@ -7,15 +7,21 @@ import useGameStore from '../../store/useGameStore';
 export default function FeedbackOverlay({ visible, isLevelUp, unlocked, pts, isCapped, onDone }) {
   const finishAnimation = useGameStore((s) => s.finishAnimation);
 
+  // Keep a stable ref to onDone so the effect doesn't re-fire when the
+  // parent re-renders and creates a new arrow-function reference.
+  const onDoneRef = useRef(onDone);
+  useEffect(() => { onDoneRef.current = onDone; });
+
   useEffect(() => {
     if (!visible) return;
     confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
     const timer = setTimeout(() => {
       finishAnimation();
-      if (onDone) onDone();
+      if (onDoneRef.current) onDoneRef.current();
     }, 2000);
     return () => clearTimeout(timer);
-  }, [visible, finishAnimation, onDone]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, finishAnimation]); // onDone intentionally excluded — using ref above
 
   if (!visible) return null;
 

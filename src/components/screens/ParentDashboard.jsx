@@ -11,6 +11,7 @@ import DashboardNav       from '../dashboard/DashboardNav';
 import MagicLinkCard      from '../dashboard/MagicLinkCard';
 import TrialCard          from '../dashboard/TrialCard';
 import NotificationsCard  from '../dashboard/NotificationsCard';
+import PushSettingsCard   from '../dashboard/PushSettingsCard';
 import SkillRadarCard     from '../dashboard/SkillRadarCard';
 import GoalsSection       from '../dashboard/GoalsSection';
 import GoalModal          from '../dashboard/GoalModal';
@@ -669,6 +670,15 @@ export default function ParentDashboard() {
               events={events}
               onRefresh={() => child && fetchEvents(child.magic_token)}
             />
+
+            {/* Parent Push Settings */}
+            {user && child && (
+              <PushSettingsCard
+                childToken={child.magic_token}
+                parentToken={user.id}
+                childName={child.name}
+              />
+            )}
 
             {/* PWA Install */}
             <div className="bg-white rounded-[2rem] p-5 border border-slate-100 shadow-sm">

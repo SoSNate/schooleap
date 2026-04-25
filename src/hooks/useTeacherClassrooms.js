@@ -1,17 +1,32 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
+const STORAGE_KEY = 'hasbaonautica_teacher_selected_classroom';
+
 /**
- * Hook for managing teacher classrooms
- * Handles fetching classrooms, creating new ones, and selecting active classroom
+ * Hook for managing teacher classrooms with real-time sync
+ * Features:
+ * - Real-time syncing across devices
+ * - URL-based classroom selection
+ * - Persistent state management
+ * - Robust error handling and code generation
  */
-export default function useTeacherClassrooms(teacherId) {
+export default function useTeacherClassrooms(teacherId, searchParams, setSearchParams) {
   const [classrooms, setClassrooms] = useState([]);
   const [selectedClassroom, setSelectedClassroom] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const subscriptionRef = useRef(null);
 
-  // ─── Fetch classrooms on mount or when teacherId changes ──────────────────
+  // ─── Generate unique classroom code ────────────────────────────────────────
+  const generateUniqueCode = useCallback(() => {
+    // Format: TIMESTAMP-RANDOM (e.g., "ABCD123-XY789")
+    const timestamp = Date.now().toString(36).slice(-8).toUpperCase();
+    const random = Math.random().toString(36).substring(2, 7).toUpperCase();
+    return `${timestamp}-${random}`;
+  }, []);
+
+  // ─── Fetch classrooms on mount ─────────────────────────────────────────────
   useEffect(() => {
     if (!teacherId) {
       setLoading(false);
@@ -21,73 +36,233 @@ export default function useTeacherClassrooms(teacherId) {
     (async () => {
       try {
         setError(null);
+        console.log('[useTeacherClassrooms] Fetching classrooms for teacher:', teacherId);
 
-        // Fetch teacher's classrooms
+        // Fetch teacher's classrooms from RPC
         const { data, error: err } = await supabase.rpc('get_teacher_classrooms', {
           p_teacher_id: teacherId,
         });
 
-        if (err) throw err;
+        if (err) {
+          console.error('[useTeacherClassrooms] RPC error:', err);
+          throw err;
+        }
 
+        console.log('[useTeacherClassrooms] Loaded classrooms:', data?.length || 0);
         setClassrooms(data || []);
 
-        // If no URL param, select first classroom
+        // Auto-select first classroom if none selected
         if (!selectedClassroom && data?.length > 0) {
+          console.log('[useTeacherClassrooms] Auto-selecting first classroom');
           setSelectedClassroom(data[0]);
         }
       } catch (e) {
         console.error('[useTeacherClassrooms] fetch error:', e);
-        setError(e.message);
+        setError(`שגיאה בטעינת הכיתות: ${e.message}`);
+        setClassrooms([]);
       } finally {
         setLoading(false);
       }
     })();
   }, [teacherId]);
 
-  // ─── Select classroom by code ──────────────────────────────────────────────
-  const selectClassroom = useCallback((classroom) => {
-    setSelectedClassroom(classroom);
-  }, []);
+  // ─── Set up real-time subscription ─────────────────────────────────────────
+  useEffect(() => {
+    if (!teacherId) return;
 
-  // ─── Create new classroom ─────────────────────────────────────────────────
+    console.log('[useTeacherClassrooms] Setting up real-time subscription');
+
+    const subscription = supabase
+      .from('classrooms')
+      .on('INSERT', (payload) => {
+        console.log('[useTeacherClassrooms] Real-time INSERT:', payload.new);
+        setClassrooms((prev) => [payload.new, ...prev]);
+      })
+      .on('UPDATE', (payload) => {
+        console.log('[useTeacherClassrooms] Real-time UPDATE:', payload.new);
+        setClassrooms((prev) =>
+          prev.map((c) => (c.id === payload.new.id ? payload.new : c))
+        );
+        // Update selected if it's the one being edited
+        if (selectedClassroom?.id === payload.new.id) {
+          setSelectedClassroom(payload.new);
+        }
+      })
+      .on('DELETE', (payload) => {
+        console.log('[useTeacherClassrooms] Real-time DELETE:', payload.old.id);
+        setClassrooms((prev) => prev.filter((c) => c.id !== payload.old.id));
+        // If deleted classroom was selected, select first remaining
+        if (selectedClassroom?.id === payload.old.id) {
+          setClassrooms((prev) => {
+            if (prev.length > 0) {
+              setSelectedClassroom(prev[0]);
+            } else {
+              setSelectedClassroom(null);
+            }
+            return prev;
+          });
+        }
+      })
+      .subscribe();
+
+    subscriptionRef.current = subscription;
+
+    return () => {
+      console.log('[useTeacherClassrooms] Cleaning up subscription');
+      subscription.unsubscribe();
+    };
+  }, [teacherId, selectedClassroom?.id]);
+
+  // ─── Handle URL-based classroom selection ──────────────────────────────────
+  useEffect(() => {
+    if (!searchParams || !setSearchParams) return;
+
+    const classroomCode = searchParams.get('classroom');
+    console.log('[useTeacherClassrooms] URL param classroom:', classroomCode);
+
+    if (classroomCode && classrooms.length > 0) {
+      const classroom = classrooms.find((c) => c.classroom_code === classroomCode);
+      if (classroom && classroom.id !== selectedClassroom?.id) {
+        console.log('[useTeacherClassrooms] Selecting classroom from URL:', classroomCode);
+        setSelectedClassroom(classroom);
+      }
+    } else if (!classroomCode && classrooms.length > 0 && !selectedClassroom) {
+      // No URL param and no selection - select first
+      console.log('[useTeacherClassrooms] No URL param - selecting first classroom');
+      setSelectedClassroom(classrooms[0]);
+    }
+  }, [searchParams, classrooms, selectedClassroom?.id, setSearchParams]);
+
+  // ─── Restore from localStorage on mount ────────────────────────────────────
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved && classrooms.length > 0 && !selectedClassroom) {
+        const classroom = classrooms.find((c) => c.classroom_code === saved);
+        if (classroom) {
+          console.log('[useTeacherClassrooms] Restoring from localStorage:', saved);
+          setSelectedClassroom(classroom);
+          // Update URL if needed
+          if (setSearchParams) {
+            setSearchParams((prev) => {
+              const params = new URLSearchParams(prev);
+              params.set('classroom', saved);
+              return params;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[useTeacherClassrooms] localStorage restore failed:', e);
+    }
+  }, [classrooms.length, setSearchParams]);
+
+  // ─── Save selected classroom to localStorage ───────────────────────────────
+  useEffect(() => {
+    if (selectedClassroom?.classroom_code) {
+      try {
+        localStorage.setItem(STORAGE_KEY, selectedClassroom.classroom_code);
+      } catch (e) {
+        console.warn('[useTeacherClassrooms] localStorage save failed:', e);
+      }
+    }
+  }, [selectedClassroom?.classroom_code]);
+
+  // ─── Select classroom and update URL ───────────────────────────────────────
+  const selectClassroom = useCallback(
+    (classroom) => {
+      console.log('[useTeacherClassrooms] selectClassroom:', classroom.classroom_code);
+      setSelectedClassroom(classroom);
+      if (setSearchParams) {
+        setSearchParams((prev) => {
+          const params = new URLSearchParams(prev);
+          params.set('classroom', classroom.classroom_code);
+          return params;
+        });
+      }
+    },
+    [setSearchParams]
+  );
+
+  // ─── Create new classroom with retry logic ─────────────────────────────────
   const createClassroom = useCallback(
     async (classroomName) => {
-      if (!teacherId) return null;
+      if (!teacherId) {
+        console.error('[useTeacherClassrooms] No teacherId');
+        setError('לא ניתן ליצור כיתה - לא מחובר');
+        return null;
+      }
+
+      if (!classroomName?.trim()) {
+        setError('יש להזין שם לכיתה');
+        return null;
+      }
 
       try {
         setError(null);
+        console.log('[useTeacherClassrooms] Creating classroom:', classroomName);
 
-        // Generate unique classroom code (UUID first 8 chars + classroom name)
-        const codeId = crypto.randomUUID().slice(0, 8).toUpperCase();
-        const classroomCode = `${classroomName.replace(/\s+/g, '')}-${codeId}`;
+        // Try to create with retry logic for duplicate codes
+        let classroomCode;
+        let attempts = 0;
+        const maxAttempts = 3;
+        let lastError;
 
-        // Call RPC to create classroom
-        const { data, error: err } = await supabase.rpc('create_teacher_classroom', {
-          p_teacher_id: teacherId,
-          p_classroom_code: classroomCode,
-          p_classroom_name: classroomName,
-        });
+        while (attempts < maxAttempts) {
+          classroomCode = generateUniqueCode();
+          console.log(`[useTeacherClassrooms] Attempt ${attempts + 1}: ${classroomCode}`);
 
-        if (err) throw err;
-        if (!data || data.length === 0) throw new Error('Failed to create classroom');
+          const { data, error: err } = await supabase.rpc('create_teacher_classroom', {
+            p_teacher_id: teacherId,
+            p_classroom_code: classroomCode,
+            p_classroom_name: classroomName,
+          });
 
-        const newClassroom = data[0];
+          if (err) {
+            lastError = err;
+            if (err.code === '23505') {
+              // UNIQUE constraint violation - try again
+              console.warn('[useTeacherClassrooms] Duplicate code, retrying...');
+              attempts++;
+              continue;
+            }
+            // Other error - throw
+            throw err;
+          }
 
-        // Update classrooms list
-        const updatedClassrooms = [newClassroom, ...classrooms];
-        setClassrooms(updatedClassrooms);
+          if (!data || data.length === 0) {
+            throw new Error('לא נתקבלה תגובה מהשרת');
+          }
 
-        // Auto-select new classroom
-        setSelectedClassroom(newClassroom);
+          const newClassroom = data[0];
+          console.log('[useTeacherClassrooms] Classroom created successfully:', newClassroom);
 
-        return newClassroom;
+          // Update local state
+          setClassrooms((prev) => [newClassroom, ...prev]);
+          setSelectedClassroom(newClassroom);
+
+          // Update URL
+          if (setSearchParams) {
+            setSearchParams((prev) => {
+              const params = new URLSearchParams(prev);
+              params.set('classroom', newClassroom.classroom_code);
+              return params;
+            });
+          }
+
+          return newClassroom;
+        }
+
+        // All retries exhausted
+        throw lastError || new Error('לא ניתן ליצור קוד כיתה יחודי');
       } catch (e) {
+        const errorMsg = e.message || 'שגיאה בייצור כיתה';
         console.error('[useTeacherClassrooms] create error:', e);
-        setError(e.message);
+        setError(errorMsg);
         return null;
       }
     },
-    [teacherId, classrooms]
+    [teacherId, generateUniqueCode, setSearchParams]
   );
 
   // ─── Update classroom name ────────────────────────────────────────────────
@@ -95,8 +270,14 @@ export default function useTeacherClassrooms(teacherId) {
     async (classroomId, newName) => {
       if (!teacherId) return false;
 
+      if (!newName?.trim()) {
+        setError('יש להזין שם לכיתה');
+        return false;
+      }
+
       try {
         setError(null);
+        console.log('[useTeacherClassrooms] Updating classroom name:', classroomId, newName);
 
         const { error: err } = await supabase.rpc('update_classroom_name', {
           p_classroom_id: classroomId,
@@ -106,25 +287,15 @@ export default function useTeacherClassrooms(teacherId) {
 
         if (err) throw err;
 
-        // Update local state
-        const updated = classrooms.map((c) =>
-          c.id === classroomId ? { ...c, classroom_name: newName } : c
-        );
-        setClassrooms(updated);
-
-        // Update selected if it's the one being edited
-        if (selectedClassroom?.id === classroomId) {
-          setSelectedClassroom({ ...selectedClassroom, classroom_name: newName });
-        }
-
+        // Update local state - will be synced via real-time subscription
         return true;
       } catch (e) {
         console.error('[useTeacherClassrooms] update error:', e);
-        setError(e.message);
+        setError(`שגיאה בעדכון שם הכיתה: ${e.message}`);
         return false;
       }
     },
-    [teacherId, classrooms, selectedClassroom]
+    [teacherId]
   );
 
   // ─── Delete classroom ────────────────────────────────────────────────────
@@ -134,31 +305,32 @@ export default function useTeacherClassrooms(teacherId) {
 
       try {
         setError(null);
+        console.log('[useTeacherClassrooms] Deleting classroom:', classroomId);
 
         const { error: err } = await supabase.rpc('delete_classroom', {
           p_classroom_id: classroomId,
           p_teacher_id: teacherId,
         });
 
-        if (err) throw err;
-
-        // Remove from list
-        const updated = classrooms.filter((c) => c.id !== classroomId);
-        setClassrooms(updated);
-
-        // If deleted classroom was selected, select first remaining
-        if (selectedClassroom?.id === classroomId) {
-          setSelectedClassroom(updated.length > 0 ? updated[0] : null);
+        if (err) {
+          // Check if it's because classroom has students
+          if (err.message?.includes('student')) {
+            setError('לא ניתן למחוק כיתה שיש בה תלמידים');
+          } else {
+            throw err;
+          }
+          return false;
         }
 
+        // Update local state - will be synced via real-time subscription
         return true;
       } catch (e) {
         console.error('[useTeacherClassrooms] delete error:', e);
-        setError(e.message);
+        setError(`שגיאה במחיקת כיתה: ${e.message}`);
         return false;
       }
     },
-    [teacherId, classrooms, selectedClassroom]
+    [teacherId]
   );
 
   return {

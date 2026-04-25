@@ -45,14 +45,25 @@ export default function ClassroomSelector({
     try {
       const result = await onCreate?.(newName);
       if (result) {
+        const createdName = newName;
         setNewName('');
         setShowCreateForm(false);
         setIsOpen(false);
 
         Swal.fire({
           title: '✅ כיתה חדשה',
-          text: `כיתה "${newName}" נוצרה בהצלחה`,
+          text: `כיתה "${createdName}" נוצרה בהצלחה\nקוד: ${result.classroom_code}`,
           icon: 'success',
+          toast: true,
+          position: 'top-start',
+          timer: 3000,
+          showConfirmButton: false,
+        });
+      } else {
+        Swal.fire({
+          title: '❌ שגיאה',
+          text: 'לא ניתן ליצור כיתה',
+          icon: 'error',
           toast: true,
           position: 'top-start',
           timer: 2000,

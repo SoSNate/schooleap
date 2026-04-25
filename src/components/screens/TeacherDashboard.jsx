@@ -39,10 +39,11 @@ export default function TeacherDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // ─── Classroom management hook ────────────────────────────────────────────
-  const { classrooms, selectedClassroom, createClassroom } = useTeacherClassrooms(user?.id);
+  const { classrooms, selectedClassroom, createClassroom, error: classroomError } =
+    useTeacherClassrooms(user?.id, searchParams, setSearchParams);
 
   // ─── Get classroom code from selected classroom or URL param ──────────────
-  const classroomCode = searchParams.get('classroom') || selectedClassroom?.classroom_code;
+  const classroomCode = selectedClassroom?.classroom_code;
 
   const loadData = useCallback(async (u) => {
     try {

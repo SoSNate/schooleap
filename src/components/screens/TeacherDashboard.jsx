@@ -9,6 +9,7 @@ import ClassEngagementTable from '../teacher/ClassEngagementTable';
 import ClassSkillsCard      from '../teacher/ClassSkillsCard';
 import StudentDetailDrawer  from '../teacher/StudentDetailDrawer';
 import ClassroomCodeCard    from '../teacher/ClassroomCodeCard';
+import ClassroomReminderCard from '../teacher/ClassroomReminderCard';
 
 /**
  * /teacher — Teacher-only dashboard.
@@ -314,6 +315,7 @@ export default function TeacherDashboard() {
             </div>
             <div className="lg:col-span-4 space-y-6">
               <ClassroomCodeCard classroomCode={profile?.classroom_code} />
+              <ClassroomReminderCard students={students} />
               <ClassSkillsCard allEvents={allEvents} />
             </div>
           </div>

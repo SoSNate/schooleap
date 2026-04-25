@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import useGameStore from '../../store/useGameStore';
 import { useEdgeSwipe } from '../../hooks/useEdgeSwipe';
 import useTeacherClassrooms from '../../hooks/useTeacherClassrooms';
+import useTeacherModes from '../../hooks/useTeacherModes';
 import TeacherSalesPage from './TeacherSalesPage';
 import ClassEngagementTable from '../teacher/ClassEngagementTable';
 import ClassSkillsCard      from '../teacher/ClassSkillsCard';
@@ -13,6 +14,7 @@ import ClassroomCodeCard    from '../teacher/ClassroomCodeCard';
 import ClassroomReminderCard from '../teacher/ClassroomReminderCard';
 import ClassroomSelector    from '../teacher/ClassroomSelector';
 import AssignmentManager    from '../teacher/AssignmentManager';
+import TeacherModeSwitcher  from '../teacher/TeacherModeSwitcher';
 
 /**
  * /teacher — Teacher-only dashboard.
@@ -41,6 +43,21 @@ export default function TeacherDashboard() {
   // ─── Classroom management hook ────────────────────────────────────────────
   const { classrooms, selectedClassroom, createClassroom, error: classroomError } =
     useTeacherClassrooms(user?.id, searchParams, setSearchParams);
+
+  // ─── Teacher modes hook (dual-mode support) ──────────────────────────────
+  const {
+    modes,
+    primaryMode,
+    isPrivateMode,
+    isInstitutionalMode,
+    hasMultipleModes,
+    canRequestInstitutional,
+    canRequestPrivate,
+    switchMode,
+    requestModeChange,
+    submitInstitutionalEnrollment,
+    error: modeError,
+  } = useTeacherModes(user?.id);
 
   // ─── Get classroom code from selected classroom or URL param ──────────────
   const classroomCode = selectedClassroom?.classroom_code;
@@ -273,6 +290,16 @@ export default function TeacherDashboard() {
             <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
           </div>
         )}
+        {modeError && (
+          <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-2xl px-4 py-3">
+            <p className="text-orange-600 dark:text-orange-400 text-sm">{modeError}</p>
+          </div>
+        )}
+        {classroomError && (
+          <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-2xl px-4 py-3">
+            <p className="text-orange-600 dark:text-orange-400 text-sm">{classroomError}</p>
+          </div>
+        )}
 
         {/* Header */}
         <div>
@@ -280,74 +307,120 @@ export default function TeacherDashboard() {
             שלום, <span className="text-indigo-600 dark:text-indigo-400">{user.email?.split('@')[0]}</span>
           </h2>
           <p className="text-slate-400 text-sm mt-1">
-            {students.length > 0
-              ? `${students.length} תלמידים רשומים בכיתה`
-              : 'עוד אין תלמידים — שתף את קישור ההצטרפות'}
+            {isPrivateMode
+              ? students.length > 0
+                ? `${students.length} תלמידים פרטיים`
+                : 'עוד אין תלמידים — הוסף תלמידים פרטיים'
+              : classrooms.length > 0
+              ? `${classrooms.length} כיתות, ${students.length} תלמידים`
+              : 'עוד אין כיתות — צור כיתה חדשה'}
           </p>
         </div>
 
-        {/* Classroom Selector */}
-        <ClassroomSelector
-          classrooms={classrooms}
-          selectedClassroom={selectedClassroom}
-          onSelect={(classroom) => {
-            setSearchParams({ classroom: classroom.classroom_code });
-          }}
-          onCreate={createClassroom}
-          loading={false}
-        />
+        {/* Teacher Mode Switcher */}
+        {(hasMultipleModes || canRequestInstitutional || canRequestPrivate) && (
+          <TeacherModeSwitcher
+            modes={modes}
+            primaryMode={primaryMode}
+            onSwitchMode={switchMode}
+            onRequestMode={requestModeChange}
+            onSubmitEnrollment={submitInstitutionalEnrollment}
+            canRequestInstitutional={canRequestInstitutional}
+            canRequestPrivate={canRequestPrivate}
+            hasMultipleModes={hasMultipleModes}
+          />
+        )}
 
-        {students.length === 0 ? (
-          /* ─── Empty state ─────────────────────────────────────────── */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-8">
-              <div className="bg-white border border-slate-100 rounded-3xl p-10 flex flex-col items-center text-center gap-5 shadow-sm">
-                <div className="text-6xl">🏫</div>
+        {/* Classroom Selector - Only in Institutional Mode */}
+        {isInstitutionalMode && (
+          <ClassroomSelector
+            classrooms={classrooms}
+            selectedClassroom={selectedClassroom}
+            onSelect={(classroom) => {
+              setSearchParams({ classroom: classroom.classroom_code });
+            }}
+            onCreate={createClassroom}
+            loading={false}
+          />
+        )}
+
+        {isPrivateMode ? (
+          students.length === 0 ? (
+            <div className="grid grid-cols-1 gap-6">
+              <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl p-10 flex flex-col items-center text-center gap-5 shadow-sm">
+                <div className="text-6xl">👤</div>
                 <div className="space-y-2">
-                  <h3 className="text-xl font-black text-slate-800">הכיתה שלך עדיין ריקה</h3>
+                  <h3 className="text-xl font-black text-slate-800 dark:text-slate-100">עדיין אין תלמידים</h3>
                   <p className="text-slate-400 text-sm leading-relaxed max-w-xs">
-                    שלח לתלמידים את קוד הכיתה שלך — הם יצטרפו בעצמם דרך הקישור
+                    הוסף תלמידים פרטיים כדי להתחיל לעקוב אחרי ההתקדמות שלהם
                   </p>
                 </div>
-                {profile?.classroom_code && (
-                  <div className="bg-indigo-50 border border-indigo-100 rounded-2xl px-6 py-4 w-full max-w-xs">
-                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">קוד הכיתה שלך</p>
-                    <p className="text-3xl font-black font-mono tracking-widest text-indigo-700 select-all">
-                      {profile.classroom_code}
-                    </p>
-                  </div>
-                )}
-                <p className="text-slate-400 text-xs">
-                  קישור הצטרפות:{' '}
-                  <span className="font-mono text-indigo-500">
-                    {window.location.origin}/join?code={profile?.classroom_code}
-                  </span>
-                </p>
               </div>
             </div>
-            <div className="lg:col-span-4 space-y-6">
-              <ClassroomCodeCard classroomCode={profile?.classroom_code} />
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div className="lg:col-span-8 space-y-6">
+                <ClassEngagementTable students={students} onSelect={setSelected} />
+              </div>
+              <div className="lg:col-span-4 space-y-6">
+                <ClassSkillsCard allEvents={allEvents} />
+              </div>
             </div>
-          </div>
+          )
         ) : (
-          /* ─── Normal state with students ─────────────────────────── */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-8 space-y-6">
-              <ClassEngagementTable students={students} onSelect={setSelected} />
+          students.length === 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div className="lg:col-span-8">
+                <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl p-10 flex flex-col items-center text-center gap-5 shadow-sm">
+                  <div className="text-6xl">🏫</div>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-black text-slate-800 dark:text-slate-100">הכיתה שלך עדיין ריקה</h3>
+                    <p className="text-slate-400 text-sm leading-relaxed max-w-xs">
+                      שלח לתלמידים את קוד הכיתה שלך — הם יצטרפו בעצמם דרך הקישור
+                    </p>
+                  </div>
+                  {selectedClassroom && (
+                    <div className="bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 rounded-2xl px-6 py-4 w-full max-w-xs">
+                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">קוד הכיתה שלך</p>
+                      <p className="text-3xl font-black font-mono tracking-widest text-indigo-700 dark:text-indigo-300 select-all">
+                        {selectedClassroom.classroom_code}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="lg:col-span-4 space-y-6">
+                {selectedClassroom && (
+                  <ClassroomCodeCard
+                    classroomCode={selectedClassroom.classroom_code}
+                    classroomName={selectedClassroom.classroom_name}
+                  />
+                )}
+              </div>
             </div>
-            <div className="lg:col-span-4 space-y-6">
-              <ClassroomCodeCard
-                classroomCode={selectedClassroom?.classroom_code || profile?.classroom_code}
-                classroomName={selectedClassroom?.classroom_name}
-              />
-              <AssignmentManager
-                teacherId={user?.id}
-                classroom_code={selectedClassroom?.classroom_code || profile?.classroom_code}
-              />
-              <ClassroomReminderCard students={students} />
-              <ClassSkillsCard allEvents={allEvents} />
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div className="lg:col-span-8 space-y-6">
+                <ClassEngagementTable students={students} onSelect={setSelected} />
+              </div>
+              <div className="lg:col-span-4 space-y-6">
+                {selectedClassroom && (
+                  <>
+                    <ClassroomCodeCard
+                      classroomCode={selectedClassroom.classroom_code}
+                      classroomName={selectedClassroom.classroom_name}
+                    />
+                    <AssignmentManager
+                      teacherId={user?.id}
+                      classroom_code={selectedClassroom.classroom_code}
+                    />
+                    <ClassroomReminderCard students={students} />
+                  </>
+                )}
+                <ClassSkillsCard allEvents={allEvents} />
+              </div>
             </div>
-          </div>
+          )
         )}
       </div>
 

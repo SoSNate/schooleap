@@ -54,7 +54,13 @@ Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
     return new Response(
       JSON.stringify({ error: 'Method not allowed' }),
-      { status: 405, headers: { 'Content-Type': 'application/json' } }
+      {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      }
     );
   }
 
@@ -65,7 +71,13 @@ Deno.serve(async (req: Request) => {
     if (!payload.p_token) {
       return new Response(
         JSON.stringify({ error: 'Missing p_token' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
       );
     }
 
@@ -85,7 +97,13 @@ Deno.serve(async (req: Request) => {
       console.error('[send-push] Query error:', queryError);
       return new Response(
         JSON.stringify({ sent: 0, failed: 0, total: 0, error: 'Query failed' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
       );
     }
 
@@ -93,7 +111,13 @@ Deno.serve(async (req: Request) => {
     if (total === 0) {
       return new Response(
         JSON.stringify({ sent: 0, failed: 0, total: 0 }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
       );
     }
 
@@ -162,7 +186,13 @@ Deno.serve(async (req: Request) => {
         total: 0,
         error: err.message || 'Internal error',
       }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      }
     );
   }
 });

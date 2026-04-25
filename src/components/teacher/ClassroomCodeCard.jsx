@@ -3,9 +3,10 @@ import { Copy, Check } from 'lucide-react';
 
 const APP_URL = import.meta.env.VITE_APP_URL || 'https://schooleap.vercel.app';
 
-export default function ClassroomCodeCard({ classroomCode }) {
+export default function ClassroomCodeCard({ classroomCode, classroomName }) {
   const [copied, setCopied] = useState(false);
 
+  const displayName = classroomName || 'הכיתה שלך';
   const inviteLink = `${APP_URL}/join?code=${classroomCode}`;
 
   async function handleCopy() {
@@ -25,8 +26,11 @@ export default function ClassroomCodeCard({ classroomCode }) {
   }
 
   return (
-    <div className="bg-white rounded-[2rem] p-5 border border-slate-100 shadow-sm space-y-3">
-      <p className="text-xs font-black text-slate-500 uppercase tracking-widest">קישור הזמנה לכיתה</p>
+    <div className="bg-white dark:bg-slate-800 rounded-[2rem] p-5 border border-slate-100 dark:border-slate-700 shadow-sm space-y-3">
+      <div>
+        <p className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">קישור הזמנה לכיתה</p>
+        <p className="text-sm font-bold text-slate-700 dark:text-slate-200 mt-1">{displayName}</p>
+      </div>
 
       {/* קישור — ניתן לסלקציה ולהעתקה ידנית */}
       <div

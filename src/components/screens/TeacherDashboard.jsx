@@ -1,15 +1,18 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { LogOut, GraduationCap, ShieldAlert, Moon, Sun } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import useGameStore from '../../store/useGameStore';
 import { useEdgeSwipe } from '../../hooks/useEdgeSwipe';
+import useTeacherClassrooms from '../../hooks/useTeacherClassrooms';
 import TeacherSalesPage from './TeacherSalesPage';
 import ClassEngagementTable from '../teacher/ClassEngagementTable';
 import ClassSkillsCard      from '../teacher/ClassSkillsCard';
 import StudentDetailDrawer  from '../teacher/StudentDetailDrawer';
 import ClassroomCodeCard    from '../teacher/ClassroomCodeCard';
 import ClassroomReminderCard from '../teacher/ClassroomReminderCard';
+import ClassroomSelector    from '../teacher/ClassroomSelector';
+import AssignmentManager    from '../teacher/AssignmentManager';
 
 /**
  * /teacher — Teacher-only dashboard.
@@ -33,6 +36,13 @@ export default function TeacherDashboard() {
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState(null);
   const [selected,  setSelected]  = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // ─── Classroom management hook ────────────────────────────────────────────
+  const { classrooms, selectedClassroom, createClassroom } = useTeacherClassrooms(user?.id);
+
+  // ─── Get classroom code from selected classroom or URL param ──────────────
+  const classroomCode = searchParams.get('classroom') || selectedClassroom?.classroom_code;
 
   const loadData = useCallback(async (u) => {
     try {
@@ -275,6 +285,17 @@ export default function TeacherDashboard() {
           </p>
         </div>
 
+        {/* Classroom Selector */}
+        <ClassroomSelector
+          classrooms={classrooms}
+          selectedClassroom={selectedClassroom}
+          onSelect={(classroom) => {
+            setSearchParams({ classroom: classroom.classroom_code });
+          }}
+          onCreate={createClassroom}
+          loading={false}
+        />
+
         {students.length === 0 ? (
           /* ─── Empty state ─────────────────────────────────────────── */
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -314,7 +335,14 @@ export default function TeacherDashboard() {
               <ClassEngagementTable students={students} onSelect={setSelected} />
             </div>
             <div className="lg:col-span-4 space-y-6">
-              <ClassroomCodeCard classroomCode={profile?.classroom_code} />
+              <ClassroomCodeCard
+                classroomCode={selectedClassroom?.classroom_code || profile?.classroom_code}
+                classroomName={selectedClassroom?.classroom_name}
+              />
+              <AssignmentManager
+                teacherId={user?.id}
+                classroom_code={selectedClassroom?.classroom_code || profile?.classroom_code}
+              />
               <ClassroomReminderCard students={students} />
               <ClassSkillsCard allEvents={allEvents} />
             </div>

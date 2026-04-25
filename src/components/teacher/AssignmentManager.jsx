@@ -7,7 +7,7 @@ import { GAMES } from '../../utils/games';
  * AssignmentManager — המורה יוצר משימות לכיתה וצופה בהן.
  * כל INSERT ל-assignments מפעיל DB trigger שמייצר pending לכל התלמידים.
  */
-export default function AssignmentManager({ teacherId, readOnly = false }) {
+export default function AssignmentManager({ teacherId, classroom_code, readOnly = false }) {
   const [assignments, setAssignments] = useState([]);
   const [statuses,    setStatuses]    = useState([]); // child_assignments_status rows
   const [loading,     setLoading]     = useState(true);

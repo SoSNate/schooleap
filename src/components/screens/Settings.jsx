@@ -4,6 +4,7 @@ import { GAME_COLORS } from '../../utils/math';
 import Swal from 'sweetalert2';
 import { clearAllTutorials } from '../shared/GameTutorial';
 import InstallPrompt from '../shared/InstallPrompt';
+import usePushNotifications from '../../hooks/usePushNotifications';
 
 const ONBOARD_KEY = 'seen_onboarding_v1';
 
@@ -63,6 +64,10 @@ export default function Settings() {
   const [lockLvl, setLockLvl] = useState(1);
   const [showInstall, setShowInstall] = useState(false);
 
+  // Push notifications hook
+  const { supported, permission, subscribed, loading, error, enable, disable } = usePushNotifications();
+  const [testLoading, setTestLoading] = useState(false);
+
   const todayIdx = new Date().getDay();
   const maxPts = Math.max(...weeklyStats.days.map((d) => d.pts), 10);
 
@@ -117,6 +122,81 @@ export default function Settings() {
         setScreen('menu');
       }
     });
+  };
+
+  const handleEnablePush = async () => {
+    const success = await enable();
+    if (!success && error) {
+      Swal.fire({
+        title: '❌ שגיאה',
+        text: error,
+        icon: 'error',
+        confirmButtonText: 'הבנתי',
+      });
+    }
+  };
+
+  const handleDisablePush = async () => {
+    const success = await disable();
+    if (!success && error) {
+      Swal.fire({
+        title: '❌ שגיאה',
+        text: error,
+        icon: 'error',
+        confirmButtonText: 'הבנתי',
+      });
+    }
+  };
+
+  const handleSendTestPush = async () => {
+    try {
+      setTestLoading(true);
+      const token = localStorage.getItem('hasbaonautica_child_token');
+
+      if (!token) {
+        throw new Error('משהו השתבש בהתחברות');
+      }
+
+      // Import Supabase dynamically to avoid circular dependency
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        import.meta.env.VITE_SUPABASE_URL,
+        import.meta.env.VITE_SUPABASE_ANON_KEY
+      );
+
+      const response = await supabase.functions.invoke('send-push', {
+        body: {
+          p_token: token,
+          title: '🚀 חשבונאוטיקה',
+          body: 'הבדיקה הצליחה! 🎉',
+          url: '/',
+          delay_ms: 5000,
+        },
+      });
+
+      if (response.error) {
+        throw response.error;
+      }
+
+      Swal.fire({
+        title: '✅ בדיקה נשלחה',
+        text: 'בדוק את הנוטיפיקציה תוך 5-6 שניות',
+        icon: 'success',
+        toast: true,
+        position: 'top-start',
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      Swal.fire({
+        title: '❌ שגיאה בשליחה',
+        text: err.message || 'משהו השתבש',
+        icon: 'error',
+        confirmButtonText: 'הבנתי',
+      });
+    } finally {
+      setTestLoading(false);
+    }
   };
 
   return (
@@ -214,6 +294,76 @@ export default function Settings() {
           </div>
         </div>
       </div>
+
+      {/* Push Notifications */}
+      {supported && (
+        <div className="w-full max-w-md bg-white dark:bg-slate-800 p-6 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-700">
+          <h3 className="font-bold text-lg mb-4 text-slate-700 dark:text-slate-200 border-b border-slate-100 dark:border-slate-700 pb-2">
+            התראות 🔔
+          </h3>
+          <div className="flex flex-col gap-3">
+            {/* Status */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-slate-600 dark:text-slate-300">מצב:</span>
+              {loading ? (
+                <span className="text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-3 py-1 rounded-full">
+                  ⏳ טוען...
+                </span>
+              ) : permission === 'denied' ? (
+                <span className="text-xs font-bold bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-3 py-1 rounded-full">
+                  🚫 דחוי על ידי הדפדפן
+                </span>
+              ) : subscribed ? (
+                <span className="text-xs font-bold bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-3 py-1 rounded-full">
+                  ✅ מאופשר
+                </span>
+              ) : (
+                <span className="text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-3 py-1 rounded-full">
+                  ⚪ לא מאופשר
+                </span>
+              )}
+            </div>
+
+            {/* Enable/Disable button */}
+            <button
+              onClick={subscribed ? handleDisablePush : handleEnablePush}
+              disabled={loading || permission === 'denied'}
+              className={`w-full font-bold py-2 px-4 rounded-xl transition-colors active:scale-95 ${
+                subscribed
+                  ? 'bg-red-600 hover:bg-red-700 text-white'
+                  : permission === 'denied'
+                  ? 'bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-400 cursor-not-allowed'
+                  : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+              }`}
+            >
+              {subscribed ? 'בטל התראות' : 'אשר התראות'}
+            </button>
+
+            {/* Test button */}
+            {subscribed && !loading && (
+              <button
+                onClick={handleSendTestPush}
+                disabled={testLoading}
+                className="w-full font-bold py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors active:scale-95 disabled:opacity-50"
+              >
+                {testLoading ? '⏳ שליחה...' : 'שלח לי בדיקה (5 שניות) 🚀'}
+              </button>
+            )}
+
+            {/* Error message */}
+            {error && (
+              <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg">
+                {error}
+              </div>
+            )}
+
+            {/* Hint */}
+            <p className="text-xs text-slate-500 dark:text-slate-400 text-center mt-2">
+              סגור את האפליקציה אחרי הלחיצה כדי לוודא שזה עובד גם ברקע
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Install PWA */}
       <div className="w-full max-w-md">

@@ -5,6 +5,8 @@
 
 // Listen for push events from the server
 self.addEventListener('push', (event) => {
+  console.log('[push] Push event received!', event);
+
   if (!event.data) {
     console.warn('[push] No data in push event');
     return;
@@ -13,6 +15,7 @@ self.addEventListener('push', (event) => {
   let payload;
   try {
     payload = event.data.json();
+    console.log('[push] Payload parsed:', payload);
   } catch (e) {
     console.error('[push] Failed to parse push payload', e);
     payload = {
@@ -41,8 +44,17 @@ self.addEventListener('push', (event) => {
     data,
   };
 
+  console.log('[push] Showing notification:', title, options);
+
   event.waitUntil(
-    self.registration.showNotification(title, options)
+    self.registration
+      .showNotification(title, options)
+      .then(() => {
+        console.log('[push] Notification shown successfully');
+      })
+      .catch((err) => {
+        console.error('[push] Failed to show notification:', err);
+      })
   );
 });
 

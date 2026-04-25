@@ -134,6 +134,33 @@ Deno.serve(async (req: Request) => {
       },
     };
 
+    // Check parent settings before sending
+    const { data: canSend, error: settingsError } = await supabase
+      .rpc('can_send_push_notification', { p_child_token: payload.p_token });
+
+    if (settingsError || !canSend) {
+      console.log(
+        '[send-push] Parent settings blocked this push for child:',
+        payload.p_token
+      );
+      return new Response(
+        JSON.stringify({
+          sent: 0,
+          failed: 0,
+          total,
+          blocked: true,
+          reason: 'Parent settings restrict notifications',
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
+    }
+
     // Send to each subscription
     let sent = 0;
     let failed = 0;
@@ -150,6 +177,11 @@ Deno.serve(async (req: Request) => {
 
         sent++;
         console.log(`[send-push] Sent to subscription ${record.id}`);
+
+        // Increment daily counter after successful send
+        await supabase.rpc('increment_daily_push_count', {
+          p_child_token: payload.p_token,
+        });
       } catch (err: any) {
         failed++;
 

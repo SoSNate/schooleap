@@ -6,6 +6,7 @@ import useGameStore from '../../store/useGameStore';
 import { useEdgeSwipe } from '../../hooks/useEdgeSwipe';
 import useTeacherClassrooms from '../../hooks/useTeacherClassrooms';
 import useTeacherModes from '../../hooks/useTeacherModes';
+import useTutorTrial from '../../hooks/useTutorTrial';
 import TeacherSalesPage from './TeacherSalesPage';
 import ClassEngagementTable from '../teacher/ClassEngagementTable';
 import ClassSkillsCard      from '../teacher/ClassSkillsCard';
@@ -15,6 +16,7 @@ import ClassroomReminderCard from '../teacher/ClassroomReminderCard';
 import ClassroomSelector    from '../teacher/ClassroomSelector';
 import AssignmentManager    from '../teacher/AssignmentManager';
 import TeacherModeSwitcher  from '../teacher/TeacherModeSwitcher';
+import TutorReadOnlyBanner  from '../teacher/TutorReadOnlyBanner';
 
 /**
  * /teacher — Teacher-only dashboard.
@@ -58,6 +60,11 @@ export default function TeacherDashboard() {
     submitInstitutionalEnrollment,
     error: modeError,
   } = useTeacherModes(user?.id);
+
+  // ─── Tutor trial (private mode only) ────────────────────────────────────────
+  const { isReadOnly, trialExpired, hoursRemaining } = useTutorTrial(
+    isPrivateMode ? user?.id : null
+  );
 
   // ─── Get classroom code from selected classroom or URL param ──────────────
   const classroomCode = selectedClassroom?.classroom_code;
@@ -301,6 +308,11 @@ export default function TeacherDashboard() {
           </div>
         )}
 
+        {/* Tutor trial / read-only banner */}
+        {isPrivateMode && (trialExpired || hoursRemaining < 12) && (
+          <TutorReadOnlyBanner hoursRemaining={hoursRemaining} />
+        )}
+
         {/* Header */}
         <div>
           <h2 className="text-2xl font-black tracking-tight">
@@ -341,6 +353,7 @@ export default function TeacherDashboard() {
             }}
             onCreate={createClassroom}
             loading={false}
+            isReadOnly={isReadOnly}
           />
         )}
 
@@ -413,6 +426,7 @@ export default function TeacherDashboard() {
                     <AssignmentManager
                       teacherId={user?.id}
                       classroom_code={selectedClassroom.classroom_code}
+                      readOnly={isReadOnly}
                     />
                     <ClassroomReminderCard students={students} />
                   </>

@@ -15,8 +15,9 @@ import PushSettingsCard   from '../dashboard/PushSettingsCard';
 import SkillRadarCard     from '../dashboard/SkillRadarCard';
 import GoalsSection       from '../dashboard/GoalsSection';
 import GoalModal          from '../dashboard/GoalModal';
-import PricingView        from '../dashboard/PricingView';
-import UpgradeNudge       from '../dashboard/UpgradeNudge';
+import PricingView           from '../dashboard/PricingView';
+import UpgradeNudge          from '../dashboard/UpgradeNudge';
+import SubscriptionPaywall   from '../dashboard/SubscriptionPaywall';
 import useSubscriptionStatus from '../../hooks/useSubscriptionStatus';
 
 // ─── EmptyState (shown before a child exists) ─────────────────────────────────
@@ -265,6 +266,25 @@ export default function ParentDashboard() {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [child?.magic_token]);
+
+  // ─── Realtime: subscription status (webhook activates instantly) ─────────
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`profile-sub-${user.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'profiles',
+        filter: `id=eq.${user.id}`,
+      }, (payload) => {
+        const { subscription_status, subscription_expires_at } = payload.new;
+        setProfile((prev) => prev
+          ? { ...prev, subscription_status, subscription_expires_at }
+          : prev
+        );
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id]);
 
   // ─── Auth listener ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -562,26 +582,18 @@ export default function ParentDashboard() {
   // ─── Render: paywall (trial expired) ────────────────────────────────────
   if (!trialActive) {
     return (
-      <div dir="rtl" className="min-h-[100dvh] bg-slate-50 p-4 flex flex-col items-center justify-center gap-6">
-        <div className="bg-white rounded-3xl shadow-lg p-8 max-w-sm w-full text-center space-y-4 border-2 border-red-100">
-          <div className="text-5xl">🔴</div>
-          <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
-            <p className="text-red-700 font-black text-sm">⚠️ הילד לא יכול לגשת למשחקים</p>
-            <p className="text-red-500 text-xs mt-1">המנוי פג — הילד רואה הודעת שגיאה טכנית</p>
-          </div>
-          <h2 className="text-2xl font-black text-slate-800">חידוש מנוי נדרש</h2>
-          <p className="text-slate-500 text-sm leading-relaxed">
-            תקופת הניסיון החינמית הסתיימה.<br />בחרו מסלול כדי לחדש את הגישה.
-          </p>
-          <button
-            onClick={() => setView('pricing')}
-            className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-2xl font-black text-sm shadow-lg active:scale-95 transition-all"
-          >
-            חדש מנוי עכשיו →
-          </button>
-          <button onClick={handleLogout} className="text-xs text-slate-400 hover:text-red-500">יציאה</button>
-        </div>
-      </div>
+      <SubscriptionPaywall
+        onBack={() => {
+          // Re-fetch profile to confirm subscription active
+          supabase.from('profiles')
+            .select('subscription_status, subscription_expires_at, applied_coupon, role')
+            .eq('id', user.id).maybeSingle()
+            .then(({ data }) => { if (data) setProfile(data); });
+        }}
+        onLogout={handleLogout}
+        userId={user?.id}
+        isActive={subStatus.isActive}
+      />
     );
   }
 

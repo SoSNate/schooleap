@@ -17,6 +17,7 @@ const TABS = [
   { id: 'parents',  label: '👨‍👩‍👧 הורים' },
   { id: 'students', label: '👦 תלמידים' },
   { id: 'activity', label: '📊 פעילות' },
+  { id: 'payments', label: '💳 תשלומים' },
   { id: 'links',    label: '🔗 קישורים מהירים' },
 ];
 
@@ -461,6 +462,148 @@ function ActivityTab() {
   );
 }
 
+// ─── Tab: Payments ────────────────────────────────────────────────────────────
+
+function PaymentsTab() {
+  const [payments, setPayments] = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [filter,   setFilter]   = useState('all'); // 'all' | 'paypal' | 'morning'
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const { data } = await supabase
+          .from('subscription_payments')
+          .select(`
+            id,
+            amount_shekel,
+            payment_provider,
+            payment_reference,
+            webhook_id,
+            status,
+            activated_at,
+            created_at,
+            profiles!subscription_payments_user_id_fkey(email),
+            subscription_tiers!subscription_payments_tier_id_fkey(name, duration_days)
+          `)
+          .order('created_at', { ascending: false })
+          .limit(100);
+        setPayments(data || []);
+      } catch (e) {
+        console.error('[PaymentsTab]', e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const visible = filter === 'all'
+    ? payments
+    : payments.filter(p => p.payment_provider === filter);
+
+  const totalRevenue = payments
+    .filter(p => p.status === 'success')
+    .reduce((sum, p) => sum + Number(p.amount_shekel), 0);
+
+  if (loading) return (
+    <div className="py-16 flex justify-center">
+      <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Summary */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 p-5 text-center">
+          <p className="text-3xl font-black text-emerald-600">₪{totalRevenue.toLocaleString()}</p>
+          <p className="text-xs text-slate-500 mt-1">סה"כ הכנסות</p>
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 p-5 text-center">
+          <p className="text-3xl font-black text-indigo-600">{payments.filter(p => p.status === 'success').length}</p>
+          <p className="text-xs text-slate-500 mt-1">תשלומים מוצלחים</p>
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 p-5 text-center">
+          <p className="text-3xl font-black text-amber-600">{payments.filter(p => p.status === 'pending_webhook').length}</p>
+          <p className="text-xs text-slate-500 mt-1">ממתינים ל-Webhook</p>
+        </div>
+      </div>
+
+      {/* Filter */}
+      <div className="flex gap-2">
+        {['all', 'paypal', 'morning'].map(f => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`text-xs font-black px-3 py-1.5 rounded-full transition-all ${
+              filter === f
+                ? 'bg-indigo-600 text-white'
+                : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+            }`}
+          >
+            {f === 'all' ? 'הכל' : f === 'paypal' ? 'PayPal' : 'Morning'}
+          </button>
+        ))}
+      </div>
+
+      {/* Table */}
+      {visible.length === 0 ? (
+        <div className="py-16 text-center text-slate-400 text-sm">אין תשלומים עדיין</div>
+      ) : (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 dark:border-slate-700 text-xs text-slate-500 font-black uppercase tracking-widest">
+                  <th className="px-4 py-3 text-right">מייל</th>
+                  <th className="px-4 py-3 text-right">מסלול</th>
+                  <th className="px-4 py-3 text-right">סכום</th>
+                  <th className="px-4 py-3 text-right">ספק</th>
+                  <th className="px-4 py-3 text-right">סטטוס</th>
+                  <th className="px-4 py-3 text-right">תאריך</th>
+                  <th className="px-4 py-3 text-right">אסמכתא</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map(p => (
+                  <tr key={p.id} className="border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                    <td className="px-4 py-3 text-slate-700 dark:text-slate-300 text-xs">
+                      {p.profiles?.email ?? '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge
+                        text={p.subscription_tiers?.name ?? '—'}
+                        color="indigo"
+                      />
+                    </td>
+                    <td className="px-4 py-3 font-black text-emerald-600">₪{p.amount_shekel}</td>
+                    <td className="px-4 py-3 text-xs text-slate-500">{p.payment_provider}</td>
+                    <td className="px-4 py-3">
+                      <Badge
+                        text={p.status === 'success' ? '✅ הצליח' : p.status === 'pending_webhook' ? '⏳ ממתין' : '❌ נכשל'}
+                        color={p.status === 'success' ? 'green' : p.status === 'pending_webhook' ? 'amber' : 'red'}
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-400">{fmt(p.activated_at || p.created_at)}</td>
+                    <td className="px-4 py-3 text-xs text-slate-400 font-mono truncate max-w-[120px]" title={p.payment_reference}>
+                      {p.payment_reference ?? p.webhook_id?.slice(0, 12) ?? '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <p className="text-xs text-slate-400 text-center">
+        תשלומים מופעלים אוטומטית דרך Webhook — אין צורך באישור ידני
+      </p>
+    </div>
+  );
+}
+
 // ─── Tab: Links ───────────────────────────────────────────────────────────────
 
 function LinksTab() {
@@ -723,6 +866,7 @@ export default function AdminDashboard() {
         {tab === 'parents'  && <ParentsTab />}
         {tab === 'students' && <StudentsTab />}
         {tab === 'activity' && <ActivityTab />}
+        {tab === 'payments' && <PaymentsTab />}
         {tab === 'links'    && <LinksTab />}
       </div>
     </div>

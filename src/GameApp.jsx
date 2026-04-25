@@ -210,6 +210,32 @@ export default function GameApp() {
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [goals,             setGoals]             = useState([]);
 
+  // ── Realtime: re-check subscription when parent pays (removes SoftLock) ──
+  useEffect(() => {
+    const token = (() => { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } })();
+    if (!token || token === 'dev-mode-local') return;
+
+    const channel = supabase
+      .channel(`sub-watch-${token}`)
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'profiles',
+      }, async () => {
+        // Re-fetch subscription for this child (could be parent or teacher profile)
+        try {
+          const { data, error } = await supabase.rpc('get_child_subscription', { p_token: token });
+          if (!error && data?.length > 0) {
+            const { subscription_status, subscription_expires_at, blocked } = data[0];
+            setSubscription({ status: subscription_status, expiresAt: subscription_expires_at, blocked: blocked === true });
+          }
+        } catch (e) {
+          console.error('[GameApp realtime sub]', e);
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []); // eslint-disable-line
+
   // ── UI setup (dark mode, install prompt, onboarding) — runs once ──────────
   useEffect(() => {
     initDarkMode();
@@ -275,8 +301,8 @@ export default function GameApp() {
         // Subscription
         const subRows = subRes.data;
         if (!subRes.error && subRows?.length > 0) {
-          const { subscription_status, subscription_expires_at } = subRows[0];
-          setSubscription({ status: subscription_status, expiresAt: subscription_expires_at });
+          const { subscription_status, subscription_expires_at, blocked } = subRows[0];
+          setSubscription({ status: subscription_status, expiresAt: subscription_expires_at, blocked: blocked === true });
         } else {
           setSubscription({ status: 'trial', expiresAt: null }); // fail-open
         }

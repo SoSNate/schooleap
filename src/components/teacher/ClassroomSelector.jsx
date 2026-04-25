@@ -12,6 +12,7 @@ export default function ClassroomSelector({
   onSelect,
   onCreate,
   loading,
+  isReadOnly = false,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -88,15 +89,17 @@ export default function ClassroomSelector({
     return (
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 space-y-3">
         <p className="text-sm font-bold text-slate-700 dark:text-slate-200">אין לך כיתות עדיין</p>
-        <p className="text-xs text-slate-500 dark:text-slate-400">יצור כיתה חדשה כדי להתחיל</p>
-        {!showCreateForm ? (
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          {isReadOnly ? 'יש לרכוש מנוי כדי ליצור כיתות' : 'יצור כיתה חדשה כדי להתחיל'}
+        </p>
+        {!isReadOnly && !showCreateForm ? (
           <button
             onClick={() => setShowCreateForm(true)}
             className="w-full px-4 py-2 text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
           >
             + יצור כיתה חדשה
           </button>
-        ) : (
+        ) : !isReadOnly ? (
           <form onSubmit={handleCreate} className="space-y-2">
             <input
               type="text"
@@ -191,8 +194,8 @@ export default function ClassroomSelector({
           {/* Divider */}
           <div className="border-t border-slate-200 dark:border-slate-700" />
 
-          {/* Create new classroom form */}
-          {!showCreateForm ? (
+          {/* Create new classroom form — hidden in read-only mode */}
+          {!isReadOnly && !showCreateForm ? (
             <button
               onClick={() => setShowCreateForm(true)}
               className="w-full text-right px-4 py-3 text-sm text-indigo-600 dark:text-indigo-400 font-bold hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-colors flex items-center justify-between gap-2"
@@ -200,7 +203,7 @@ export default function ClassroomSelector({
               <span>יצירת כיתה חדשה</span>
               <Plus size={16} />
             </button>
-          ) : (
+          ) : !isReadOnly ? (
             <form onSubmit={handleCreate} className="px-4 py-3 border-t border-slate-200 dark:border-slate-700 space-y-2">
               <input
                 type="text"

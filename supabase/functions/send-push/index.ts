@@ -1,6 +1,7 @@
 import webpush from 'webpush';
 import { createClient } from 'supabase';
 
+// Force redeploy: 2026-04-25 15:05:00 UTC
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY');

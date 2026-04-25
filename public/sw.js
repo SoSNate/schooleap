@@ -73,7 +73,7 @@ self.addEventListener('notificationclick', (event) => {
             return client.focus();
           }
         }
-        // Otherwise, open a new window to the home page
+        // Otherwise, open a new window to the home page (for login)
         return clients.openWindow('/');
       })
   );

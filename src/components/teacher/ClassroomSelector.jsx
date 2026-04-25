@@ -92,43 +92,45 @@ export default function ClassroomSelector({
         <p className="text-xs text-slate-500 dark:text-slate-400">
           {isReadOnly ? 'יש לרכוש מנוי כדי ליצור כיתות' : 'יצור כיתה חדשה כדי להתחיל'}
         </p>
-        {!isReadOnly && !showCreateForm ? (
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="w-full px-4 py-2 text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
-          >
-            + יצור כיתה חדשה
-          </button>
-        ) : !isReadOnly ? (
-          <form onSubmit={handleCreate} className="space-y-2">
-            <input
-              type="text"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="שם הכיתה (לדוגמה: כיתה ח1)"
-              autoFocus
-              className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={creating}
-                className="flex-1 px-3 py-2 text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-60"
-              >
-                {creating ? 'יוצר...' : 'יצור'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowCreateForm(false);
-                  setNewName('');
-                }}
-                className="flex-1 px-3 py-2 text-sm font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
-              >
-                ביטול
-              </button>
-            </div>
-          </form>
+        {!isReadOnly && (
+          !showCreateForm ? (
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="w-full px-4 py-2 text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+            >
+              + יצור כיתה חדשה
+            </button>
+          ) : (
+            <form onSubmit={handleCreate} className="space-y-2">
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="שם הכיתה (לדוגמה: כיתה ח1)"
+                autoFocus
+                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="flex-1 px-3 py-2 text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-60"
+                >
+                  {creating ? 'יוצר...' : 'יצור'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateForm(false);
+                    setNewName('');
+                  }}
+                  className="flex-1 px-3 py-2 text-sm font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                >
+                  ביטול
+                </button>
+              </div>
+            </form>
+          )
         )}
       </div>
     );
@@ -195,44 +197,46 @@ export default function ClassroomSelector({
           <div className="border-t border-slate-200 dark:border-slate-700" />
 
           {/* Create new classroom form — hidden in read-only mode */}
-          {!isReadOnly && !showCreateForm ? (
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="w-full text-right px-4 py-3 text-sm text-indigo-600 dark:text-indigo-400 font-bold hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-colors flex items-center justify-between gap-2"
-            >
-              <span>יצירת כיתה חדשה</span>
-              <Plus size={16} />
-            </button>
-          ) : !isReadOnly ? (
-            <form onSubmit={handleCreate} className="px-4 py-3 border-t border-slate-200 dark:border-slate-700 space-y-2">
-              <input
-                type="text"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="שם הכיתה (לדוגמה: כיתה ח1)"
-                autoFocus
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={creating}
-                  className="flex-1 px-3 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-60"
-                >
-                  {creating ? 'יוצר...' : 'יצור'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCreateForm(false);
-                    setNewName('');
-                  }}
-                  className="flex-1 px-3 py-2 text-xs font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
-                >
-                  ביטול
-                </button>
-              </div>
-            </form>
+          {!isReadOnly && (
+            !showCreateForm ? (
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="w-full text-right px-4 py-3 text-sm text-indigo-600 dark:text-indigo-400 font-bold hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-colors flex items-center justify-between gap-2"
+              >
+                <span>יצירת כיתה חדשה</span>
+                <Plus size={16} />
+              </button>
+            ) : (
+              <form onSubmit={handleCreate} className="px-4 py-3 border-t border-slate-200 dark:border-slate-700 space-y-2">
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="שם הכיתה (לדוגמה: כיתה ח1)"
+                  autoFocus
+                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={creating}
+                    className="flex-1 px-3 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-60"
+                  >
+                    {creating ? 'יוצר...' : 'יצור'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateForm(false);
+                      setNewName('');
+                    }}
+                    className="flex-1 px-3 py-2 text-xs font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                  >
+                    ביטול
+                  </button>
+                </div>
+              </form>
+            )
           )}
         </div>
       )}

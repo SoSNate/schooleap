@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 
 /**
  * Convert a base64 URL string to a Uint8Array
@@ -110,11 +110,6 @@ export default function usePushNotifications() {
       }
 
       // Save subscription to Supabase
-      const supabase = createClient(
-        import.meta.env.VITE_SUPABASE_URL,
-        import.meta.env.VITE_SUPABASE_ANON_KEY
-      );
-
       const { error: dbError } = await supabase
         .from('push_subscriptions')
         .insert({

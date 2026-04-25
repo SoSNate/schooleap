@@ -5,6 +5,7 @@ import Swal from 'sweetalert2';
 import { clearAllTutorials } from '../shared/GameTutorial';
 import InstallPrompt from '../shared/InstallPrompt';
 import usePushNotifications from '../../hooks/usePushNotifications';
+import { supabase } from '../../lib/supabase';
 
 const ONBOARD_KEY = 'seen_onboarding_v1';
 
@@ -157,13 +158,7 @@ export default function Settings() {
         throw new Error('משהו השתבש בהתחברות');
       }
 
-      // Import Supabase dynamically to avoid circular dependency
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(
-        import.meta.env.VITE_SUPABASE_URL,
-        import.meta.env.VITE_SUPABASE_ANON_KEY
-      );
-
+      // Use shared Supabase client to avoid creating multiple instances
       const response = await supabase.functions.invoke('send-push', {
         body: {
           p_token: token,

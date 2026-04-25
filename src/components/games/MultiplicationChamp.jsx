@@ -106,6 +106,11 @@ export default function MultiplicationChamp() {
   const [showHint, setShowHint] = useState(false);
   const [correctPairs, setCorrectPairs] = useState(0); // pairs found in this timer session
 
+  // Don't start the game until the tutorial is dismissed (first-time players)
+  const [gameReady, setGameReady] = useState(() => {
+    try { return !!sessionStorage.getItem('seen_tutorial_multChamp'); } catch { return true; }
+  });
+
   const rafRef = useRef(null);
   const startTimeRef = useRef(0);
   const durationRef = useRef(60);
@@ -147,11 +152,11 @@ export default function MultiplicationChamp() {
     startRound();
   }, [gameState.lvl, practiceLvl, startRound]);
 
-  useEffect(() => { startGame(); }, [startGame]);
+  useEffect(() => { if (gameReady) startGame(); }, [startGame, gameReady]);
 
   // Timer — requestAnimationFrame for drift-free accuracy
   useEffect(() => {
-    if (gameOver) {
+    if (gameOver || !gameReady) {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       return;
     }
@@ -260,11 +265,13 @@ export default function MultiplicationChamp() {
   const timerPct = round ? (timeLeft / cfg.timeLimit) * 100 : 100;
   const timerColor = timerPct > 50 ? '#ca8a04' : timerPct > 25 ? '#f59e0b' : '#dc2626';
 
-  if (!round) return null;
-
+  // Always render the tutorial — it must show before the first round so the child can dismiss it.
+  // The rest of the UI is gated on `round` being ready.
   return (
     <div className={`screen-enter flex flex-col items-center p-4 flex-1 min-h-[calc(100dvh-80px)] ${flash === 'wrong' ? 'error-flash' : ''}`}>
-      <GameTutorial gameName="multChamp" />
+      <GameTutorial gameName="multChamp" onDismiss={() => setGameReady(true)} />
+      {!round ? null : (<>
+
       <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-4 md:p-6 w-full max-w-md shadow-xl flex flex-col gap-4 border-2 border-lime-300 dark:border-lime-700/60 border-b-4 border-b-lime-400 dark:border-b-lime-600 transition-colors">
 
         {/* Header: score + timer */}
@@ -370,6 +377,7 @@ export default function MultiplicationChamp() {
           startGame();
         }}
       />
+      </>)}
     </div>
   );
 }

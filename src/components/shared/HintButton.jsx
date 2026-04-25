@@ -36,6 +36,18 @@ const COLOR_CLASSES = {
   orange: {
     ready:   'bg-orange-50 dark:bg-orange-900/30 border-orange-300 dark:border-orange-700/50 text-orange-600',
   },
+  yellow: {
+    ready:   'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-300 dark:border-yellow-700/50 text-yellow-600',
+  },
+  blue: {
+    ready:   'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700/50 text-blue-600',
+  },
+  rose: {
+    ready:   'bg-rose-50 dark:bg-rose-900/30 border-rose-300 dark:border-rose-700/50 text-rose-600',
+  },
+  purple: {
+    ready:   'bg-purple-50 dark:bg-purple-900/30 border-purple-300 dark:border-purple-700/50 text-purple-600',
+  },
 };
 
 const DISABLED = 'bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-300 dark:text-slate-500';

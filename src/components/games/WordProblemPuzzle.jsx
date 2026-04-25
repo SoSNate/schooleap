@@ -532,9 +532,37 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
     setSelToken(null);
     const uniqueSlots = [...new Set(question.eqParts.filter(p => typeof p === 'number'))];
     if (uniqueSlots.every(si => next[si] !== undefined)) {
+      // Check that each slot has the correct token (slot index must equal token index)
+      const isCommutative = !question.opHint.includes('−') && !question.opHint.includes('÷');
+      const arrangementCorrect = isCommutative || uniqueSlots.every(si => next[si] === si);
+      if (!arrangementCorrect) {
+        vibe([50, 50, 50]);
+        // Deduct a life and clear slots so child tries again
+        const nextLives = Math.max(0, lives - 1);
+        setLives(nextLives);
+        setJustLost(true);
+        setTimeout(() => setJustLost(false), 600);
+        setErrorMsg('סדר לא נכון! שים את המספרים בסדר הנכון 🔄');
+        setTimeout(() => setErrorMsg(''), 3000);
+        setTimeout(() => { setSlotMap({}); setSelToken(null); }, 400);
+        if (nextLives <= 0) {
+          setTimeout(() => {
+            handleGameFail('word');
+            Swal.fire({
+              title: 'הרמה ננעלה 🔒',
+              text: 'השג 5 ניצחונות ברצף כדי להתקדם לרמה הבאה!',
+              icon: 'warning',
+              confirmButtonText: 'הבנתי',
+              confirmButtonColor: '#991b1b',
+              customClass: { popup: 'rounded-3xl' },
+            }).then(() => setScreen('menu'));
+          }, 600);
+        }
+        return;
+      }
       setTimeout(() => setStep('solve'), 400);
     }
-  }, [step, slotMap, selToken, question]);
+  }, [step, slotMap, selToken, question, lives, handleGameFail, setScreen]);
 
   /* ── solve: check answer ────────────────────────────────────────────────── */
   const handleCheck = useCallback(() => {
@@ -639,6 +667,11 @@ export default function WordProblemPuzzle({ config = DEFAULT_CONFIG }) {
             <div className="bg-red-50 dark:bg-red-900/20 rounded-2xl px-4 py-3 border border-red-100 dark:border-red-800">
               <p className="text-sm text-red-700 dark:text-red-300 leading-relaxed">{question.text}</p>
             </div>
+
+            {/* Arrange error message */}
+            {step === 'arrange' && errorMsg && (
+              <p className="text-red-500 dark:text-red-400 font-bold text-sm text-center">{errorMsg}</p>
+            )}
 
             {/* Token tray (arrange only) */}
             {step === 'arrange' && (

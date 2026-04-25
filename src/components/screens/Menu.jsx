@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import useGameStore from '../../store/useGameStore';
-import { ranks, vibe } from '../../utils/math';
+import { vibe } from '../../utils/math';
 import { GAMES, GAME_BY_ID, getGameColorClasses } from '../../utils/games';
+import { getVisibleRank } from '../../utils/ranks';
 
 const ASSIGNMENT_DONE_KEY = 'assignment_done_date';
 
@@ -78,7 +79,8 @@ export default function Menu({ goals = [] }) {
     const pl = practiceLevels[gameId];
     const locked = locks[gameId] > 0;
     if (pl > 0) return { text: `🎯 רמה ${pl}`, practicing: true };
-    return { text: (locked ? '🔒 ' : '') + ranks[gameStates[gameId].lvl], practicing: false };
+    const rank = getVisibleRank(gameStates[gameId].lvl);
+    return { text: (locked ? '🔒 ' : '') + rank.emoji + ' ' + rank.name, practicing: false };
   };
 
   return (

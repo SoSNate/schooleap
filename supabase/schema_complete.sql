@@ -1,48 +1,79 @@
 -- ============================================================
---  חשבונאוטיקה — Complete Database Schema
---  כולל: טבלאות + RPC Functions + RLS + Web Push
+--  חשבונאוטיקה — Complete Database Schema v2
+--  כולל: טבלאות + RPC Functions + RLS + Web Push + Teacher Modes
+--        + Classrooms + Subscriptions + Tutor Trial
 --  להרצה על DB חדש לגמרי (DROP + CREATE הכל)
 -- ============================================================
 
 -- ────────────────────────────────────────────────────────────
 -- 0. ניקוי מוחלט (רק ל-DB חדש!)
 -- ────────────────────────────────────────────────────────────
-DROP TRIGGER  IF EXISTS on_auth_user_created           ON auth.users;
-DROP TRIGGER  IF EXISTS trg_assignments_seed            ON public.assignments;
-DROP TRIGGER  IF EXISTS trg_event_completes_assignment  ON public.game_events;
+DROP TRIGGER  IF EXISTS on_auth_user_created              ON auth.users;
+DROP TRIGGER  IF EXISTS trg_assignments_seed               ON public.assignments;
+DROP TRIGGER  IF EXISTS trg_event_completes_assignment     ON public.game_events;
+DROP TRIGGER  IF EXISTS set_tutor_trial_trigger            ON public.profiles;
+DROP TRIGGER  IF EXISTS set_trial_on_new_parent_trigger    ON public.profiles;
 
-DROP FUNCTION IF EXISTS public.handle_new_user()                             CASCADE;
-DROP FUNCTION IF EXISTS public.is_admin_caller()                             CASCADE;
-DROP FUNCTION IF EXISTS public.join_classroom(TEXT, TEXT)                    CASCADE;
-DROP FUNCTION IF EXISTS public.get_child_subscription(TEXT)                  CASCADE;
-DROP FUNCTION IF EXISTS public.get_child_events(TEXT)                        CASCADE;
-DROP FUNCTION IF EXISTS public.get_child_goals(TEXT)                         CASCADE;
-DROP FUNCTION IF EXISTS public.get_child_assignments(TEXT)                   CASCADE;
-DROP FUNCTION IF EXISTS public.get_teacher_class_overview(UUID)              CASCADE;
-DROP FUNCTION IF EXISTS public.get_teacher_class_overview()                  CASCADE;
-DROP FUNCTION IF EXISTS public.apply_coupon(TEXT)                            CASCADE;
-DROP FUNCTION IF EXISTS public.seed_child_assignments()                      CASCADE;
-DROP FUNCTION IF EXISTS public.complete_assignments_on_event()               CASCADE;
-DROP FUNCTION IF EXISTS public.admin_approve_teacher(TEXT)                   CASCADE;
-DROP FUNCTION IF EXISTS public.admin_revoke_teacher(UUID)                    CASCADE;
-DROP FUNCTION IF EXISTS public.admin_set_subscription(UUID,TEXT,TIMESTAMPTZ,TEXT) CASCADE;
-DROP FUNCTION IF EXISTS public.admin_list_users(TEXT)                        CASCADE;
-DROP FUNCTION IF EXISTS public.admin_view_parent_dashboard(UUID)             CASCADE;
-DROP FUNCTION IF EXISTS public.admin_view_teacher_dashboard(UUID)            CASCADE;
-DROP FUNCTION IF EXISTS public.save_push_subscription(TEXT, JSONB, TEXT)     CASCADE;
-DROP FUNCTION IF EXISTS public.disable_push_subscription(TEXT)               CASCADE;
-DROP FUNCTION IF EXISTS public.get_push_subscriptions_for_child(TEXT)        CASCADE;
+DROP FUNCTION IF EXISTS public.handle_new_user()                                     CASCADE;
+DROP FUNCTION IF EXISTS public.is_admin_caller()                                     CASCADE;
+DROP FUNCTION IF EXISTS public.join_classroom(TEXT, TEXT)                            CASCADE;
+DROP FUNCTION IF EXISTS public.get_child_subscription(TEXT)                          CASCADE;
+DROP FUNCTION IF EXISTS public.get_child_events(TEXT)                                CASCADE;
+DROP FUNCTION IF EXISTS public.get_child_goals(TEXT)                                 CASCADE;
+DROP FUNCTION IF EXISTS public.get_child_assignments(TEXT)                           CASCADE;
+DROP FUNCTION IF EXISTS public.get_teacher_class_overview(UUID)                      CASCADE;
+DROP FUNCTION IF EXISTS public.get_teacher_class_overview()                          CASCADE;
+DROP FUNCTION IF EXISTS public.apply_coupon(TEXT)                                    CASCADE;
+DROP FUNCTION IF EXISTS public.seed_child_assignments()                              CASCADE;
+DROP FUNCTION IF EXISTS public.complete_assignments_on_event()                       CASCADE;
+DROP FUNCTION IF EXISTS public.admin_approve_teacher(TEXT)                           CASCADE;
+DROP FUNCTION IF EXISTS public.admin_revoke_teacher(UUID)                            CASCADE;
+DROP FUNCTION IF EXISTS public.admin_set_subscription(UUID,TEXT,TIMESTAMPTZ,TEXT)    CASCADE;
+DROP FUNCTION IF EXISTS public.admin_list_users(TEXT)                                CASCADE;
+DROP FUNCTION IF EXISTS public.admin_view_parent_dashboard(UUID)                     CASCADE;
+DROP FUNCTION IF EXISTS public.admin_view_teacher_dashboard(UUID)                    CASCADE;
+DROP FUNCTION IF EXISTS public.save_push_subscription(TEXT, JSONB, TEXT)             CASCADE;
+DROP FUNCTION IF EXISTS public.disable_push_subscription(TEXT)                       CASCADE;
+DROP FUNCTION IF EXISTS public.get_push_subscriptions_for_child(TEXT)               CASCADE;
+DROP FUNCTION IF EXISTS public.get_teacher_mode_status(UUID)                         CASCADE;
+DROP FUNCTION IF EXISTS public.request_teacher_mode_change(UUID, TEXT, TEXT)         CASCADE;
+DROP FUNCTION IF EXISTS public.approve_teacher_institutional_mode(UUID, UUID)        CASCADE;
+DROP FUNCTION IF EXISTS public.set_teacher_primary_mode(UUID, TEXT)                  CASCADE;
+DROP FUNCTION IF EXISTS public.get_teacher_dashboard_data(UUID, TEXT)                CASCADE;
+DROP FUNCTION IF EXISTS public.create_teacher_classroom(UUID, TEXT, TEXT)            CASCADE;
+DROP FUNCTION IF EXISTS public.get_teacher_classrooms(UUID)                          CASCADE;
+DROP FUNCTION IF EXISTS public.update_classroom_name(UUID, UUID, TEXT)               CASCADE;
+DROP FUNCTION IF EXISTS public.delete_classroom(UUID, UUID)                          CASCADE;
+DROP FUNCTION IF EXISTS public.get_user_subscription(UUID)                           CASCADE;
+DROP FUNCTION IF EXISTS public.process_webhook_payment(UUID,UUID,TEXT,TEXT,TEXT,NUMERIC) CASCADE;
+DROP FUNCTION IF EXISTS public.admin_approve_payment_request(UUID, UUID)             CASCADE;
+DROP FUNCTION IF EXISTS public.check_and_update_subscription_status(UUID)            CASCADE;
+DROP FUNCTION IF EXISTS public.get_tutor_trial_status(UUID)                          CASCADE;
+DROP FUNCTION IF EXISTS public.set_tutor_trial_on_new_teacher()                      CASCADE;
+DROP FUNCTION IF EXISTS public.set_trial_on_new_parent()                             CASCADE;
+DROP FUNCTION IF EXISTS public.update_child_push_settings(TEXT,TEXT,BOOLEAN,INT,TIME,TIME,BOOLEAN) CASCADE;
+DROP FUNCTION IF EXISTS public.can_send_push_notification(TEXT)                      CASCADE;
+DROP FUNCTION IF EXISTS public.increment_daily_push_count(TEXT)                      CASCADE;
+DROP FUNCTION IF EXISTS public.init_push_settings_for_child(TEXT,TEXT)              CASCADE;
 
-DROP TABLE IF EXISTS public.audit_log                CASCADE;
-DROP TABLE IF EXISTS public.child_assignments_status CASCADE;
-DROP TABLE IF EXISTS public.assignments              CASCADE;
-DROP TABLE IF EXISTS public.teacher_leads            CASCADE;
-DROP TABLE IF EXISTS public.coupons                  CASCADE;
-DROP TABLE IF EXISTS public.goals                    CASCADE;
-DROP TABLE IF EXISTS public.game_events              CASCADE;
-DROP TABLE IF EXISTS public.push_subscriptions       CASCADE;
-DROP TABLE IF EXISTS public.children                 CASCADE;
-DROP TABLE IF EXISTS public.profiles                 CASCADE;
+DROP TABLE IF EXISTS public.push_notification_count        CASCADE;
+DROP TABLE IF EXISTS public.parent_push_settings           CASCADE;
+DROP TABLE IF EXISTS public.subscription_payments          CASCADE;
+DROP TABLE IF EXISTS public.subscription_tiers             CASCADE;
+DROP TABLE IF EXISTS public.coupon_codes                   CASCADE;
+DROP TABLE IF EXISTS public.teacher_mode_requests          CASCADE;
+DROP TABLE IF EXISTS public.teacher_institutional_enrollment CASCADE;
+DROP TABLE IF EXISTS public.classrooms                     CASCADE;
+DROP TABLE IF EXISTS public.audit_log                      CASCADE;
+DROP TABLE IF EXISTS public.child_assignments_status       CASCADE;
+DROP TABLE IF EXISTS public.assignments                    CASCADE;
+DROP TABLE IF EXISTS public.teacher_leads                  CASCADE;
+DROP TABLE IF EXISTS public.coupons                        CASCADE;
+DROP TABLE IF EXISTS public.goals                          CASCADE;
+DROP TABLE IF EXISTS public.game_events                    CASCADE;
+DROP TABLE IF EXISTS public.push_subscriptions             CASCADE;
+DROP TABLE IF EXISTS public.children                       CASCADE;
+DROP TABLE IF EXISTS public.profiles                       CASCADE;
 
 -- ════════════════════════════════════════════════════════════
 -- SECTION 1: CORE TABLES
@@ -59,11 +90,31 @@ CREATE TABLE public.profiles (
   max_children_allowed    INT         NOT NULL DEFAULT 1,
   teacher_status          TEXT,
   full_name               TEXT,
+  -- Subscription
   subscription_status     TEXT        NOT NULL DEFAULT 'trial',
   subscription_expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '14 days'),
   applied_coupon          TEXT,
+  subscription_tier_id    UUID,
+  last_payment_date       TIMESTAMPTZ,
+  last_payment_reference  TEXT,
+  is_trial_used           BOOLEAN     DEFAULT false,
+  trial_started_at        TIMESTAMPTZ,
+  -- Teacher modes
+  teacher_modes           TEXT[]      DEFAULT ARRAY['private']::TEXT[],
+  primary_teacher_mode    TEXT        DEFAULT 'private',
+  teacher_mode_status     JSONB       DEFAULT '{
+    "private":       {"enabled": true,  "approved_at": null},
+    "institutional": {"enabled": false, "approved_at": null}
+  }'::JSONB,
+  -- Tutor trial
+  tutor_trial_started_at  TIMESTAMPTZ,
+  -- Tutor slots (future use)
+  tutor_student_slots_remaining INT   DEFAULT 0,
   created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS profiles_subscription_status_idx ON public.profiles(subscription_status);
+CREATE INDEX IF NOT EXISTS profiles_subscription_expires_idx ON public.profiles(subscription_expires_at);
 
 -- children — ילד (הורה או מורה)
 CREATE TABLE public.children (
@@ -77,9 +128,7 @@ CREATE TABLE public.children (
   last_login  TIMESTAMPTZ,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
-CREATE INDEX IF NOT EXISTS children_teacher_id_idx
-  ON public.children (teacher_id) WHERE teacher_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS children_teacher_id_idx ON public.children(teacher_id) WHERE teacher_id IS NOT NULL;
 
 -- game_events — אירועי משחק
 CREATE TABLE public.game_events (
@@ -102,7 +151,7 @@ CREATE TABLE public.goals (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- coupons
+-- coupons (הישן — apply_coupon משתמש בו)
 CREATE TABLE public.coupons (
   id            UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   code          TEXT    UNIQUE NOT NULL,
@@ -131,21 +180,23 @@ CREATE TABLE public.assignments (
   teacher_id   UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   game_name    TEXT        NOT NULL,
   target_level INT         NOT NULL CHECK (target_level BETWEEN 1 AND 5),
-  due_date     TIMESTAMPTZ,
+  title        TEXT,
+  due_at       TIMESTAMPTZ,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE INDEX assignments_teacher_idx ON public.assignments (teacher_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS assignments_teacher_idx ON public.assignments(teacher_id, created_at DESC);
 
 -- child_assignments_status
 CREATE TABLE public.child_assignments_status (
   child_id      UUID        NOT NULL REFERENCES public.children(id)    ON DELETE CASCADE,
   assignment_id UUID        NOT NULL REFERENCES public.assignments(id) ON DELETE CASCADE,
+  status        TEXT        NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','done')),
   completed     BOOLEAN     NOT NULL DEFAULT false,
   completed_at  TIMESTAMPTZ,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (child_id, assignment_id)
 );
-CREATE INDEX cas_completed_idx ON public.child_assignments_status (child_id, completed);
+CREATE INDEX IF NOT EXISTS cas_completed_idx ON public.child_assignments_status(child_id, completed);
 
 -- audit_log
 CREATE TABLE public.audit_log (
@@ -158,30 +209,157 @@ CREATE TABLE public.audit_log (
   payload        JSONB,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE INDEX audit_log_created_idx ON public.audit_log (created_at DESC);
+CREATE INDEX IF NOT EXISTS audit_log_created_idx ON public.audit_log(created_at DESC);
 
 -- ════════════════════════════════════════════════════════════
--- SECTION 2: WEB PUSH NOTIFICATIONS TABLE
+-- SECTION 2: CLASSROOMS
 -- ════════════════════════════════════════════════════════════
 
--- push_subscriptions — Web Push Device Subscriptions
-CREATE TABLE public.push_subscriptions (
-  id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  magic_token   TEXT        NOT NULL,
-  subscription  JSONB       NOT NULL,
-  user_agent    TEXT,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+CREATE TABLE public.classrooms (
+  id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  teacher_id     UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  classroom_code TEXT        NOT NULL UNIQUE,
+  classroom_name TEXT        NOT NULL DEFAULT 'כיתה',
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
-CREATE INDEX IF NOT EXISTS push_subscriptions_token_idx
-  ON public.push_subscriptions(magic_token);
-
-CREATE INDEX IF NOT EXISTS push_subscriptions_created_idx
-  ON public.push_subscriptions(created_at DESC);
+CREATE INDEX IF NOT EXISTS classrooms_teacher_idx ON public.classrooms(teacher_id);
+CREATE INDEX IF NOT EXISTS classrooms_code_idx    ON public.classrooms(classroom_code);
 
 -- ════════════════════════════════════════════════════════════
--- SECTION 3: HELPER FUNCTIONS (MUST BE BEFORE RLS)
+-- SECTION 3: TEACHER MODE REQUESTS
+-- ════════════════════════════════════════════════════════════
+
+CREATE TABLE public.teacher_mode_requests (
+  id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  teacher_id     UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  requested_mode TEXT        NOT NULL CHECK (requested_mode IN ('private','institutional')),
+  from_mode      TEXT        NOT NULL,
+  status         TEXT        NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+  reason         TEXT,
+  admin_notes    TEXT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  approved_at    TIMESTAMPTZ,
+  approved_by    UUID        REFERENCES auth.users(id),
+  UNIQUE(teacher_id, requested_mode, status)
+);
+CREATE INDEX IF NOT EXISTS teacher_mode_requests_teacher_idx ON public.teacher_mode_requests(teacher_id);
+CREATE INDEX IF NOT EXISTS teacher_mode_requests_status_idx  ON public.teacher_mode_requests(status);
+
+CREATE TABLE public.teacher_institutional_enrollment (
+  id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  teacher_id        UUID        NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  organization_name TEXT        NOT NULL,
+  organization_id   TEXT        UNIQUE,
+  enrollment_date   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  payment_status    TEXT        DEFAULT 'pending' CHECK (payment_status IN ('pending','completed','cancelled')),
+  payment_date      TIMESTAMPTZ,
+  contact_email     TEXT        NOT NULL,
+  contact_phone     TEXT,
+  notes             TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS teacher_institutional_enrollment_teacher_idx
+  ON public.teacher_institutional_enrollment(teacher_id);
+
+-- ════════════════════════════════════════════════════════════
+-- SECTION 4: SUBSCRIPTION TIERS & PAYMENTS
+-- ════════════════════════════════════════════════════════════
+
+CREATE TABLE public.subscription_tiers (
+  id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  name          TEXT        NOT NULL UNIQUE,
+  price_shekel  DECIMAL(10,2) NOT NULL,
+  currency      TEXT        NOT NULL DEFAULT 'ILS',
+  duration_days INTEGER     NOT NULL,
+  max_children  INTEGER,
+  display_order INTEGER     DEFAULT 0,
+  features      JSONB       DEFAULT '{}'::jsonb,
+  is_active     BOOLEAN     DEFAULT true,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS subscription_tiers_active_idx ON public.subscription_tiers(is_active) WHERE is_active = true;
+
+-- FK from profiles to subscription_tiers (added after table creation)
+ALTER TABLE public.profiles
+  ADD CONSTRAINT fk_profiles_subscription_tier
+  FOREIGN KEY (subscription_tier_id) REFERENCES public.subscription_tiers(id);
+
+CREATE TABLE public.subscription_payments (
+  id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id            UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  tier_id            UUID        NOT NULL REFERENCES public.subscription_tiers(id),
+  amount_shekel      DECIMAL(10,2) NOT NULL,
+  payment_provider   TEXT        NOT NULL CHECK (payment_provider IN ('paypal','morning')),
+  webhook_id         TEXT        UNIQUE,
+  payment_reference  TEXT,
+  status             TEXT        NOT NULL DEFAULT 'pending_webhook'
+                                 CHECK (status IN ('pending_webhook','success','failed')),
+  activated_at       TIMESTAMPTZ,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  metadata           JSONB       DEFAULT '{}'::jsonb
+);
+CREATE INDEX IF NOT EXISTS subscription_payments_user_idx     ON public.subscription_payments(user_id);
+CREATE INDEX IF NOT EXISTS subscription_payments_status_idx   ON public.subscription_payments(status);
+CREATE INDEX IF NOT EXISTS subscription_payments_provider_idx ON public.subscription_payments(payment_provider);
+
+CREATE TABLE public.coupon_codes (
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  code             TEXT        NOT NULL UNIQUE,
+  discount_percent INTEGER     NOT NULL CHECK (discount_percent >= 0 AND discount_percent <= 100),
+  max_uses         INTEGER,
+  times_used       INTEGER     DEFAULT 0,
+  expires_at       TIMESTAMPTZ,
+  is_active        BOOLEAN     DEFAULT true,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by_admin_id UUID     REFERENCES auth.users(id)
+);
+CREATE INDEX IF NOT EXISTS coupon_codes_active_idx ON public.coupon_codes(is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS coupon_codes_code_idx   ON public.coupon_codes(code);
+
+-- ════════════════════════════════════════════════════════════
+-- SECTION 5: WEB PUSH TABLES
+-- ════════════════════════════════════════════════════════════
+
+CREATE TABLE public.push_subscriptions (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  magic_token TEXT        NOT NULL,
+  subscription JSONB      NOT NULL,
+  user_agent  TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS push_subscriptions_token_idx   ON public.push_subscriptions(magic_token);
+CREATE INDEX IF NOT EXISTS push_subscriptions_created_idx ON public.push_subscriptions(created_at DESC);
+
+CREATE TABLE public.parent_push_settings (
+  id                       UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  magic_token              TEXT        NOT NULL UNIQUE,
+  parent_magic_token       TEXT,
+  notifications_enabled    BOOLEAN     NOT NULL DEFAULT true,
+  max_notifications_per_day INT        NOT NULL DEFAULT 3,
+  quiet_hour_start         TIME        DEFAULT '22:00',
+  quiet_hour_end           TIME        DEFAULT '08:00',
+  quiet_hours_enabled      BOOLEAN     NOT NULL DEFAULT true,
+  created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS parent_push_settings_token_idx  ON public.parent_push_settings(magic_token);
+CREATE INDEX IF NOT EXISTS parent_push_settings_parent_idx ON public.parent_push_settings(parent_magic_token);
+
+CREATE TABLE public.push_notification_count (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  magic_token TEXT        NOT NULL,
+  date        DATE        NOT NULL DEFAULT CURRENT_DATE,
+  count       INTEGER     NOT NULL DEFAULT 0,
+  UNIQUE(magic_token, date)
+);
+CREATE INDEX IF NOT EXISTS push_notification_count_token_date_idx
+  ON public.push_notification_count(magic_token, date);
+
+-- ════════════════════════════════════════════════════════════
+-- SECTION 6: HELPER FUNCTIONS (MUST BE BEFORE RLS)
 -- ════════════════════════════════════════════════════════════
 
 CREATE OR REPLACE FUNCTION public.is_admin_caller()
@@ -191,29 +369,34 @@ $$;
 GRANT EXECUTE ON FUNCTION public.is_admin_caller() TO authenticated, anon;
 
 -- ════════════════════════════════════════════════════════════
--- SECTION 4: ROW LEVEL SECURITY
+-- SECTION 7: ROW LEVEL SECURITY
 -- ════════════════════════════════════════════════════════════
 
-ALTER TABLE public.profiles                  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.children                  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.game_events               ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.goals                     ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.teacher_leads             ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.assignments               ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.child_assignments_status  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.audit_log                 ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.push_subscriptions        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles                       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.children                       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.game_events                    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.goals                          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.teacher_leads                  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.assignments                    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.child_assignments_status       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_log                      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.push_subscriptions             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.classrooms                     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.teacher_mode_requests          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.teacher_institutional_enrollment ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.subscription_tiers             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.subscription_payments          ENABLE ROW LEVEL SECURITY;
 
--- Profiles RLS
-CREATE POLICY "Users manage own profile"    ON public.profiles FOR ALL USING (auth.uid() = id);
-CREATE POLICY "Admin reads all profiles"    ON public.profiles FOR SELECT USING (public.is_admin_caller());
+-- Profiles
+CREATE POLICY "Users manage own profile"   ON public.profiles FOR ALL    USING (auth.uid() = id);
+CREATE POLICY "Admin reads all profiles"   ON public.profiles FOR SELECT USING (public.is_admin_caller());
 
--- Children RLS
-CREATE POLICY "Parents manage own children" ON public.children FOR ALL    USING (auth.uid() = parent_id);
-CREATE POLICY "Teachers read their students"ON public.children FOR SELECT USING (teacher_id = auth.uid());
-CREATE POLICY "Admin reads all children"    ON public.children FOR SELECT USING (public.is_admin_caller());
+-- Children
+CREATE POLICY "Parents manage own children"  ON public.children FOR ALL    USING (auth.uid() = parent_id);
+CREATE POLICY "Teachers read their students" ON public.children FOR SELECT USING (teacher_id = auth.uid());
+CREATE POLICY "Admin reads all children"     ON public.children FOR SELECT USING (public.is_admin_caller());
 
--- Game Events RLS
+-- Game Events
 CREATE POLICY "Parents view own children events" ON public.game_events FOR SELECT
   USING (child_token IN (SELECT magic_token FROM public.children WHERE parent_id = auth.uid()));
 CREATE POLICY "Teachers read students events"    ON public.game_events FOR SELECT
@@ -221,46 +404,60 @@ CREATE POLICY "Teachers read students events"    ON public.game_events FOR SELEC
 CREATE POLICY "Child insert own events"          ON public.game_events FOR INSERT WITH CHECK (true);
 CREATE POLICY "Admin reads all events"           ON public.game_events FOR SELECT USING (public.is_admin_caller());
 
--- Goals RLS
+-- Goals
 CREATE POLICY "Parents manage own goals" ON public.goals FOR ALL    USING (auth.uid() = parent_id);
 CREATE POLICY "Admin reads all goals"    ON public.goals FOR SELECT USING (public.is_admin_caller());
 
--- Teacher Leads RLS
-CREATE POLICY "anyone can submit lead" ON public.teacher_leads FOR INSERT TO anon, authenticated WITH CHECK (true);
-CREATE POLICY "admin reads leads"      ON public.teacher_leads FOR SELECT USING (public.is_admin_caller());
-CREATE POLICY "admin updates leads"    ON public.teacher_leads FOR UPDATE USING (public.is_admin_caller());
+-- Teacher Leads
+CREATE POLICY "Anyone can submit lead" ON public.teacher_leads FOR INSERT TO anon, authenticated WITH CHECK (true);
+CREATE POLICY "Admin reads leads"      ON public.teacher_leads FOR SELECT USING (public.is_admin_caller());
+CREATE POLICY "Admin updates leads"    ON public.teacher_leads FOR UPDATE USING (public.is_admin_caller());
 
--- Assignments RLS
+-- Assignments
 CREATE POLICY "Teacher manages own assignments" ON public.assignments FOR ALL    USING (teacher_id = auth.uid());
 CREATE POLICY "Admin reads all assignments"     ON public.assignments FOR SELECT USING (public.is_admin_caller());
 
--- Child Assignments Status RLS
+-- Child Assignments Status
 CREATE POLICY "Teacher reads own class status" ON public.child_assignments_status FOR SELECT
   USING (assignment_id IN (SELECT id FROM public.assignments WHERE teacher_id = auth.uid()));
-CREATE POLICY "Admin reads all status" ON public.child_assignments_status FOR SELECT USING (public.is_admin_caller());
+CREATE POLICY "Admin reads all status"         ON public.child_assignments_status FOR SELECT USING (public.is_admin_caller());
 
--- Audit Log RLS
+-- Audit Log
 CREATE POLICY "Admin reads audit" ON public.audit_log FOR SELECT USING (public.is_admin_caller());
 
--- Push Subscriptions RLS
+-- Push Subscriptions
 CREATE POLICY "Admin reads all push subscriptions" ON public.push_subscriptions FOR SELECT
   USING (public.is_admin_caller());
 
+-- Classrooms
+CREATE POLICY "Teacher manages own classrooms" ON public.classrooms FOR ALL    USING (teacher_id = auth.uid());
+CREATE POLICY "Admin reads all classrooms"     ON public.classrooms FOR SELECT USING (public.is_admin_caller());
+
+-- Subscription Tiers (read-only for all)
+CREATE POLICY "Anyone reads active tiers" ON public.subscription_tiers FOR SELECT USING (true);
+
+-- Subscription Payments
+CREATE POLICY "User reads own payments"  ON public.subscription_payments FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Admin reads all payments" ON public.subscription_payments FOR SELECT USING (public.is_admin_caller());
+
 -- ════════════════════════════════════════════════════════════
--- SECTION 5: CORE RPC FUNCTIONS
+-- SECTION 8: TRIGGERS — NEW USER + TRIAL
 -- ════════════════════════════════════════════════════════════
 
--- handle_new_user — טריגר הרשמה
+-- handle_new_user: יוצר פרופיל + trial לכל משתמש חדש
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
   INSERT INTO public.profiles (
     id, email, role, is_admin, is_approved,
-    subscription_status, subscription_expires_at
+    subscription_status, subscription_expires_at,
+    trial_started_at
   ) VALUES (
     NEW.id, NEW.email, 'parent',
     (LOWER(NEW.email) = '12natanel@gmail.com'),
-    true, 'trial', NOW() + INTERVAL '14 days'
+    true,
+    'trial', NOW() + INTERVAL '14 days',
+    NOW()
   )
   ON CONFLICT (id) DO UPDATE
     SET is_admin = EXCLUDED.is_admin
@@ -272,14 +469,78 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
--- get_child_subscription
+-- set_tutor_trial_on_new_teacher: שומר זמן תחילת ניסיון לכל מורה חדש
+CREATE OR REPLACE FUNCTION set_tutor_trial_on_new_teacher()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.role = 'teacher' AND NEW.tutor_trial_started_at IS NULL THEN
+    NEW.tutor_trial_started_at := NOW();
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER set_tutor_trial_trigger
+BEFORE INSERT ON public.profiles
+FOR EACH ROW EXECUTE FUNCTION set_tutor_trial_on_new_teacher();
+
+-- ════════════════════════════════════════════════════════════
+-- SECTION 9: CORE RPC FUNCTIONS
+-- ════════════════════════════════════════════════════════════
+
+-- get_child_subscription — מחזיר סטטוס מנוי + blocked (ילד)
 CREATE OR REPLACE FUNCTION public.get_child_subscription(p_token TEXT)
-RETURNS TABLE(subscription_status TEXT, subscription_expires_at TIMESTAMPTZ)
-LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+RETURNS TABLE(
+  subscription_status     TEXT,
+  subscription_expires_at TIMESTAMPTZ,
+  blocked                 BOOLEAN
+)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_parent_id        UUID;
+  v_teacher_id       UUID;
+  v_sub_status       TEXT;
+  v_sub_expires      TIMESTAMPTZ;
+  v_teacher_sub      TEXT;
+  v_teacher_trial    TIMESTAMPTZ;
+  v_trial_hours_left NUMERIC;
+  v_is_blocked       BOOLEAN := false;
+BEGIN
+  SELECT c.parent_id, c.teacher_id
+  INTO v_parent_id, v_teacher_id
+  FROM public.children c WHERE c.magic_token = p_token LIMIT 1;
+
+  IF v_parent_id IS NULL AND v_teacher_id IS NULL THEN
+    RETURN QUERY SELECT 'expired'::TEXT, NOW()::TIMESTAMPTZ, true;
+    RETURN;
+  END IF;
+
   SELECT p.subscription_status, p.subscription_expires_at
-  FROM   public.children c
-  JOIN   public.profiles  p ON p.id = COALESCE(c.parent_id, c.teacher_id)
-  WHERE  c.magic_token = p_token LIMIT 1;
+  INTO v_sub_status, v_sub_expires
+  FROM public.profiles p WHERE p.id = COALESCE(v_parent_id, v_teacher_id) LIMIT 1;
+
+  v_is_blocked := (
+    v_sub_status IS NULL OR
+    v_sub_status = 'expired' OR
+    (v_sub_status = 'trial' AND v_sub_expires < NOW())
+  );
+
+  -- בדיקת ניסיון מורה פרטי (48 שעות)
+  IF v_teacher_id IS NOT NULL AND NOT v_is_blocked THEN
+    SELECT p.subscription_status, p.tutor_trial_started_at
+    INTO v_teacher_sub, v_teacher_trial
+    FROM public.profiles p WHERE p.id = v_teacher_id;
+
+    IF v_teacher_sub NOT IN ('active', 'vip') AND v_teacher_trial IS NOT NULL THEN
+      v_trial_hours_left := EXTRACT(EPOCH FROM (v_teacher_trial + INTERVAL '48 hours') - NOW()) / 3600;
+      IF v_trial_hours_left <= 0 THEN
+        v_is_blocked := true;
+      END IF;
+    END IF;
+  END IF;
+
+  RETURN QUERY SELECT v_sub_status, v_sub_expires, v_is_blocked;
+END;
 $$;
 GRANT EXECUTE ON FUNCTION public.get_child_subscription(TEXT) TO anon, authenticated;
 
@@ -361,7 +622,7 @@ CREATE OR REPLACE FUNCTION public.get_child_assignments(p_token TEXT)
 RETURNS TABLE(assignment_id UUID, game_name TEXT, target_level INT,
               due_date TIMESTAMPTZ, is_completed BOOLEAN, created_at TIMESTAMPTZ)
 LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
-  SELECT a.id,a.game_name,a.target_level,a.due_date,cas.completed,a.created_at
+  SELECT a.id,a.game_name,a.target_level,a.due_at,cas.completed,a.created_at
   FROM public.children c
   JOIN public.child_assignments_status cas ON cas.child_id=c.id
   JOIN public.assignments              a   ON a.id=cas.assignment_id
@@ -398,10 +659,9 @@ $$;
 GRANT EXECUTE ON FUNCTION public.get_teacher_class_overview(UUID) TO authenticated;
 
 -- ════════════════════════════════════════════════════════════
--- SECTION 6: TRIGGERS
+-- SECTION 10: ASSIGNMENT TRIGGERS
 -- ════════════════════════════════════════════════════════════
 
--- seed_child_assignments
 CREATE OR REPLACE FUNCTION public.seed_child_assignments()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
@@ -414,7 +674,6 @@ $$;
 CREATE TRIGGER trg_assignments_seed AFTER INSERT ON public.assignments
   FOR EACH ROW EXECUTE PROCEDURE public.seed_child_assignments();
 
--- complete_assignments_on_event
 CREATE OR REPLACE FUNCTION public.complete_assignments_on_event()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_child_id UUID;
@@ -422,7 +681,7 @@ BEGIN
   IF NOT NEW.success THEN RETURN NEW; END IF;
   SELECT id INTO v_child_id FROM public.children WHERE magic_token=NEW.child_token LIMIT 1;
   IF v_child_id IS NULL THEN RETURN NEW; END IF;
-  UPDATE public.child_assignments_status cas SET completed=true,completed_at=NOW()
+  UPDATE public.child_assignments_status cas SET completed=true,completed_at=NOW(),status='done'
   FROM public.assignments a
   WHERE cas.assignment_id=a.id AND cas.child_id=v_child_id
     AND cas.completed=false AND a.game_name=NEW.game_name AND NEW.level>=a.target_level;
@@ -433,10 +692,9 @@ CREATE TRIGGER trg_event_completes_assignment AFTER INSERT ON public.game_events
   FOR EACH ROW EXECUTE PROCEDURE public.complete_assignments_on_event();
 
 -- ════════════════════════════════════════════════════════════
--- SECTION 7: ADMIN RPC FUNCTIONS
+-- SECTION 11: ADMIN RPC FUNCTIONS
 -- ════════════════════════════════════════════════════════════
 
--- admin_approve_teacher
 CREATE OR REPLACE FUNCTION public.admin_approve_teacher(p_email TEXT)
 RETURNS TABLE(user_id UUID, classroom_code TEXT, email TEXT)
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -455,7 +713,8 @@ BEGIN
   UPDATE public.profiles p
   SET role='teacher',is_approved=true,teacher_status='approved',classroom_code=v_code,
       max_children_allowed=GREATEST(p.max_children_allowed,40),
-      subscription_status='active',subscription_expires_at=NOW()+INTERVAL '1 year'
+      subscription_status='active',subscription_expires_at=NOW()+INTERVAL '1 year',
+      tutor_trial_started_at=COALESCE(p.tutor_trial_started_at, NOW())
   WHERE p.id=v_user.id;
   UPDATE public.teacher_leads tl SET handled=true
   WHERE LOWER(tl.email)=LOWER(v_user.email) AND tl.handled=false;
@@ -466,7 +725,6 @@ END;
 $$;
 GRANT EXECUTE ON FUNCTION public.admin_approve_teacher(TEXT) TO authenticated;
 
--- admin_revoke_teacher
 CREATE OR REPLACE FUNCTION public.admin_revoke_teacher(p_user_id UUID)
 RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_admin UUID:=auth.uid(); v_admin_email TEXT; v_target_email TEXT;
@@ -481,7 +739,6 @@ END;
 $$;
 GRANT EXECUTE ON FUNCTION public.admin_revoke_teacher(UUID) TO authenticated;
 
--- admin_set_subscription
 CREATE OR REPLACE FUNCTION public.admin_set_subscription(
   p_user_id UUID, p_status TEXT, p_expires_at TIMESTAMPTZ, p_coupon TEXT)
 RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -503,7 +760,6 @@ END;
 $$;
 GRANT EXECUTE ON FUNCTION public.admin_set_subscription(UUID,TEXT,TIMESTAMPTZ,TEXT) TO authenticated;
 
--- admin_list_users
 CREATE OR REPLACE FUNCTION public.admin_list_users(p_search TEXT DEFAULT NULL)
 RETURNS TABLE(id UUID, email TEXT, role TEXT, is_approved BOOLEAN, is_admin BOOLEAN,
               subscription_status TEXT, subscription_expires_at TIMESTAMPTZ,
@@ -521,7 +777,6 @@ END;
 $$;
 GRANT EXECUTE ON FUNCTION public.admin_list_users(TEXT) TO authenticated;
 
--- admin_view_parent_dashboard
 CREATE OR REPLACE FUNCTION public.admin_view_parent_dashboard(p_user_id UUID)
 RETURNS JSONB LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_profile JSONB; v_child JSONB; v_events JSONB; v_goals JSONB;
@@ -540,7 +795,6 @@ END;
 $$;
 GRANT EXECUTE ON FUNCTION public.admin_view_parent_dashboard(UUID) TO authenticated;
 
--- admin_view_teacher_dashboard
 CREATE OR REPLACE FUNCTION public.admin_view_teacher_dashboard(p_user_id UUID)
 RETURNS JSONB LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_profile JSONB; v_students JSONB; v_events JSONB; v_assignments JSONB;
@@ -561,53 +815,303 @@ $$;
 GRANT EXECUTE ON FUNCTION public.admin_view_teacher_dashboard(UUID) TO authenticated;
 
 -- ════════════════════════════════════════════════════════════
--- SECTION 8: WEB PUSH RPC FUNCTIONS
+-- SECTION 12: CLASSROOM RPC FUNCTIONS
 -- ════════════════════════════════════════════════════════════
 
--- save_push_subscription
-CREATE OR REPLACE FUNCTION public.save_push_subscription(
-  p_token        TEXT,
-  p_subscription JSONB,
-  p_user_agent   TEXT DEFAULT NULL
+CREATE OR REPLACE FUNCTION create_teacher_classroom(
+  p_teacher_id UUID, p_classroom_code TEXT, p_classroom_name TEXT DEFAULT 'כיתה'
 )
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_exists BOOLEAN;
+RETURNS TABLE(id UUID, classroom_code TEXT, classroom_name TEXT, created_at TIMESTAMPTZ) AS $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.children WHERE magic_token = p_token) THEN
-    RETURN FALSE;
+  IF EXISTS (SELECT 1 FROM public.classrooms WHERE classroom_code = p_classroom_code) THEN
+    RAISE EXCEPTION 'קוד הכיתה כבר בשימוש: %', p_classroom_code;
   END IF;
+  RETURN QUERY
+  INSERT INTO public.classrooms (teacher_id, classroom_code, classroom_name)
+  VALUES (p_teacher_id, p_classroom_code, p_classroom_name)
+  RETURNING classrooms.id, classrooms.classroom_code, classrooms.classroom_name, classrooms.created_at;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+GRANT EXECUTE ON FUNCTION create_teacher_classroom(UUID,TEXT,TEXT) TO authenticated;
 
-  SELECT EXISTS(SELECT 1 FROM public.push_subscriptions WHERE magic_token = p_token)
-  INTO v_exists;
+CREATE OR REPLACE FUNCTION get_teacher_classrooms(p_teacher_id UUID)
+RETURNS TABLE(id UUID, classroom_code TEXT, classroom_name TEXT, student_count INT, created_at TIMESTAMPTZ) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT c.id, c.classroom_code, c.classroom_name,
+         COUNT(p.id)::INT as student_count, c.created_at
+  FROM public.classrooms c
+  LEFT JOIN public.profiles p ON p.classroom_code = c.classroom_code
+  WHERE c.teacher_id = p_teacher_id
+  GROUP BY c.id, c.classroom_code, c.classroom_name, c.created_at
+  ORDER BY c.created_at DESC;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+GRANT EXECUTE ON FUNCTION get_teacher_classrooms(UUID) TO authenticated;
 
-  IF v_exists THEN
-    UPDATE public.push_subscriptions
-    SET subscription = p_subscription,
-        user_agent = COALESCE(p_user_agent, user_agent),
-        updated_at = NOW()
-    WHERE magic_token = p_token;
+CREATE OR REPLACE FUNCTION update_classroom_name(
+  p_classroom_id UUID, p_teacher_id UUID, p_new_name TEXT
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+  UPDATE public.classrooms
+  SET classroom_name = p_new_name, updated_at = NOW()
+  WHERE id = p_classroom_id AND teacher_id = p_teacher_id;
+  RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+GRANT EXECUTE ON FUNCTION update_classroom_name(UUID,UUID,TEXT) TO authenticated;
+
+CREATE OR REPLACE FUNCTION delete_classroom(p_classroom_id UUID, p_teacher_id UUID)
+RETURNS BOOLEAN AS $$
+DECLARE v_student_count INT; v_code TEXT;
+BEGIN
+  SELECT classroom_code INTO v_code FROM public.classrooms
+  WHERE id = p_classroom_id AND teacher_id = p_teacher_id;
+  IF v_code IS NULL THEN RETURN FALSE; END IF;
+  SELECT COUNT(*) INTO v_student_count FROM public.profiles WHERE classroom_code = v_code;
+  IF v_student_count > 0 THEN RETURN FALSE; END IF;
+  DELETE FROM public.classrooms WHERE id = p_classroom_id AND teacher_id = p_teacher_id;
+  RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+GRANT EXECUTE ON FUNCTION delete_classroom(UUID,UUID) TO authenticated;
+
+-- ════════════════════════════════════════════════════════════
+-- SECTION 13: TEACHER MODES RPC FUNCTIONS
+-- ════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION get_teacher_mode_status(p_teacher_id UUID)
+RETURNS TABLE(teacher_modes TEXT[], primary_mode TEXT, mode_status JSONB, pending_requests INT) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT p.teacher_modes, p.primary_teacher_mode, p.teacher_mode_status,
+         COUNT(tmr.id)::INT
+  FROM public.profiles p
+  LEFT JOIN public.teacher_mode_requests tmr
+    ON tmr.teacher_id = p.id AND tmr.status = 'pending'
+  WHERE p.id = p_teacher_id
+  GROUP BY p.id, p.teacher_modes, p.primary_teacher_mode, p.teacher_mode_status;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+GRANT EXECUTE ON FUNCTION get_teacher_mode_status(UUID) TO authenticated;
+
+CREATE OR REPLACE FUNCTION request_teacher_mode_change(
+  p_teacher_id UUID, p_requested_mode TEXT, p_reason TEXT DEFAULT NULL
+)
+RETURNS BOOLEAN AS $$
+DECLARE v_current_modes TEXT[]; v_from_mode TEXT;
+BEGIN
+  SELECT teacher_modes, primary_teacher_mode INTO v_current_modes, v_from_mode
+  FROM public.profiles WHERE id = p_teacher_id;
+  IF v_current_modes IS NULL OR v_from_mode = p_requested_mode THEN RETURN FALSE; END IF;
+  INSERT INTO public.teacher_mode_requests (teacher_id, requested_mode, from_mode, reason)
+  VALUES (p_teacher_id, p_requested_mode, v_from_mode, p_reason)
+  ON CONFLICT (teacher_id, requested_mode, status) DO NOTHING;
+  RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+GRANT EXECUTE ON FUNCTION request_teacher_mode_change(UUID,TEXT,TEXT) TO authenticated;
+
+CREATE OR REPLACE FUNCTION approve_teacher_institutional_mode(p_teacher_id UUID, p_admin_id UUID)
+RETURNS BOOLEAN AS $$
+DECLARE v_is_admin BOOLEAN;
+BEGIN
+  SELECT is_admin INTO v_is_admin FROM public.profiles WHERE id = p_admin_id;
+  IF NOT v_is_admin THEN RETURN FALSE; END IF;
+  UPDATE public.profiles
+  SET teacher_modes = array_append(teacher_modes, 'institutional'),
+      teacher_mode_status = jsonb_set(
+        jsonb_set(COALESCE(teacher_mode_status,'{}'), '{institutional,enabled}', 'true'),
+        '{institutional,approved_at}', to_jsonb(NOW())
+      )
+  WHERE id = p_teacher_id AND NOT (teacher_modes @> ARRAY['institutional'::TEXT]);
+  UPDATE public.teacher_mode_requests
+  SET status='approved', approved_at=NOW(), approved_by=p_admin_id
+  WHERE teacher_id=p_teacher_id AND requested_mode='institutional' AND status='pending';
+  RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+GRANT EXECUTE ON FUNCTION approve_teacher_institutional_mode(UUID,UUID) TO authenticated;
+
+CREATE OR REPLACE FUNCTION set_teacher_primary_mode(p_teacher_id UUID, p_mode TEXT)
+RETURNS BOOLEAN AS $$
+DECLARE v_modes TEXT[];
+BEGIN
+  SELECT teacher_modes INTO v_modes FROM public.profiles WHERE id = p_teacher_id;
+  IF NOT (v_modes @> ARRAY[p_mode]::TEXT[]) THEN RETURN FALSE; END IF;
+  UPDATE public.profiles SET primary_teacher_mode = p_mode WHERE id = p_teacher_id;
+  RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+GRANT EXECUTE ON FUNCTION set_teacher_primary_mode(UUID,TEXT) TO authenticated;
+
+CREATE OR REPLACE FUNCTION get_teacher_dashboard_data(p_teacher_id UUID, p_mode TEXT DEFAULT 'private')
+RETURNS TABLE(mode TEXT, item_id UUID, item_name TEXT, student_count INT,
+              total_hours_played INT, avg_level NUMERIC, last_activity TIMESTAMPTZ) AS $$
+BEGIN
+  IF p_mode = 'institutional' THEN
+    RETURN QUERY
+    SELECT 'institutional'::TEXT, c.id::UUID, c.classroom_name::TEXT,
+           COUNT(DISTINCT p.id)::INT,
+           COALESCE(SUM(EXTRACT(EPOCH FROM ge.created_at)::INT)/3600, 0)::INT,
+           COALESCE(AVG(ge.level)::NUMERIC, 0), MAX(ge.created_at)
+    FROM public.classrooms c
+    LEFT JOIN public.profiles p ON p.classroom_code = c.classroom_code
+    LEFT JOIN public.game_events ge ON ge.child_token = p.magic_token
+    WHERE c.teacher_id = p_teacher_id
+    GROUP BY c.id, c.classroom_name ORDER BY c.created_at DESC;
   ELSE
-    INSERT INTO public.push_subscriptions (magic_token, subscription, user_agent, updated_at)
-    VALUES (p_token, p_subscription, p_user_agent, NOW());
+    RETURN QUERY
+    SELECT 'private'::TEXT, p.id::UUID, p.full_name::TEXT, 1::INT,
+           COALESCE(SUM(EXTRACT(EPOCH FROM ge.created_at)::INT)/3600, 0)::INT,
+           COALESCE(AVG(ge.level)::NUMERIC, 0), MAX(ge.created_at)
+    FROM public.profiles p
+    LEFT JOIN public.game_events ge ON ge.child_token = p.magic_token
+    WHERE p.teacher_id = p_teacher_id AND p.role = 'child'
+    GROUP BY p.id, p.full_name ORDER BY MAX(ge.created_at) DESC NULLS LAST;
+  END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+GRANT EXECUTE ON FUNCTION get_teacher_dashboard_data(UUID,TEXT) TO authenticated;
+
+-- ════════════════════════════════════════════════════════════
+-- SECTION 14: SUBSCRIPTION & PAYMENT RPC FUNCTIONS
+-- ════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION get_user_subscription(p_user_id UUID)
+RETURNS TABLE(subscription_status TEXT, subscription_expires_at TIMESTAMPTZ,
+              tier_name TEXT, tier_price_shekel DECIMAL(10,2), tier_duration_days INTEGER,
+              last_payment_date TIMESTAMPTZ, last_payment_reference TEXT, days_remaining INTEGER) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT p.subscription_status, p.subscription_expires_at,
+         st.name, st.price_shekel, st.duration_days,
+         p.last_payment_date, p.last_payment_reference,
+         EXTRACT(DAY FROM (p.subscription_expires_at - NOW()))::INTEGER
+  FROM public.profiles p
+  LEFT JOIN public.subscription_tiers st ON st.id = p.subscription_tier_id
+  WHERE p.id = p_user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+GRANT EXECUTE ON FUNCTION get_user_subscription(UUID) TO authenticated;
+
+CREATE OR REPLACE FUNCTION process_webhook_payment(
+  p_user_id UUID, p_tier_id UUID, p_payment_provider TEXT,
+  p_webhook_id TEXT, p_payment_reference TEXT, p_amount_shekel DECIMAL
+)
+RETURNS BOOLEAN AS $$
+DECLARE v_tier_duration_days INTEGER;
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.subscription_payments
+    WHERE webhook_id = p_webhook_id AND status = 'success'
+  ) THEN RETURN true; END IF;
+
+  SELECT duration_days INTO v_tier_duration_days
+  FROM public.subscription_tiers WHERE id = p_tier_id;
+  IF v_tier_duration_days IS NULL THEN RETURN false; END IF;
+
+  INSERT INTO public.subscription_payments
+    (user_id, tier_id, amount_shekel, payment_provider, webhook_id, payment_reference, status, activated_at)
+  VALUES
+    (p_user_id, p_tier_id, p_amount_shekel, p_payment_provider, p_webhook_id, p_payment_reference, 'success', NOW())
+  ON CONFLICT (webhook_id) DO NOTHING;
+
+  UPDATE public.profiles
+  SET subscription_status     = 'active',
+      subscription_expires_at = NOW() + (v_tier_duration_days || ' days')::INTERVAL,
+      subscription_tier_id    = p_tier_id,
+      last_payment_date       = NOW(),
+      last_payment_reference  = p_payment_reference
+  WHERE id = p_user_id;
+
+  RETURN true;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+GRANT EXECUTE ON FUNCTION process_webhook_payment(UUID,UUID,TEXT,TEXT,TEXT,DECIMAL) TO service_role;
+
+CREATE OR REPLACE FUNCTION check_and_update_subscription_status(p_user_id UUID)
+RETURNS TABLE(status TEXT, is_expired BOOLEAN) AS $$
+DECLARE v_new_status TEXT; v_is_expired BOOLEAN;
+BEGIN
+  SELECT
+    CASE WHEN subscription_status='canceled' THEN 'canceled'
+         WHEN subscription_expires_at IS NULL THEN 'trial'
+         WHEN subscription_expires_at < NOW() THEN 'expired'
+         ELSE subscription_status END,
+    CASE WHEN subscription_expires_at IS NOT NULL AND subscription_expires_at < NOW() THEN true ELSE false END
+  INTO v_new_status, v_is_expired
+  FROM public.profiles WHERE id = p_user_id;
+
+  IF v_new_status != 'trial' THEN
+    UPDATE public.profiles SET subscription_status = v_new_status
+    WHERE id = p_user_id AND subscription_status != v_new_status;
+  END IF;
+  RETURN QUERY SELECT v_new_status, v_is_expired;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+GRANT EXECUTE ON FUNCTION check_and_update_subscription_status(UUID) TO authenticated;
+
+-- ════════════════════════════════════════════════════════════
+-- SECTION 15: TUTOR TRIAL RPC
+-- ════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION get_tutor_trial_status(p_teacher_id UUID)
+RETURNS TABLE(is_in_trial BOOLEAN, trial_expired BOOLEAN,
+              hours_remaining NUMERIC, trial_started_at TIMESTAMPTZ) AS $$
+DECLARE
+  v_started    TIMESTAMPTZ;
+  v_role       TEXT;
+  v_sub_status TEXT;
+  v_hours_left NUMERIC;
+BEGIN
+  SELECT p.tutor_trial_started_at, p.role, p.subscription_status
+  INTO v_started, v_role, v_sub_status
+  FROM public.profiles p WHERE p.id = p_teacher_id;
+
+  IF v_role IS DISTINCT FROM 'teacher' THEN
+    RETURN QUERY SELECT false, false, 0::NUMERIC, v_started; RETURN;
   END IF;
 
+  IF v_sub_status IN ('active', 'vip') THEN
+    RETURN QUERY SELECT false, false, 0::NUMERIC, v_started; RETURN;
+  END IF;
+
+  v_hours_left := EXTRACT(EPOCH FROM (
+    COALESCE(v_started, NOW()) + INTERVAL '48 hours' - NOW()
+  )) / 3600.0;
+
+  RETURN QUERY SELECT true, v_hours_left <= 0, GREATEST(v_hours_left, 0::NUMERIC), v_started;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+GRANT EXECUTE ON FUNCTION get_tutor_trial_status(UUID) TO authenticated;
+
+-- ════════════════════════════════════════════════════════════
+-- SECTION 16: WEB PUSH RPC FUNCTIONS
+-- ════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION public.save_push_subscription(
+  p_token TEXT, p_subscription JSONB, p_user_agent TEXT DEFAULT NULL
+)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.children WHERE magic_token = p_token) THEN RETURN FALSE; END IF;
+  IF EXISTS (SELECT 1 FROM public.push_subscriptions WHERE magic_token = p_token) THEN
+    UPDATE public.push_subscriptions
+    SET subscription=p_subscription, user_agent=COALESCE(p_user_agent,user_agent), updated_at=NOW()
+    WHERE magic_token=p_token;
+  ELSE
+    INSERT INTO public.push_subscriptions (magic_token,subscription,user_agent,updated_at)
+    VALUES (p_token,p_subscription,p_user_agent,NOW());
+  END IF;
   RETURN TRUE;
 END;
 $$;
-GRANT EXECUTE ON FUNCTION public.save_push_subscription(TEXT, JSONB, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.save_push_subscription(TEXT,JSONB,TEXT) TO anon, authenticated;
 
--- disable_push_subscription
 CREATE OR REPLACE FUNCTION public.disable_push_subscription(p_token TEXT)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
   DELETE FROM public.push_subscriptions WHERE magic_token = p_token;
   RETURN TRUE;
@@ -615,38 +1119,131 @@ END;
 $$;
 GRANT EXECUTE ON FUNCTION public.disable_push_subscription(TEXT) TO anon, authenticated;
 
--- get_push_subscriptions_for_child
 CREATE OR REPLACE FUNCTION public.get_push_subscriptions_for_child(p_token TEXT)
-RETURNS TABLE(
-  id UUID,
-  subscription JSONB,
-  user_agent TEXT,
-  created_at TIMESTAMPTZ
-)
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public
-AS $$
+RETURNS TABLE(id UUID, subscription JSONB, user_agent TEXT, created_at TIMESTAMPTZ)
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
   SELECT id, subscription, user_agent, created_at
-  FROM public.push_subscriptions
-  WHERE magic_token = p_token
-  ORDER BY created_at DESC;
+  FROM public.push_subscriptions WHERE magic_token = p_token ORDER BY created_at DESC;
 $$;
 GRANT EXECUTE ON FUNCTION public.get_push_subscriptions_for_child(TEXT) TO anon, authenticated;
 
+CREATE OR REPLACE FUNCTION public.update_child_push_settings(
+  p_parent_token TEXT, p_child_token TEXT,
+  p_notifications_enabled BOOLEAN DEFAULT NULL,
+  p_max_per_day INT DEFAULT NULL,
+  p_quiet_start TIME DEFAULT NULL,
+  p_quiet_end TIME DEFAULT NULL,
+  p_quiet_enabled BOOLEAN DEFAULT NULL
+)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  INSERT INTO public.parent_push_settings
+    (magic_token, parent_magic_token, notifications_enabled, max_notifications_per_day,
+     quiet_hour_start, quiet_hour_end, quiet_hours_enabled)
+  VALUES
+    (p_child_token, p_parent_token,
+     COALESCE(p_notifications_enabled, true),
+     COALESCE(p_max_per_day, 3),
+     COALESCE(p_quiet_start, '22:00'::TIME),
+     COALESCE(p_quiet_end,   '08:00'::TIME),
+     COALESCE(p_quiet_enabled, true))
+  ON CONFLICT (magic_token) DO UPDATE SET
+    notifications_enabled    = COALESCE(p_notifications_enabled, parent_push_settings.notifications_enabled),
+    max_notifications_per_day= COALESCE(p_max_per_day,           parent_push_settings.max_notifications_per_day),
+    quiet_hour_start         = COALESCE(p_quiet_start,           parent_push_settings.quiet_hour_start),
+    quiet_hour_end           = COALESCE(p_quiet_end,             parent_push_settings.quiet_hour_end),
+    quiet_hours_enabled      = COALESCE(p_quiet_enabled,         parent_push_settings.quiet_hours_enabled),
+    updated_at               = NOW();
+  RETURN TRUE;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.update_child_push_settings(TEXT,TEXT,BOOLEAN,INT,TIME,TIME,BOOLEAN) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.can_send_push_notification(p_child_token TEXT)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_settings public.parent_push_settings%ROWTYPE;
+  v_count     INTEGER;
+  v_now_time  TIME;
+BEGIN
+  SELECT * INTO v_settings FROM public.parent_push_settings WHERE magic_token = p_child_token;
+  IF NOT FOUND OR NOT v_settings.notifications_enabled THEN RETURN FALSE; END IF;
+
+  SELECT COALESCE(count, 0) INTO v_count FROM public.push_notification_count
+  WHERE magic_token = p_child_token AND date = CURRENT_DATE;
+  IF v_count >= v_settings.max_notifications_per_day THEN RETURN FALSE; END IF;
+
+  IF v_settings.quiet_hours_enabled THEN
+    v_now_time := CURRENT_TIME;
+    IF v_settings.quiet_hour_start > v_settings.quiet_hour_end THEN
+      IF v_now_time >= v_settings.quiet_hour_start OR v_now_time < v_settings.quiet_hour_end THEN
+        RETURN FALSE;
+      END IF;
+    ELSE
+      IF v_now_time >= v_settings.quiet_hour_start AND v_now_time < v_settings.quiet_hour_end THEN
+        RETURN FALSE;
+      END IF;
+    END IF;
+  END IF;
+  RETURN TRUE;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.can_send_push_notification(TEXT) TO anon, authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.increment_daily_push_count(p_child_token TEXT)
+RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  INSERT INTO public.push_notification_count (magic_token, date, count)
+  VALUES (p_child_token, CURRENT_DATE, 1)
+  ON CONFLICT (magic_token, date) DO UPDATE
+    SET count = push_notification_count.count + 1;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.increment_daily_push_count(TEXT) TO anon, authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.init_push_settings_for_child(p_child_token TEXT, p_parent_token TEXT)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  INSERT INTO public.parent_push_settings (magic_token, parent_magic_token)
+  VALUES (p_child_token, p_parent_token)
+  ON CONFLICT (magic_token) DO NOTHING;
+  RETURN TRUE;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.init_push_settings_for_child(TEXT,TEXT) TO anon, authenticated;
+
 -- ════════════════════════════════════════════════════════════
--- SECTION 9: INITIAL DATA
+-- SECTION 17: GRANTS FOR SERVICE ROLE
+-- ════════════════════════════════════════════════════════════
+
+GRANT ALL ON public.subscription_payments TO service_role;
+GRANT ALL ON public.subscription_tiers    TO service_role;
+GRANT ALL ON public.profiles              TO service_role;
+GRANT SELECT ON public.subscription_tiers TO authenticated;
+GRANT SELECT ON public.subscription_payments TO authenticated;
+
+-- ════════════════════════════════════════════════════════════
+-- SECTION 18: INITIAL DATA
 -- ════════════════════════════════════════════════════════════
 
 INSERT INTO public.coupons (code, duration_days, description, single_use) VALUES
-  ('GIFT30',     30,   'חודש מתנה',               false),
-  ('GIFT60',     60,   'חודשיים מתנה',             false),
-  ('MASTER-VIP', NULL, 'גישה VIP ללא הגבלת זמן',  false)
+  ('GIFT30',     30,   'חודש מתנה',              false),
+  ('GIFT60',     60,   'חודשיים מתנה',            false),
+  ('MASTER-VIP', NULL, 'גישה VIP ללא הגבלת זמן', false)
 ON CONFLICT (code) DO NOTHING;
 
+INSERT INTO public.subscription_tiers (name, price_shekel, currency, duration_days, max_children, display_order, features)
+VALUES
+  ('trial',     0,   'ILS', 14,  1, 1, '{"canPlayGames":true,"canViewAnalytics":false,"canAssignTasks":false}'),
+  ('monthly',   100, 'ILS', 30,  1, 2, '{"canPlayGames":true,"canViewAnalytics":true,"canAssignTasks":true}'),
+  ('quarterly', 200, 'ILS', 90,  3, 3, '{"canPlayGames":true,"canViewAnalytics":true,"canAssignTasks":true}'),
+  ('yearly',    399, 'ILS', 365, 5, 4, '{"canPlayGames":true,"canViewAnalytics":true,"canAssignTasks":true,"prioritySupport":true}')
+ON CONFLICT (name) DO NOTHING;
+
 -- ============================================================
--- ✅ Schema Complete
+-- ✅ Schema Complete v2
 -- ============================================================
--- כולל: 9 Core Tables + Web Push + 17 RPC Functions + Triggers + RLS
--- להרצה על DB חדש לגמרי בלבד
+-- 16 Tables + 30+ RPC Functions + Triggers + RLS
+-- Covers: Auth, Children, Teachers, Classrooms, Assignments,
+--         Subscriptions, Tutor Trial, Web Push, Admin
 -- ============================================================

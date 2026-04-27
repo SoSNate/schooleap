@@ -364,13 +364,6 @@ export default function FractionLab() {
           </div>
 
           <button
-            onClick={requestHint}
-            className="w-full py-2 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 rounded-xl font-bold text-sm transition-all active:scale-95"
-          >
-            💡 רמז
-          </button>
-
-          <button
             onClick={checkAnswer}
             disabled={checking}
             className="w-full py-4 bg-orange-500 hover:bg-orange-400 dark:bg-orange-600 dark:hover:bg-orange-500 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-2xl font-black text-xl shadow-xl transition-all active:scale-95 mt-1"

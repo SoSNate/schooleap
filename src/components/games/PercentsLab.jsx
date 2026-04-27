@@ -1,12 +1,12 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
+import confetti from 'canvas-confetti';
 import useGameStore from '../../store/useGameStore';
-import FeedbackOverlay from '../shared/FeedbackOverlay';
 import GameTutorial from '../shared/GameTutorial';
+import FeedbackOverlay from '../shared/FeedbackOverlay';
+import Hearts from '../shared/Hearts';
 import HintButton from '../shared/HintButton';
 import HintBubble from '../shared/HintBubble';
 import useHint from '../../hooks/useHint';
-import { reportHintUsed } from '../../lib/telemetry';
-import { vibe } from '../../utils/math';
 import {
   generatePuzzle,
   computeLiveValue,
@@ -14,126 +14,105 @@ import {
   getScaffolding,
   getHint,
 } from './percentagesEngine';
+import { vibe } from '../../utils/math';
 
-// ─── Swipe Roller ─────────────────────────────────────────────────────────────
-function SwipeRoller({ value, onChange, min = 2, max = 50, highlight = false }) {
+// ─── SwipeRoller ────────────────────────────────────────────────────────────
+function SwipeRoller({ value, onChange, min = 2, max = 25 }) {
   const dragging = useRef(false);
   const startY   = useRef(0);
   const startVal = useRef(value);
 
-  function onPointerDown(e) {
+  const onDown = (e) => {
     dragging.current = true;
-    startY.current   = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
+    startY.current   = e.clientY;
     startVal.current = value;
     e.target.setPointerCapture?.(e.pointerId);
-  }
-  function onPointerMove(e) {
+  };
+  const onMove = (e) => {
     if (!dragging.current) return;
-    const cy    = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
-    const delta = startY.current - cy;
-    let next    = startVal.current + Math.floor(delta / 15);
+    const delta = startY.current - e.clientY;
+    let next = startVal.current + Math.floor(delta / 14);
     if (next > max) next = max;
     if (next < min) next = min;
-    if (next !== value) onChange(next);
-  }
-  function onPointerUp(e) {
-    dragging.current = false;
-    e.target.releasePointerCapture?.(e.pointerId);
-  }
+    if (next !== value) { onChange(next); vibe(8); }
+  };
+  const stop = () => { dragging.current = false; };
 
   return (
     <div
-      className={`relative w-14 h-16 bg-white dark:bg-slate-700 rounded-xl border shadow-inner flex items-center justify-center cursor-ns-resize touch-none overflow-hidden select-none ${
-        highlight
-          ? 'border-sky-400 ring-4 ring-sky-200 dark:ring-sky-900/50 animate-pulse'
-          : 'border-slate-200 dark:border-slate-600 hover:border-sky-300'
-      }`}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={stop}
+      onPointerCancel={stop}
+      className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl border-2 border-sky-200 dark:border-slate-600 shadow-inner flex items-center justify-center cursor-ns-resize touch-none select-none"
     >
-      {/* Grip ridges — top */}
-      {[0, 1, 2].map((i) => (
-        <div key={`t${i}`}
-          className="absolute w-6 h-px bg-slate-300/80 dark:bg-slate-500/60 rounded-full pointer-events-none"
-          style={{ top: 8 + i * 5, left: '50%', transform: 'translateX(-50%)' }}
-        />
-      ))}
-      {/* Grip ridges — bottom */}
-      {[0, 1, 2].map((i) => (
-        <div key={`b${i}`}
-          className="absolute w-6 h-px bg-slate-300/80 dark:bg-slate-500/60 rounded-full pointer-events-none"
-          style={{ bottom: 8 + i * 5, left: '50%', transform: 'translateX(-50%)' }}
-        />
-      ))}
-      {/* Fade gradients (mask ridges near edge) */}
-      <div className="absolute top-0 w-full h-5 bg-gradient-to-b from-white dark:from-slate-700 to-transparent pointer-events-none" />
-      <div className="absolute bottom-0 w-full h-5 bg-gradient-to-t from-white dark:from-slate-700 to-transparent pointer-events-none" />
-      <span className="text-2xl font-black text-sky-700 dark:text-sky-300 relative z-10">{value}</span>
+      <span className="text-2xl font-black text-sky-600 dark:text-sky-400">{value}</span>
     </div>
   );
 }
 
-// ─── Dynamic Arc ─────────────────────────────────────────────────────────────
-function DynamicArc({
-  position, operation, factor, isInteractive,
-  onUpdate, isShekelBigger,
-  showOperator, showFactor, hide, hintGlow,
-}) {
-  if (hide) return null;
-
-  let pointsStandard = operation === 'multiply';
-  if (position === 'top' || position === 'bottom') {
-    pointsStandard = isShekelBigger ? operation !== 'multiply' : operation === 'multiply';
-  }
-
-  // Board canvas: 384×400 (cells 160×160, col-gap 64, row-gap 80)
-  // Cell centers: left-col x=80, right-col x=320, top-row y=80, bottom-row y=320
+// ─── DynamicArc ─────────────────────────────────────────────────────────────
+// Drawn in fixed virtual coordinates (600×660). Outer wrapper scales to fit.
+function DynamicArc({ position, operation, factor, isInteractive, onUpdate, scaffoldHint, rollerMax }) {
   let d = '';
-  if (position === 'top')    d = pointsStandard ? 'M 80,0 Q 200,-72 320,0'     : 'M 320,0 Q 200,-72 80,0';
-  if (position === 'bottom') d = pointsStandard ? 'M 80,400 Q 200,472 320,400' : 'M 320,400 Q 200,472 80,400';
-  if (position === 'left')   d = pointsStandard ? 'M 0,80 Q -72,200 0,320'     : 'M 0,320 Q -72,200 0,80';
-  if (position === 'right')  d = pointsStandard ? 'M 384,80 Q 456,200 384,320' : 'M 384,320 Q 456,200 384,80';
+  if (position === 'top')    d = operation === 'multiply' ? 'M 130,0 Q 300,-80 470,0'   : 'M 470,0 Q 300,-80 130,0';
+  if (position === 'bottom') d = operation === 'multiply' ? 'M 130,660 Q 300,740 470,660' : 'M 470,660 Q 300,740 130,660';
+  if (position === 'left')   d = operation === 'divide'   ? 'M 0,100 Q -80,330 0,560'   : 'M 0,560 Q -80,330 0,100';
+  if (position === 'right')  d = operation === 'divide'   ? 'M 600,100 Q 680,330 600,560' : 'M 600,560 Q 680,330 600,100';
 
-  const color    = isInteractive ? '#0284c7' : '#94a3b8';
-  const markerId = `ah-${position}-${isInteractive ? 'on' : 'off'}`;
+  const color = scaffoldHint ? '#f59e0b' : (isInteractive ? '#0ea5e9' : '#cbd5e1');
+  const markerId = `arrow-${position}-${isInteractive ? 'a' : 'p'}-${scaffoldHint ? 'h' : 'n'}`;
 
-  let box = {};
-  if (position === 'top')    box = { top: -40,  left: 200, transform: 'translate(-50%,-50%)' };
-  if (position === 'bottom') box = { top: 440,  left: 200, transform: 'translate(-50%,-50%)' };
-  if (position === 'left')   box = { top: 200,  left: -40, transform: 'translate(-50%,-50%)' };
-  if (position === 'right')  box = { top: 200,  left: 424, transform: 'translate(-50%,-50%)' };
+  const boxStyle = {
+    top:  position === 'top'    ? 50  : position === 'bottom' ? 550 : 330,
+    left: position === 'left'   ? 55  : position === 'right'  ? 545 : 300,
+    transform: 'translate(-50%, -50%)',
+  };
 
   return (
     <>
-      <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible z-0">
+      <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
         <defs>
-          <marker id={markerId} viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <marker id={markerId} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
             <path d="M 0 1 L 10 5 L 0 9 z" fill={color} />
           </marker>
         </defs>
-        <path d={d} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round"
+        <path
+          d={d}
+          fill="none"
+          stroke={color}
+          strokeWidth={scaffoldHint ? 9 : 6}
+          strokeLinecap="round"
           strokeDasharray={isInteractive ? '' : '8,8'}
-          markerEnd={`url(#${markerId})`} />
+          markerEnd={`url(#${markerId})`}
+          className={`transition-all duration-500 ${scaffoldHint ? 'animate-pulse' : ''}`}
+          style={{ filter: scaffoldHint ? `drop-shadow(0 0 8px ${color})` : 'none' }}
+        />
       </svg>
-      <div className="absolute z-20" style={box}>
+
+      <div className="absolute z-20" style={boxStyle}>
         {isInteractive ? (
-          <div className={`flex items-center gap-2 p-2 rounded-2xl bg-white dark:bg-slate-800 border-[3px] shadow-xl transition-all ${
-            hintGlow ? 'border-amber-400 ring-4 ring-amber-200' : 'border-sky-400'
-          }`}>
+          <div className={`flex items-center gap-1.5 p-1.5 rounded-2xl bg-white dark:bg-slate-800 border-[3px] shadow-2xl
+            ${scaffoldHint ? 'border-amber-400 ring-4 ring-amber-300/30' : 'border-sky-400'}`}>
             <button
-              onClick={() => onUpdate(prev => ({ ...prev, operation: prev.operation === 'multiply' ? 'divide' : 'multiply' }))}
-              className="w-11 h-11 flex items-center justify-center bg-sky-50 hover:bg-sky-100 dark:bg-sky-900/40 dark:hover:bg-sky-900/60 text-sky-700 dark:text-sky-300 rounded-xl font-black text-2xl transition-colors active:scale-95 border border-sky-100 dark:border-sky-800"
+              onClick={() => { onUpdate((p) => ({ ...p, operation: p.operation === 'multiply' ? 'divide' : 'multiply' })); vibe(15); }}
+              className="w-9 h-9 flex items-center justify-center bg-sky-50 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 rounded-lg font-black text-xl"
             >
               {operation === 'multiply' ? '×' : '÷'}
             </button>
-            <SwipeRoller value={factor} onChange={(val) => onUpdate(prev => ({ ...prev, factor: val }))} highlight={hintGlow} />
+            <SwipeRoller value={factor} onChange={(v) => onUpdate((p) => ({ ...p, factor: v }))} min={2} max={rollerMax} />
           </div>
         ) : (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 shadow-sm opacity-80">
-            <span className="text-2xl font-black text-slate-400">{showOperator ? (operation === 'multiply' ? '×' : '÷') : '?'}</span>
-            <span className="text-2xl font-black text-slate-400">{showFactor ? factor : '?'}</span>
+          <div className={`flex items-center gap-1 px-2.5 py-1 rounded-xl border-2 transition-all
+            ${scaffoldHint
+              ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/30 ring-4 ring-amber-300/30 scale-110'
+              : 'border-slate-200 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 opacity-80'}`}>
+            <span className={`text-lg font-black ${scaffoldHint ? 'text-amber-600' : 'text-slate-400'}`}>
+              {operation === 'multiply' ? '×' : '÷'}
+            </span>
+            <span className={`text-lg font-black ${scaffoldHint ? 'text-amber-700' : 'text-slate-500'}`}>
+              {factor}
+            </span>
           </div>
         )}
       </div>
@@ -141,236 +120,251 @@ function DynamicArc({
   );
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-const INSTRUCTIONS = {
-  1: 'החליקו את הגלגל ובחרו ÷ או × — כך שהחץ יתאים לחידה',
-  2: 'בחרו פעולה (÷/×) והחליקו את המספר בגלגל',
-  3: 'מצאו את הפעולה והגורם הנכון',
-  4: 'חשבו — איזו פעולה ואיזה גורם מאזנים את המשוואה?',
-  5: '',  // L5: מומחים לא צריכים הוראה
-};
-
-// ─── Main component ──────────────────────────────────────────────────────────
+// ─── Main component ────────────────────────────────────────────────────────
 export default function PercentsLab() {
-  const gameState      = useGameStore(s => s.percentages);
-  const practiceLvl    = useGameStore(s => s.practiceLevels.percentages || 0);
-  const handleWinStore = useGameStore(s => s.handleWin);
-  const isAnimating    = useGameStore(s => s.isAnimating);
+  const gameState      = useGameStore((s) => s.percentages);
+  const practiceLvl    = useGameStore((s) => s.practiceLevels.percentages || 0);
+  const handleWin      = useGameStore((s) => s.handleWin);
+  const handleGameFail = useGameStore((s) => s.handleGameFail);
 
-  const [puzzle,    setPuzzle]    = useState(() => generatePuzzle(practiceLvl || gameState.lvl));
+  const effectiveLvl = practiceLvl || gameState.lvl;
+  const scaffold     = getScaffolding(effectiveLvl);
+
+  const [puzzle, setPuzzle]       = useState(null);
   const [userLogic, setUserLogic] = useState({ operation: 'multiply', factor: 2 });
-  const [justLost,  setJustLost]  = useState(false);
-  const [feedback,  setFeedback]  = useState({ visible: false });
-  const [hintGlow,  setHintGlow]  = useState(false);
-  const [showLabels, setShowLabels] = useState(false);
-
-  // Track pending timeouts so unmount doesn't fire setters on dead component.
+  const [lives, setLives]         = useState(3);
+  const [justLost, setJustLost]   = useState(false);
+  const [feedback, setFeedback]   = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
+  const [errorMsg, setErrorMsg]   = useState('');
+  const [scaffoldGlow, setScaffoldGlow] = useState(false);
   const timersRef = useRef([]);
-  const schedule = (fn, ms) => {
-    const id = setTimeout(() => {
-      timersRef.current = timersRef.current.filter(t => t !== id);
-      fn();
-    }, ms);
-    timersRef.current.push(id);
-    return id;
-  };
-  useEffect(() => () => {
-    timersRef.current.forEach(clearTimeout);
-    timersRef.current = [];
-  }, []);
 
-  // Responsive board scale — accounts for arc widgets that extend 100px beyond each side.
-  // Vertical arcs (left/right): effective width = 44(labels) + 100(left arc) + 448(board) + 100(right arc) = 692px
-  // Horizontal arcs (top/bottom): effective width = 448px (no horizontal overflow)
-  const computeScale = () => {
-    if (typeof window === 'undefined') return 1;
-    const isV = puzzle?.puzzleType === 'vertical';
-    return Math.min(1, (window.innerWidth - 32) / (isV ? 692 : 500));
-  };
-  const [boardScale, setBoardScale] = useState(computeScale);
-  useEffect(() => {
-    const onResize = () => setBoardScale(computeScale());
-    window.addEventListener('resize', onResize);
-    window.addEventListener('orientationchange', onResize);
-    return () => {
-      window.removeEventListener('resize', onResize);
-      window.removeEventListener('orientationchange', onResize);
+  // Scale the fixed 600×660 board to fit the card's inner width
+  const slotRef = useRef(null);
+  const [scale, setScale] = useState(1);
+  useLayoutEffect(() => {
+    const el = slotRef.current;
+    if (!el) return;
+    const update = () => {
+      const w = el.clientWidth;
+      // Reserve ~80px slack on each side for the arrow boxes that bleed outside the 600px frame
+      const usable = w - 80;
+      setScale(Math.min(1, usable / 600));
     };
+    update();
+    const obs = new ResizeObserver(update);
+    obs.observe(el);
+    return () => obs.disconnect();
   }, []);
 
-  const scaffold = getScaffolding(gameState.lvl);
+  useEffect(() => () => timersRef.current.forEach(clearTimeout), []);
 
-  // Hint infra (shared across analytical games)
-  const onApplyHint = useCallback((hint) => {
-    if (hint.kind === 'both' || hint.kind === 'operator') {
-      // Snap the user controls to the hinted operation/factor; glow highlights the arc
-      if (hint.operation) {
-        setUserLogic((prev) => ({
-          ...prev,
-          operation: hint.operation,
-          ...(hint.factor ? { factor: hint.factor } : {}),
-        }));
-      }
-      setHintGlow(true);
-      schedule(() => setHintGlow(false), 1600);
-    }
-    // Show axis labels when hint is used
-    setShowLabels(true);
-    schedule(() => setShowLabels(false), 3000);
-  }, []);
+  const newPuzzle = useCallback(() => {
+    const p = generatePuzzle(effectiveLvl);
+    setPuzzle(p);
+    setUserLogic({ operation: 'multiply', factor: 2 });
+    setErrorMsg('');
+    setScaffoldGlow(false);
+  }, [effectiveLvl]);
 
-  const {
-    cooldown: hintCooldown,
-    bubble:   hintBubbleText,
-    usedThisRound: usedHint,
-    requestHint,
-    resetRound: resetHintRound,
-  } = useHint({
-    level: gameState.lvl,
+  useEffect(() => { newPuzzle(); }, [newPuzzle]);
+
+  const { cooldown: hintCooldown, bubble: hintBubble, requestHint } = useHint({
+    level: effectiveLvl,
     getHint,
     puzzle,
-    cooldownSec: 5,
-    bubbleMs: 2600,
-    onApplyHint,
+    cooldownSec: 8,
+    bubbleMs: 3200,
+    onApplyHint: (hint) => {
+      if (hint?.kind === 'both' && typeof hint.factor === 'number') {
+        setUserLogic({ operation: hint.operation, factor: hint.factor });
+      } else if (hint?.kind === 'operator' && hint.operation) {
+        setUserLogic((p) => ({ ...p, operation: hint.operation }));
+      }
+      setScaffoldGlow(true);
+      timersRef.current.push(setTimeout(() => setScaffoldGlow(false), 4000));
+    },
   });
 
-  // Re-generate puzzle when level changes in store (after level-up)
-  useEffect(() => {
-    nextPuzzle();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameState.lvl]);
+  const liveVal = puzzle ? computeLiveValue(puzzle, userLogic) : '?';
 
-  const nextPuzzle = useCallback(() => {
-    const s = useGameStore.getState();
-    setPuzzle(generatePuzzle(s.practiceLevels.percentages || s.percentages.lvl));
-    setUserLogic({ operation: 'multiply', factor: 2 });
-    setJustLost(false);
-    setHintGlow(false);
-    setShowLabels(false);
-    resetHintRound();
-  }, [resetHintRound]);
-
-  function handleValidate() {
-    if (!puzzle || isAnimating) return;
+  const checkAnswer = () => {
+    if (!puzzle) return;
     if (isCorrect(puzzle, userLogic)) {
-      vibe?.(40);
-      const r = handleWinStore('percentages');
-      setFeedback({ visible: true, isLevelUp: r.isLevelUp, unlocked: r.unlocked, pts: r.pts });
-      // Telemetry: mark if hint was used (fire-and-forget)
-      if (usedHint) reportHintUsed({ game: 'percentages', level: gameState.lvl });
-      schedule(nextPuzzle, 2100);
+      vibe([20, 40, 20]);
+      const result = handleWin('percentages');
+      if (result.isLevelUp) confetti({ particleCount: 110, spread: 80, origin: { y: 0.7 } });
+      setFeedback({ visible: true, isLevelUp: result.isLevelUp, unlocked: result.unlocked, pts: result.pts });
     } else {
-      vibe?.(80);
+      vibe([60, 60, 60]);
+      setErrorMsg('❌ לא בדיוק. נסו לשנות את הפעולה או את המספר 💪');
+      const next = Math.max(0, lives - 1);
+      setLives(next);
       setJustLost(true);
-      schedule(() => setJustLost(false), 600);
-      // אין lives — ניסוי-וטעייה מותר. מסמן light-fail ב-store כדי שיושפע level-up window.
-      try { useGameStore.getState().handleLightFail('percentages'); } catch { /* noop */ }
+      timersRef.current.push(setTimeout(() => setJustLost(false), 600));
+      if (next <= 0) {
+        handleGameFail('percentages');
+        timersRef.current.push(setTimeout(() => {
+          setLives(3);
+          newPuzzle();
+        }, 1200));
+      }
     }
-  }
+  };
 
   if (!puzzle) return null;
 
-  const liveValue = computeLiveValue(puzzle, userLogic);
-  const display   = {
-    ...puzzle.display,
-    partValue:   puzzle.display.partValue   === '?' ? (scaffold.showLiveValue ? liveValue : '?') : puzzle.display.partValue,
-    partPercent: puzzle.display.partPercent === '?' ? (scaffold.showLiveValue ? liveValue : '?') : puzzle.display.partPercent,
-    totalValue:  puzzle.display.totalValue  === '?' ? (scaffold.showLiveValue ? liveValue : '?') : puzzle.display.totalValue,
-  };
-
+  const showLive = scaffold.showLiveValue;
   const cells = [
-    { id: 'partValue',    label: '₪', val: display.partValue,   isTarget: puzzle.targetVar === 'partValue'   },
-    { id: 'partPercent',  label: '%', val: display.partPercent, isTarget: puzzle.targetVar === 'partPercent' },
-    { id: 'totalValue',   label: '₪', val: display.totalValue,  isTarget: puzzle.targetVar === 'totalValue'  },
+    { id: 'partValue',    label: '₪', val: puzzle.display.partValue    === '?' ? (showLive ? liveVal : '?') : puzzle.display.partValue,    isTarget: puzzle.targetVar === 'partValue' },
+    { id: 'partPercent',  label: '%', val: puzzle.display.partPercent  === '?' ? (showLive ? liveVal : '?') : puzzle.display.partPercent,  isTarget: puzzle.targetVar === 'partPercent' },
+    { id: 'totalValue',   label: '₪', val: puzzle.display.totalValue   === '?' ? (showLive ? liveVal : '?') : puzzle.display.totalValue,   isTarget: puzzle.targetVar === 'totalValue' },
     { id: 'totalPercent', label: '%', val: 100, isTarget: false, isAccent: true },
   ];
 
+  const isHorizontal = puzzle.puzzleType === 'horizontal';
+  const passiveArcOp = puzzle.correctOperation;
+  const passiveArcF  = Number.isInteger(puzzle.correctFactor) ? puzzle.correctFactor : Math.round(puzzle.correctFactor);
+
   return (
-    <div dir="rtl" className="screen-enter flex flex-col flex-1 h-[calc(100dvh-56px)] sm:h-[calc(100dvh-64px)] bg-slate-100 dark:bg-slate-900 select-none overflow-hidden">
+    <div className="screen-enter flex flex-col items-center p-3 md:p-4 flex-1 overflow-x-hidden w-full">
       <GameTutorial gameName="percentages" />
-      <div className="flex-1 flex flex-col items-center pt-5 pb-6 gap-5 overflow-hidden">
+
+      <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] p-4 md:p-5 w-full max-w-md shadow-xl flex flex-col items-center gap-3 border border-sky-200 dark:border-sky-800/40 border-b-4 border-b-sky-400 dark:border-b-sky-700 transition-colors">
 
         {/* Top bar */}
-        <div className="flex items-center justify-center gap-2 sm:gap-3 bg-white dark:bg-slate-800 rounded-2xl px-3 sm:px-4 py-2 border border-slate-100 dark:border-slate-700 shadow-sm w-fit mx-auto">
-          <div className="bg-sky-600 text-white w-10 h-10 flex items-center justify-center rounded-xl font-black text-base shadow-md">{gameState.lvl}</div>
-          <div className="w-px h-5 bg-slate-200 dark:bg-slate-700" />
-          <HintButton cooldown={hintCooldown} onClick={requestHint} colorToken="sky" />
-          <div className="w-px h-5 bg-slate-200 dark:bg-slate-700" />
-          <div className="flex items-center gap-1.5 bg-sky-50 dark:bg-sky-900/30 border border-sky-100 dark:border-sky-800 rounded-xl px-2.5 py-1">
-            <span>⭐</span>
-            <span className="text-sm font-black text-sky-700 dark:text-sky-300">{gameState.stars}</span>
-          </div>
+        <div className="w-full flex justify-between items-center">
+          <span className="text-sm font-black text-sky-600 dark:text-sky-400">מעבדת אחוזים 📊</span>
+          <Hearts lives={lives} maxLives={3} justLost={justLost} />
         </div>
 
-        {INSTRUCTIONS[gameState.lvl] && (
-          <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm text-center px-4">{INSTRUCTIONS[gameState.lvl]}</p>
-        )}
+        {/* Instruction */}
+        <div className="w-full bg-slate-50 dark:bg-slate-900 rounded-2xl py-2 px-3 border border-slate-200 dark:border-slate-700">
+          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 text-center block">
+            מצאו את הקשר והשלימו את התא החסר
+          </span>
+        </div>
 
-        {/* Board */}
-        <div className="flex justify-center w-full pl-2">
-          <div className="relative" style={{ width: 448 * boardScale + (puzzle.puzzleType === 'vertical' ? 44 : 0) }}>
-            {puzzle.puzzleType === 'vertical' && (
-              <div className="flex mb-1 transition-opacity duration-300" dir="ltr" style={{ width: 448 * boardScale, marginRight: 44, paddingLeft: 80 * boardScale, paddingRight: 80 * boardScale, opacity: showLabels ? 1 : 0, pointerEvents: showLabels ? 'auto' : 'none' }}>
-                <span className="flex-1 text-[10px] sm:text-xs font-bold text-sky-400 text-center">₪ שקלים</span>
-                <span className="flex-1 text-[10px] sm:text-xs font-bold text-sky-400 text-center">% אחוזים</span>
-              </div>
+        {/* Board slot — scales the fixed 600×660 design */}
+        <div ref={slotRef} className="w-full flex justify-center items-start" style={{ height: 610 * scale }}>
+          <div
+            style={{
+              transform: `scale(${scale})`,
+              transformOrigin: 'top center',
+              width: 600,
+              height: 610,
+              flexShrink: 0,
+            }}
+            className="relative"
+            dir="ltr"
+          >
+            {/* Arcs */}
+            {isHorizontal ? (
+              <>
+                <DynamicArc
+                  position="top"
+                  operation={puzzle.activeArc === 'top' ? userLogic.operation : passiveArcOp}
+                  factor={puzzle.activeArc === 'top' ? userLogic.factor : passiveArcF}
+                  isInteractive={puzzle.activeArc === 'top'}
+                  onUpdate={setUserLogic}
+                  scaffoldHint={scaffoldGlow}
+                  rollerMax={scaffold.rollerMax}
+                />
+                <DynamicArc
+                  position="bottom"
+                  operation={puzzle.activeArc === 'bottom' ? userLogic.operation : passiveArcOp}
+                  factor={puzzle.activeArc === 'bottom' ? userLogic.factor : passiveArcF}
+                  isInteractive={puzzle.activeArc === 'bottom'}
+                  onUpdate={setUserLogic}
+                  scaffoldHint={scaffoldGlow}
+                  rollerMax={scaffold.rollerMax}
+                />
+              </>
+            ) : (
+              <>
+                {!scaffold.hidePlaceholderArc && (
+                  <DynamicArc
+                    position={puzzle.activeArc === 'left' ? 'right' : 'left'}
+                    operation={passiveArcOp}
+                    factor={passiveArcF}
+                    isInteractive={false}
+                    scaffoldHint={scaffoldGlow}
+                    rollerMax={scaffold.rollerMax}
+                  />
+                )}
+                <DynamicArc
+                  position={puzzle.activeArc}
+                  operation={userLogic.operation}
+                  factor={userLogic.factor}
+                  isInteractive
+                  onUpdate={setUserLogic}
+                  scaffoldHint={scaffoldGlow}
+                  rollerMax={scaffold.rollerMax}
+                />
+              </>
             )}
-            <div className="flex items-start">
-              {puzzle.puzzleType === 'vertical' && (
-                <div className="flex flex-col justify-around pr-1 transition-opacity duration-300" style={{ width: 44, height: 384 * boardScale, opacity: showLabels ? 1 : 0, pointerEvents: showLabels ? 'auto' : 'none' }}>
-                  <span className="text-[10px] sm:text-xs font-bold text-sky-400 text-center leading-tight">חלק</span>
-                  <span className="text-[10px] sm:text-xs font-bold text-sky-400 text-center leading-tight">סכום<br/>כולל</span>
-                </div>
-              )}
-              <div className="relative" dir="ltr" style={{ width: 448 * boardScale, height: 384 * boardScale }}>
-                <div className="absolute top-0 left-0 w-[448px] h-[384px]" style={{ transform: `scale(${boardScale})`, transformOrigin: 'top left' }}>
-                  {puzzle.puzzleType === 'horizontal' ? (
-                    <>
-                      <DynamicArc position="top"    operation={puzzle.activeArc === 'top'    ? userLogic.operation : puzzle.correctOperation} factor={puzzle.activeArc === 'top'    ? userLogic.factor : puzzle.correctFactor} isInteractive={puzzle.activeArc === 'top'}    onUpdate={setUserLogic} isShekelBigger={puzzle.isShekelBigger} showOperator={scaffold.showHintOperator} showFactor={scaffold.showHintFactor} hide={puzzle.activeArc !== 'top'    && scaffold.hidePlaceholderArc} hintGlow={hintGlow && puzzle.activeArc === 'top'} />
-                      <DynamicArc position="bottom" operation={puzzle.activeArc === 'bottom' ? userLogic.operation : puzzle.correctOperation} factor={puzzle.activeArc === 'bottom' ? userLogic.factor : puzzle.correctFactor} isInteractive={puzzle.activeArc === 'bottom'} onUpdate={setUserLogic} isShekelBigger={puzzle.isShekelBigger} showOperator={scaffold.showHintOperator} showFactor={scaffold.showHintFactor} hide={puzzle.activeArc !== 'bottom' && scaffold.hidePlaceholderArc} hintGlow={hintGlow && puzzle.activeArc === 'bottom'} />
-                    </>
-                  ) : (
-                    <>
-                      <DynamicArc position="left"  operation={puzzle.activeArc === 'left'  ? userLogic.operation : puzzle.correctOperation} factor={puzzle.activeArc === 'left'  ? userLogic.factor : puzzle.correctFactor} isInteractive={puzzle.activeArc === 'left'}  onUpdate={setUserLogic} showOperator={scaffold.showHintOperator} showFactor={scaffold.showHintFactor} hide={puzzle.activeArc !== 'left'  && scaffold.hidePlaceholderArc} hintGlow={hintGlow && puzzle.activeArc === 'left'} />
-                      <DynamicArc position="right" operation={puzzle.activeArc === 'right' ? userLogic.operation : puzzle.correctOperation} factor={puzzle.activeArc === 'right' ? userLogic.factor : puzzle.correctFactor} isInteractive={puzzle.activeArc === 'right'} onUpdate={setUserLogic} showOperator={scaffold.showHintOperator} showFactor={scaffold.showHintFactor} hide={puzzle.activeArc !== 'right' && scaffold.hidePlaceholderArc} hintGlow={hintGlow && puzzle.activeArc === 'right'} />
-                    </>
+
+            {/* 2×2 grid */}
+            <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-x-[80px] gap-y-[220px] z-10 pointer-events-none">
+              {cells.map((cell) => (
+                <div
+                  key={cell.id}
+                  className={`w-[220px] h-[170px] flex items-center justify-center rounded-[2rem] border-[5px] transition-all duration-500 pointer-events-auto relative
+                    ${cell.isTarget
+                      ? 'bg-sky-50 dark:bg-sky-900/40 border-sky-400 shadow-[0_0_0_10px_rgba(14,165,233,0.1)]'
+                      : cell.isAccent
+                        ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-xl'}
+                  `}
+                >
+                  {cell.isTarget && (
+                    <div className="absolute -top-4 bg-sky-600 text-white text-xs font-black px-4 py-1.5 rounded-full shadow-md animate-bounce">
+                      הנעלם
+                    </div>
                   )}
-                  {/* 2×2 cells */}
-                  <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-[128px] z-10 pointer-events-none">
-                    {cells.map((cell, i) => (
-                      <div key={i} className={`relative w-[160px] h-[160px] flex flex-col items-center justify-center rounded-[2rem] border-4 transition-all duration-300 pointer-events-auto
-                        ${cell.isTarget ? 'bg-sky-50 dark:bg-sky-900/40 border-sky-400 dark:border-sky-600 shadow-[0_0_0_6px_rgba(14,165,233,0.12)]'
-                          : cell.isAccent ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
-                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-lg'}`}>
-                        {cell.isTarget && (
-                          <div className="absolute -top-3 bg-sky-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-md animate-bounce">נעלם</div>
-                        )}
-                        <div className="flex items-baseline gap-1">
-                          <span className={`text-5xl font-black ${cell.isTarget ? 'text-sky-600 dark:text-sky-300' : cell.isAccent ? 'text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100'}`}>
-                            {cell.val}
-                          </span>
-                          {cell.val !== '?' && (
-                            <span className={`text-xl font-bold ${cell.isAccent ? 'text-slate-300 dark:text-slate-600' : 'text-slate-400 dark:text-slate-500'}`}>{cell.label}</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                  <div className="flex items-end justify-center px-2 text-center overflow-hidden">
+                    <span className={`text-[54px] font-black tracking-tight leading-none
+                      ${cell.isTarget ? 'text-sky-600 dark:text-sky-400'
+                        : cell.isAccent ? 'text-slate-400'
+                        : 'text-slate-800 dark:text-slate-100'}`}>
+                      {cell.val}
+                    </span>
+                    {cell.val !== '?' && (
+                      <span className={`text-2xl font-bold ml-2 mb-2
+                        ${cell.isAccent ? 'text-slate-300' : 'text-slate-400 dark:text-slate-500'}`}>
+                        {cell.label}
+                      </span>
+                    )}
                   </div>
                 </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
 
-        <HintBubble text={hintBubbleText} colorToken="sky" />
+        {errorMsg && (
+          <div className="w-full text-center text-sm font-bold bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-4 py-2 rounded-xl border border-red-200 dark:border-red-800">
+            {errorMsg}
+          </div>
+        )}
 
-        <button
-          onClick={handleValidate}
-          disabled={isAnimating}
-          className="w-full max-w-sm mx-4 mt-2 font-bold py-4 rounded-2xl text-lg bg-sky-600 hover:bg-sky-500 text-white shadow-[0_5px_0_#0369a1] active:translate-y-[5px] active:shadow-none transition-all disabled:opacity-40"
-        >
-          בדיקת תשובה ▶
-        </button>
+        {/* HintBubble + bottom action bar */}
+        <HintBubble text={hintBubble} colorToken="sky" className="mb-1" />
+        <div className="w-full flex gap-2 pb-1" dir="rtl">
+          <HintButton
+            cooldown={hintCooldown}
+            onClick={requestHint}
+            colorToken="sky"
+            title="רמז"
+            className="self-stretch"
+          />
+          <button
+            onClick={checkAnswer}
+            className="flex-1 py-4 bg-sky-500 hover:bg-sky-600 dark:bg-sky-600 dark:hover:bg-sky-700 text-white rounded-3xl font-black text-xl shadow-xl transition-all active:scale-95"
+          >
+            בדיקה ✓
+          </button>
+        </div>
       </div>
 
       <FeedbackOverlay
@@ -378,7 +372,10 @@ export default function PercentsLab() {
         isLevelUp={feedback.isLevelUp}
         unlocked={feedback.unlocked}
         pts={feedback.pts}
-        onDone={() => setFeedback({ visible: false })}
+        onDone={() => {
+          setFeedback({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
+          newPuzzle();
+        }}
       />
     </div>
   );

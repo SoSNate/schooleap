@@ -720,7 +720,7 @@ export default function MagicPatterns() {
                 : (scaffoldStage === 0 ? '🔵 מלא עזרים' : scaffoldStage === 1 ? '🟡 עזרים חלקיים' : '🔴 ללא עזרים')}
             </span>
             <div className="flex gap-1 items-center">
-              <HintButton cooldown={hintCooldown} onClick={requestHint} colorToken="amber" />
+              <HintButton cooldown={hintCooldown} onClick={requestHint} colorToken="violet" />
               {gameState.lvl >= 4 && (
                 <Hearts count={lives} />
               )}

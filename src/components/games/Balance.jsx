@@ -174,14 +174,14 @@ export default function Balance() {
       // השלב הראשון עוזר לילד למצוא את הערך; השני מיישם אותו.
       const shape5 = Math.random() < 0.5 ? 'a' : 'b';
       if (shape5 === 'a') {
-        setRulesHtml('שלב 1: מצא 🟦 &nbsp;·&nbsp; שלב 2: 🔴 = 🟦 + 2 &nbsp;·&nbsp; חשב 🔴 × 🟦');
+        setRulesHtml('שלב 1: מצא 🟦  ·  שלב 2: 🔴 = 🟦 + 2  ·  חשב 🔴 × 🟦');
         setLeftText(`🔴 × 🟦`);
         const t = (x + 2) * x;
         setRightText(`${t}`);
         lFnRef.current = (v) => (v + 2) * v;
         rFnRef.current = () => t;
       } else {
-        setRulesHtml('שלב 1: מצא 🟦 &nbsp;·&nbsp; שלב 2: 🔴 = 🟦 + 3 &nbsp;·&nbsp; חשב 🔴 × (🟦 − 1)');
+        setRulesHtml('שלב 1: מצא 🟦  ·  שלב 2: 🔴 = 🟦 + 3  ·  חשב 🔴 × (🟦 − 1)');
         setLeftText(`🔴 × (🟦 - 1)`);
         const t = (x + 3) * (x - 1);
         setRightText(`${t}`);
@@ -257,8 +257,8 @@ export default function Balance() {
         {/* Rules (level 5) */}
         {rulesHtml && (
           <div className="w-full flex justify-center -mb-1 sm:-mb-2">
-            <div className="bg-rose-100 dark:bg-rose-900/30 font-bold px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm border border-rose-200">
-              <PanContent text={rulesHtml} />
+            <div className="bg-rose-100 dark:bg-rose-900/30 font-bold px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm border border-rose-200 text-center" dir="rtl">
+              {rulesHtml}
             </div>
           </div>
         )}

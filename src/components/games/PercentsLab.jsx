@@ -88,22 +88,24 @@ function DynamicArc({
     pointsStandard = isShekelBigger ? operation !== 'multiply' : operation === 'multiply';
   }
 
-  // Board canvas: 384×400 (cells 160×160, col-gap 64, row-gap 80)
-  // Cell centers: left-col x=80, right-col x=320, top-row y=80, bottom-row y=320
+  // Board canvas: 336×288 (cells 120×120, col-gap 96, row-gap 48)
+  // Cell centers: left-col x=60, right-col x=276, top-row y=60, bottom-row y=228
+  // Arc paths curve through the gap between cells — widgets positioned inside the board bounds.
   let d = '';
-  if (position === 'top')    d = pointsStandard ? 'M 80,0 Q 200,-72 320,0'     : 'M 320,0 Q 200,-72 80,0';
-  if (position === 'bottom') d = pointsStandard ? 'M 80,400 Q 200,472 320,400' : 'M 320,400 Q 200,472 80,400';
-  if (position === 'left')   d = pointsStandard ? 'M 0,80 Q -72,200 0,320'     : 'M 0,320 Q -72,200 0,80';
-  if (position === 'right')  d = pointsStandard ? 'M 384,80 Q 456,200 384,320' : 'M 384,320 Q 456,200 384,80';
+  if (position === 'top')    d = pointsStandard ? 'M 60,0 Q 168,-50 276,0'     : 'M 276,0 Q 168,-50 60,0';
+  if (position === 'bottom') d = pointsStandard ? 'M 60,288 Q 168,338 276,288' : 'M 276,288 Q 168,338 60,288';
+  if (position === 'left')   d = pointsStandard ? 'M 0,60 Q -50,144 0,228'     : 'M 0,228 Q -50,144 0,60';
+  if (position === 'right')  d = pointsStandard ? 'M 336,60 Q 386,144 336,228' : 'M 336,228 Q 386,144 336,60';
 
   const color    = isInteractive ? '#0284c7' : '#94a3b8';
   const markerId = `ah-${position}-${isInteractive ? 'on' : 'off'}`;
 
+  // Widget placed inside the board — between the cells, not outside
   let box = {};
-  if (position === 'top')    box = { top: -40,  left: 200, transform: 'translate(-50%,-50%)' };
-  if (position === 'bottom') box = { top: 440,  left: 200, transform: 'translate(-50%,-50%)' };
-  if (position === 'left')   box = { top: 200,  left: -40, transform: 'translate(-50%,-50%)' };
-  if (position === 'right')  box = { top: 200,  left: 424, transform: 'translate(-50%,-50%)' };
+  if (position === 'top')    box = { top: 10,   left: 168, transform: 'translate(-50%, 0)' };
+  if (position === 'bottom') box = { top: 218,  left: 168, transform: 'translate(-50%, 0)' };
+  if (position === 'left')   box = { top: 144,  left: 10,  transform: 'translate(0, -50%)' };
+  if (position === 'right')  box = { top: 144,  left: 246, transform: 'translate(0, -50%)' };
 
   return (
     <>
@@ -179,13 +181,13 @@ export default function PercentsLab() {
     timersRef.current = [];
   }, []);
 
-  // Responsive board scale — accounts for arc widgets that extend 100px beyond each side.
-  // Vertical arcs (left/right): effective width = 44(labels) + 100(left arc) + 448(board) + 100(right arc) = 692px
-  // Horizontal arcs (top/bottom): effective width = 448px (no horizontal overflow)
+  // Responsive board scale — board cells are 120×120, gap 96px → board 336×288px.
+  // Vertical arcs extend ~80px left+right: effective width = 44(labels) + 80 + 336 + 80 = 540px
+  // Horizontal arcs extend ~80px top+bottom: effective width = 336px
   const computeScale = () => {
     if (typeof window === 'undefined') return 1;
     const isV = puzzle?.puzzleType === 'vertical';
-    return Math.min(1, (window.innerWidth - 32) / (isV ? 692 : 500));
+    return Math.min(1, (window.innerWidth - 32) / (isV ? 540 : 380));
   };
   const [boardScale, setBoardScale] = useState(computeScale);
   useEffect(() => {
@@ -307,23 +309,23 @@ export default function PercentsLab() {
         )}
 
         {/* Board */}
-        <div className="flex justify-center w-full pl-2">
-          <div className="relative" style={{ width: 448 * boardScale + (puzzle.puzzleType === 'vertical' ? 44 : 0) }}>
+        <div className="flex justify-center w-full px-2">
+          <div className="relative" style={{ width: 336 * boardScale + (puzzle.puzzleType === 'vertical' ? 44 : 0) }}>
             {puzzle.puzzleType === 'vertical' && (
-              <div className="flex mb-1 transition-opacity duration-300" dir="ltr" style={{ width: 448 * boardScale, marginRight: 44, paddingLeft: 80 * boardScale, paddingRight: 80 * boardScale, opacity: showLabels ? 1 : 0, pointerEvents: showLabels ? 'auto' : 'none' }}>
+              <div className="flex mb-1 transition-opacity duration-300" dir="ltr" style={{ width: 336 * boardScale, marginRight: 44, paddingLeft: 60 * boardScale, paddingRight: 60 * boardScale, opacity: showLabels ? 1 : 0, pointerEvents: showLabels ? 'auto' : 'none' }}>
                 <span className="flex-1 text-[10px] sm:text-xs font-bold text-sky-400 text-center">₪ שקלים</span>
                 <span className="flex-1 text-[10px] sm:text-xs font-bold text-sky-400 text-center">% אחוזים</span>
               </div>
             )}
             <div className="flex items-start">
               {puzzle.puzzleType === 'vertical' && (
-                <div className="flex flex-col justify-around pr-1 transition-opacity duration-300" style={{ width: 44, height: 384 * boardScale, opacity: showLabels ? 1 : 0, pointerEvents: showLabels ? 'auto' : 'none' }}>
+                <div className="flex flex-col justify-around pr-1 transition-opacity duration-300" style={{ width: 44, height: 288 * boardScale, opacity: showLabels ? 1 : 0, pointerEvents: showLabels ? 'auto' : 'none' }}>
                   <span className="text-[10px] sm:text-xs font-bold text-sky-400 text-center leading-tight">חלק</span>
                   <span className="text-[10px] sm:text-xs font-bold text-sky-400 text-center leading-tight">סכום<br/>כולל</span>
                 </div>
               )}
-              <div className="relative" dir="ltr" style={{ width: 448 * boardScale, height: 384 * boardScale }}>
-                <div className="absolute top-0 left-0 w-[448px] h-[384px]" style={{ transform: `scale(${boardScale})`, transformOrigin: 'top left' }}>
+              <div className="relative overflow-visible" dir="ltr" style={{ width: 336 * boardScale, height: 288 * boardScale }}>
+                <div className="absolute top-0 left-0 w-[336px] h-[288px]" style={{ transform: `scale(${boardScale})`, transformOrigin: 'top left', overflow: 'visible' }}>
                   {puzzle.puzzleType === 'horizontal' ? (
                     <>
                       <DynamicArc position="top"    operation={puzzle.activeArc === 'top'    ? userLogic.operation : puzzle.correctOperation} factor={puzzle.activeArc === 'top'    ? userLogic.factor : puzzle.correctFactor} isInteractive={puzzle.activeArc === 'top'}    onUpdate={setUserLogic} isShekelBigger={puzzle.isShekelBigger} showOperator={scaffold.showHintOperator} showFactor={scaffold.showHintFactor} hide={puzzle.activeArc !== 'top'    && scaffold.hidePlaceholderArc} hintGlow={hintGlow && puzzle.activeArc === 'top'} />
@@ -336,21 +338,21 @@ export default function PercentsLab() {
                     </>
                   )}
                   {/* 2×2 cells */}
-                  <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-[128px] z-10 pointer-events-none">
+                  <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-[96px] z-10 pointer-events-none">
                     {cells.map((cell, i) => (
-                      <div key={i} className={`relative w-[160px] h-[160px] flex flex-col items-center justify-center rounded-[2rem] border-4 transition-all duration-300 pointer-events-auto
+                      <div key={i} className={`relative w-[120px] h-[120px] flex flex-col items-center justify-center rounded-[1.5rem] border-4 transition-all duration-300 pointer-events-auto
                         ${cell.isTarget ? 'bg-sky-50 dark:bg-sky-900/40 border-sky-400 dark:border-sky-600 shadow-[0_0_0_6px_rgba(14,165,233,0.12)]'
                           : cell.isAccent ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
                           : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-lg'}`}>
                         {cell.isTarget && (
                           <div className="absolute -top-3 bg-sky-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-md animate-bounce">נעלם</div>
                         )}
-                        <div className="flex items-baseline gap-1">
-                          <span className={`text-5xl font-black ${cell.isTarget ? 'text-sky-600 dark:text-sky-300' : cell.isAccent ? 'text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100'}`}>
+                        <div className="flex items-baseline gap-0.5">
+                          <span className={`text-4xl font-black ${cell.isTarget ? 'text-sky-600 dark:text-sky-300' : cell.isAccent ? 'text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100'}`}>
                             {cell.val}
                           </span>
                           {cell.val !== '?' && (
-                            <span className={`text-xl font-bold ${cell.isAccent ? 'text-slate-300 dark:text-slate-600' : 'text-slate-400 dark:text-slate-500'}`}>{cell.label}</span>
+                            <span className={`text-base font-bold ${cell.isAccent ? 'text-slate-300 dark:text-slate-600' : 'text-slate-400 dark:text-slate-500'}`}>{cell.label}</span>
                           )}
                         </div>
                       </div>

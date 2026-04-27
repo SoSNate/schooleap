@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
-import Swal from 'sweetalert2';
 import useGameStore from '../../store/useGameStore';
 import Fraction from '../shared/Fraction';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
@@ -340,8 +339,8 @@ export default function FractionLab() {
           {/* Numerator row */}
           <div className="w-full flex items-center justify-between gap-2">
             <button onClick={() => { setUserN((v) => Math.max(1, v - 1)); setErrorMsg(''); vibe(10); }} className="w-11 h-11 rounded-xl bg-slate-700 hover:bg-slate-600 text-2xl font-black active:scale-90 transition-all flex items-center justify-center">−</button>
-            <div className="flex-1 text-center text-4xl font-black" dir="ltr">{userN}</div>
-            <button onClick={() => { setUserN((v) => Math.min(v + 1, (question?.targetD ?? 2) * 4)); setErrorMsg(''); vibe(10); }} className="w-12 h-12 rounded-xl bg-orange-500 hover:bg-orange-400 text-2xl font-black active:scale-90 transition-all flex items-center justify-center shadow-lg">+</button>
+            <div className="flex-1 text-center text-3xl font-black" dir="ltr">{userN}</div>
+            <button onClick={() => { setUserN((v) => Math.min(v + 1, (question?.targetD ?? 2) * 4)); setErrorMsg(''); vibe(10); }} className="w-11 h-11 rounded-xl bg-orange-500 hover:bg-orange-400 text-2xl font-black active:scale-90 transition-all flex items-center justify-center shadow-lg">+</button>
           </div>
 
           <div className="w-full h-0.5 bg-slate-600 rounded-full" />
@@ -351,9 +350,9 @@ export default function FractionLab() {
             <button
               onClick={() => { setUserD((v) => Math.max(1, v - 1)); setErrorMsg(''); vibe(10); }}
               disabled={question.mode === 'equivalent'}
-              className="w-12 h-12 rounded-xl bg-slate-700 hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed text-2xl font-black active:scale-90 transition-all flex items-center justify-center"
+              className="w-11 h-11 rounded-xl bg-slate-700 hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed text-2xl font-black active:scale-90 transition-all flex items-center justify-center"
             >−</button>
-            <div className="flex-1 text-center text-4xl font-black" dir="ltr">
+            <div className="flex-1 text-center text-3xl font-black" dir="ltr">
               {userD}
               {question.mode === 'equivalent' && <span className="text-xs text-slate-400 block">🔒</span>}
             </div>
@@ -363,6 +362,13 @@ export default function FractionLab() {
               className="w-11 h-11 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:opacity-30 disabled:cursor-not-allowed text-2xl font-black active:scale-90 transition-all flex items-center justify-center shadow-lg"
             >+</button>
           </div>
+
+          <button
+            onClick={requestHint}
+            className="w-full py-2 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 rounded-xl font-bold text-sm transition-all active:scale-95"
+          >
+            💡 רמז
+          </button>
 
           <button
             onClick={checkAnswer}

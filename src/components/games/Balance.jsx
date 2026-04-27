@@ -14,11 +14,13 @@ function PanContent({ text }) {
   // Split on 🟦 and operators to render styled blocks
   // Tokenize: split into [numbers, operators, variables]
   const tokens = [];
-  const raw = Array.from(text.matchAll(/(🟦|🔴|\d+(?:\.\d+)?|[^🟦🔴\d]+)/gu));
+  const raw = Array.from(text.matchAll(/(🟦|🟡|🔴|\d+(?:\.\d+)?|[^🟦🟡🔴\d]+)/gu));
   raw.forEach((m, i) => {
     const tok = m[0];
     if (tok === '🟦') {
       tokens.push({ type: 'var-blue', val: '?', key: i });
+    } else if (tok === '🟡') {
+      tokens.push({ type: 'var-yellow', val: '?', key: i });
     } else if (tok === '🔴') {
       tokens.push({ type: 'var-red', val: '●', key: i });
     } else if (/^\d+(\.\d+)?$/.test(tok.trim())) {
@@ -34,6 +36,9 @@ function PanContent({ text }) {
     <span className="flex items-center justify-center flex-nowrap gap-0.5" dir="ltr">
       {tokens.map((t) => {
         if (t.type === 'var-blue') return (
+          <span key={t.key} className="weight-var">{t.val}</span>
+        );
+        if (t.type === 'var-yellow') return (
           <span key={t.key} className="weight-var">{t.val}</span>
         );
         if (t.type === 'var-red') return (
@@ -170,23 +175,49 @@ export default function Balance() {
         rFnRef.current = () => t;
       }
     } else {
-      // רמה 5 — שני שלבים ברורים: מצא את 🟦, אז חשב 🔴 לפי הכלל ובדוק איזון.
-      // השלב הראשון עוזר לילד למצוא את הערך; השני מיישם אותו.
-      const shape5 = Math.random() < 0.5 ? 'a' : 'b';
-      if (shape5 === 'a') {
-        setRulesHtml('שלב 1: מצא 🟦 · שלב 2: 🔴 = 🟦 + 2 · חשב 🔴 × 🟦');
-        setLeftText(`🔴 × 🟦`);
-        const t = (x + 2) * x;
-        setRightText(`${t}`);
-        lFnRef.current = (v) => (v + 2) * v;
-        rFnRef.current = () => t;
+      // L5 — substitution (kept gentle): 🔴 defined as a SIMPLE expression of 🟡.
+      // Use small x to keep mental math easy.
+      const xs = Math.floor(Math.random() * 6) + 2; // 2-7
+      ansRef.current = xs;
+      const shapes5 = ['add', 'pair', 'addEq', 'mulSimple'];
+      const pick = shapes5[Math.floor(Math.random() * shapes5.length)];
+
+      if (pick === 'add') {
+        // 🔴 = 🟡 + b   ;   🔴  =  🟡 + b    →  trivial; use:  🔴 + 🟡 = N
+        const b = Math.floor(Math.random() * 3) + 1; // 1-3
+        const N = 2 * xs + b;
+        setRulesHtml(`🔴 = 🟡 + ${b}`);
+        setLeftText(`🔴 + 🟡`);
+        setRightText(`${N}`);
+        lFnRef.current = (v) => (v + b) + v;
+        rFnRef.current = () => N;
+      } else if (pick === 'pair') {
+        // 🔴 = 🟡 + b ;  🔴 = 🟡 + b — trivial again; use:  🔴 = N (constant)
+        const b = Math.floor(Math.random() * 3) + 1; // 1-3
+        const N = xs + b;
+        setRulesHtml(`🔴 = 🟡 + ${b}`);
+        setLeftText(`🔴`);
+        setRightText(`${N}`);
+        lFnRef.current = (v) => v + b;
+        rFnRef.current = () => N;
+      } else if (pick === 'addEq') {
+        // 🔴 = 🟡 + b ;  🔴 + c  =  🟡 + N      (N = b + c + 0... → solve trivially)
+        // make it a real substitution: 🔴 × 2 = 🟡 + N  with small 2×
+        const b = Math.floor(Math.random() * 3) + 1; // 1-3
+        const N = xs + 2 * b;
+        setRulesHtml(`🔴 = 🟡 + ${b}`);
+        setLeftText(`🔴 × 2`);
+        setRightText(`🟡 + ${N}`);
+        lFnRef.current = (v) => (v + b) * 2;
+        rFnRef.current = () => xs + N;
       } else {
-        setRulesHtml('שלב 1: מצא 🟦 · שלב 2: 🔴 = 🟦 + 3 · חשב 🔴 × (🟦 − 1)');
-        setLeftText(`🔴 × (🟦 - 1)`);
-        const t = (x + 3) * (x - 1);
-        setRightText(`${t}`);
-        lFnRef.current = (v) => (v + 3) * (v - 1);
-        rFnRef.current = () => t;
+        // mulSimple:  🔴 = 🟡 × 2 ;   🔴 = 🟡 + N      (N = x)
+        const N = xs;
+        setRulesHtml(`🔴 = 🟡 × 2`);
+        setLeftText(`🔴`);
+        setRightText(`🟡 + ${N}`);
+        lFnRef.current = (v) => v * 2;
+        rFnRef.current = () => xs + N;
       }
     }
   }, [gameState.lvl, practiceLvl]);

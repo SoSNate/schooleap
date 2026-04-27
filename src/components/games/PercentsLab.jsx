@@ -44,28 +44,32 @@ function SwipeRoller({ value, onChange, min = 2, max = 25 }) {
       onPointerMove={onMove}
       onPointerUp={stop}
       onPointerCancel={stop}
-      className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl border-2 border-sky-200 dark:border-slate-600 shadow-inner flex items-center justify-center cursor-ns-resize touch-none select-none"
+      className="relative w-12 h-12 bg-white dark:bg-slate-800 rounded-xl border-2 border-sky-200 dark:border-slate-600 shadow-inner flex items-center justify-center cursor-ns-resize touch-none select-none"
     >
+      <span aria-hidden="true" className="absolute top-0.5 left-1/2 -translate-x-1/2 text-[9px] leading-none text-sky-400 dark:text-sky-500 animate-pulse">▲</span>
       <span className="text-2xl font-black text-sky-600 dark:text-sky-400">{value}</span>
+      <span aria-hidden="true" className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[9px] leading-none text-sky-400 dark:text-sky-500 animate-pulse">▼</span>
     </div>
   );
 }
 
 // ─── DynamicArc ─────────────────────────────────────────────────────────────
-// Drawn in fixed virtual coordinates (600×660). Outer wrapper scales to fit.
+// Drawn in fixed virtual coordinates (420×460). Outer wrapper scales to fit.
 function DynamicArc({ position, operation, factor, isInteractive, onUpdate, scaffoldHint, rollerMax }) {
   let d = '';
-  if (position === 'top')    d = operation === 'multiply' ? 'M 130,0 Q 300,-80 470,0'   : 'M 470,0 Q 300,-80 130,0';
-  if (position === 'bottom') d = operation === 'multiply' ? 'M 130,660 Q 300,740 470,660' : 'M 470,660 Q 300,740 130,660';
-  if (position === 'left')   d = operation === 'divide'   ? 'M 0,100 Q -80,330 0,560'   : 'M 0,560 Q -80,330 0,100';
-  if (position === 'right')  d = operation === 'divide'   ? 'M 600,100 Q 680,330 600,560' : 'M 600,560 Q 680,330 600,100';
+  // Horizontal arcs (top/bottom): center→center, curve INWARD through the empty middle gap.
+  // Vertical arcs (left/right): inner-corner anchors, curve outward at the side.
+  if (position === 'top')    d = operation === 'multiply' ? 'M 65,50 Q 150,120 235,50'      : 'M 235,50 Q 150,120 65,50';
+  if (position === 'bottom') d = operation === 'multiply' ? 'M 65,330 Q 150,260 235,330'    : 'M 235,330 Q 150,260 65,330';
+  if (position === 'left')   d = operation === 'divide'   ? 'M 0,100 Q -55,190 0,280'      : 'M 0,280 Q -55,190 0,100';
+  if (position === 'right')  d = operation === 'divide'   ? 'M 300,100 Q 355,190 300,280'  : 'M 300,280 Q 355,190 300,100';
 
   const color = scaffoldHint ? '#f59e0b' : (isInteractive ? '#0ea5e9' : '#cbd5e1');
   const markerId = `arrow-${position}-${isInteractive ? 'a' : 'p'}-${scaffoldHint ? 'h' : 'n'}`;
 
   const boxStyle = {
-    top:  position === 'top'    ? 50  : position === 'bottom' ? 550 : 330,
-    left: position === 'left'   ? 55  : position === 'right'  ? 545 : 300,
+    top:  position === 'top'    ? 115 : position === 'bottom' ? 265 : 190,
+    left: position === 'left'   ? -5  : position === 'right'  ? 305 : 150,
     transform: 'translate(-50%, -50%)',
   };
 
@@ -147,9 +151,9 @@ export default function PercentsLab() {
     if (!el) return;
     const update = () => {
       const w = el.clientWidth;
-      // Reserve ~80px slack on each side for the arrow boxes that bleed outside the 600px frame
-      const usable = w - 80;
-      setScale(Math.min(1, usable / 600));
+      // Reserve ~50px slack on each side for arrow boxes that bleed outside the 420px frame
+      const usable = w - 40;
+      setScale(Math.min(1, usable / 300));
     };
     update();
     const obs = new ResizeObserver(update);
@@ -216,10 +220,10 @@ export default function PercentsLab() {
 
   const showLive = scaffold.showLiveValue;
   const cells = [
-    { id: 'partValue',    label: '₪', val: puzzle.display.partValue    === '?' ? (showLive ? liveVal : '?') : puzzle.display.partValue,    isTarget: puzzle.targetVar === 'partValue' },
-    { id: 'partPercent',  label: '%', val: puzzle.display.partPercent  === '?' ? (showLive ? liveVal : '?') : puzzle.display.partPercent,  isTarget: puzzle.targetVar === 'partPercent' },
-    { id: 'totalValue',   label: '₪', val: puzzle.display.totalValue   === '?' ? (showLive ? liveVal : '?') : puzzle.display.totalValue,   isTarget: puzzle.targetVar === 'totalValue' },
-    { id: 'totalPercent', label: '%', val: 100, isTarget: false, isAccent: true },
+    { id: 'partValue',    label: '₪', role: 'חלק (₪)',   val: puzzle.display.partValue    === '?' ? (showLive ? liveVal : '?') : puzzle.display.partValue,    isTarget: puzzle.targetVar === 'partValue' },
+    { id: 'partPercent',  label: '%', role: 'חלק (%)',   val: puzzle.display.partPercent  === '?' ? (showLive ? liveVal : '?') : puzzle.display.partPercent,  isTarget: puzzle.targetVar === 'partPercent' },
+    { id: 'totalValue',   label: '₪', role: 'שלם (₪)',   val: puzzle.display.totalValue   === '?' ? (showLive ? liveVal : '?') : puzzle.display.totalValue,   isTarget: puzzle.targetVar === 'totalValue' },
+    { id: 'totalPercent', label: '%', role: 'שלם (100%)', val: 100, isTarget: false, isAccent: true },
   ];
 
   const isHorizontal = puzzle.puzzleType === 'horizontal';
@@ -245,14 +249,17 @@ export default function PercentsLab() {
           </span>
         </div>
 
-        {/* Board slot — scales the fixed 600×660 design */}
-        <div ref={slotRef} className="w-full flex justify-center items-start" style={{ height: 610 * scale }}>
+        {/* Board slot — scales the fixed 300×380 design.
+            Extra vertical padding (BLEED) reserves room for the operator chip when the
+            roller sits on the TOP arc (y=-8 in canvas coords) or BOTTOM arc (y=388),
+            so it doesn't overlap the instruction bar above or the action buttons below. */}
+        <div ref={slotRef} className="w-full flex justify-center items-start" style={{ height: 380 * scale }}>
           <div
             style={{
               transform: `scale(${scale})`,
               transformOrigin: 'top center',
-              width: 600,
-              height: 610,
+              width: 300,
+              height: 380,
               flexShrink: 0,
             }}
             className="relative"
@@ -305,32 +312,37 @@ export default function PercentsLab() {
             )}
 
             {/* 2×2 grid */}
-            <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-x-[80px] gap-y-[220px] z-10 pointer-events-none">
+            <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-x-[40px] gap-y-[180px] z-10 pointer-events-none">
               {cells.map((cell) => (
                 <div
                   key={cell.id}
-                  className={`w-[220px] h-[170px] flex items-center justify-center rounded-[2rem] border-[5px] transition-all duration-500 pointer-events-auto relative
+                  className={`w-[130px] h-[100px] flex items-center justify-center rounded-[1.25rem] border-[4px] transition-all duration-500 pointer-events-auto relative
                     ${cell.isTarget
-                      ? 'bg-sky-50 dark:bg-sky-900/40 border-sky-400 shadow-[0_0_0_10px_rgba(14,165,233,0.1)]'
+                      ? 'bg-sky-50 dark:bg-sky-900/40 border-sky-400 shadow-[0_0_0_8px_rgba(14,165,233,0.1)]'
                       : cell.isAccent
                         ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
                         : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-xl'}
                   `}
                 >
                   {cell.isTarget && (
-                    <div className="absolute -top-4 bg-sky-600 text-white text-xs font-black px-4 py-1.5 rounded-full shadow-md animate-bounce">
+                    <div className="absolute -top-4 bg-sky-600 text-white text-xs font-black px-3 py-1 rounded-full shadow-md animate-bounce z-30">
                       הנעלם
                     </div>
                   )}
+                  {scaffoldGlow && !cell.isTarget && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-400 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow z-30 whitespace-nowrap" dir="rtl">
+                      {cell.role}
+                    </div>
+                  )}
                   <div className="flex items-end justify-center px-2 text-center overflow-hidden">
-                    <span className={`text-[54px] font-black tracking-tight leading-none
+                    <span className={`text-[30px] font-black tracking-tight leading-none
                       ${cell.isTarget ? 'text-sky-600 dark:text-sky-400'
                         : cell.isAccent ? 'text-slate-400'
                         : 'text-slate-800 dark:text-slate-100'}`}>
                       {cell.val}
                     </span>
                     {cell.val !== '?' && (
-                      <span className={`text-2xl font-bold ml-2 mb-2
+                      <span className={`text-xl font-bold ml-1.5 mb-1.5
                         ${cell.isAccent ? 'text-slate-300' : 'text-slate-400 dark:text-slate-500'}`}>
                         {cell.label}
                       </span>

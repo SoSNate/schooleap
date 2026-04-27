@@ -720,7 +720,7 @@ export default function MagicPatterns() {
                 : (scaffoldStage === 0 ? '🔵 מלא עזרים' : scaffoldStage === 1 ? '🟡 עזרים חלקיים' : '🔴 ללא עזרים')}
             </span>
             <div className="flex gap-1 items-center">
-              <HintButton cooldown={hintCooldown} onClick={requestHint} colorToken="violet" />
+              <HintButton cooldown={hintCooldown} onClick={requestHint} colorToken="rose" />
               {gameState.lvl >= 4 && (
                 <Hearts count={lives} />
               )}
@@ -740,9 +740,9 @@ export default function MagicPatterns() {
           {/* ── Question LHS ── */}
           <div className="w-full text-center">
             <p className="text-xs font-bold text-slate-400 dark:text-slate-500 mb-1">התרגיל</p>
-            <div className="flex items-center justify-center flex-wrap gap-1" dir="ltr">
+            <div className="flex items-center justify-center flex-nowrap gap-1 overflow-x-auto px-2" dir="ltr">
               {question.lhsParts.map((part, i) => renderLhsPart(part, i, hideColors))}
-              <span className="math-font font-black text-4xl text-yellow-400 dark:text-yellow-300 ml-2 drop-shadow-md">=</span>
+              <span className="math-font font-black text-3xl sm:text-4xl text-yellow-400 dark:text-yellow-300 ml-2 drop-shadow-md shrink-0">=</span>
             </div>
           </div>
 

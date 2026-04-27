@@ -8,6 +8,7 @@ const COLOR_MAP = {
   sky:     { bg: 'bg-sky-100    dark:bg-sky-900',     border: 'border-sky-400    dark:border-sky-500',    text: 'text-sky-800    dark:text-sky-200'    },
   emerald: { bg: 'bg-emerald-100 dark:bg-emerald-900', border: 'border-emerald-400 dark:border-emerald-500', text: 'text-emerald-800 dark:text-emerald-200' },
   violet:  { bg: 'bg-violet-100 dark:bg-violet-900',  border: 'border-violet-400 dark:border-violet-500', text: 'text-violet-800 dark:text-violet-200'  },
+  rose:    { bg: 'bg-rose-100   dark:bg-rose-900',    border: 'border-rose-400   dark:border-rose-500',   text: 'text-rose-800   dark:text-rose-200'   },
   orange:  { bg: 'bg-orange-100 dark:bg-orange-900',  border: 'border-orange-400 dark:border-orange-500', text: 'text-orange-800 dark:text-orange-200'  },
   teal:    { bg: 'bg-teal-100   dark:bg-teal-900',    border: 'border-teal-400   dark:border-teal-500',   text: 'text-teal-800   dark:text-teal-200'   },
   lime:    { bg: 'bg-lime-100   dark:bg-lime-900',    border: 'border-lime-400   dark:border-lime-500',   text: 'text-lime-800   dark:text-lime-200'   },

@@ -303,13 +303,13 @@ export default function FractionLab() {
             {question.mode === 'equivalent' && (
               <div className="flex flex-col items-center gap-2" dir="ltr">
                 <div className="text-sm font-bold text-slate-500 dark:text-slate-400 text-center" dir="rtl">בנה שבר השווה ל:</div>
-                <div className="text-4xl font-black">
+                <div className="text-6xl font-black target-fraction">
                   <Fraction numerator={question.targetN} denominator={question.targetD} />
                 </div>
               </div>
             )}
             {question.mode === 'simplify' && (
-              <div dir="ltr" className="text-4xl font-black">
+              <div dir="ltr" className="text-6xl font-black target-fraction">
                 <Fraction numerator={question.targetN} denominator={question.targetD} />
               </div>
             )}

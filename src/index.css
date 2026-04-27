@@ -32,6 +32,7 @@ body {
 .menu-btn {
   width: 100%;
   max-width: 350px;
+  min-height: 92px;
   padding: 1.25rem;
   border-radius: 1.5rem;
   display: flex;
@@ -334,6 +335,10 @@ body {
 .denominator {
   font-size: 0.6em;
   padding: 0 3px; width: 100%; text-align: center;
+}
+.target-fraction .numerator,
+.target-fraction .denominator {
+  font-size: 0.85em;
 }
 .whole-number {
   font-size: inherit; font-weight: 900;

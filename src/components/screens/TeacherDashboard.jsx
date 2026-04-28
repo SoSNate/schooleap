@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { LogOut, GraduationCap, ShieldAlert, Moon, Sun } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -9,8 +9,9 @@ import useTeacherModes from '../../hooks/useTeacherModes';
 import useTutorTrial from '../../hooks/useTutorTrial';
 import TeacherSalesPage from './TeacherSalesPage';
 import ClassEngagementTable from '../teacher/ClassEngagementTable';
-import ClassSkillsCard      from '../teacher/ClassSkillsCard';
-import StudentDetailDrawer  from '../teacher/StudentDetailDrawer';
+// recharts-heavy — נטען lazy כדי לא לחסום את הרינדור הראשון של הדשבורד
+const ClassSkillsCard      = lazy(() => import('../teacher/ClassSkillsCard'));
+const StudentDetailDrawer  = lazy(() => import('../teacher/StudentDetailDrawer'));
 import ClassroomCodeCard    from '../teacher/ClassroomCodeCard';
 import ClassroomReminderCard from '../teacher/ClassroomReminderCard';
 import ClassroomSelector    from '../teacher/ClassroomSelector';
@@ -376,7 +377,9 @@ export default function TeacherDashboard() {
                 <ClassEngagementTable students={students} onSelect={setSelected} />
               </div>
               <div className="lg:col-span-4 space-y-6">
-                <ClassSkillsCard allEvents={allEvents} />
+                <Suspense fallback={<div className="h-64 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 animate-pulse" />}>
+                  <ClassSkillsCard allEvents={allEvents} />
+                </Suspense>
               </div>
             </div>
           )
@@ -431,7 +434,9 @@ export default function TeacherDashboard() {
                     <ClassroomReminderCard students={students} />
                   </>
                 )}
-                <ClassSkillsCard allEvents={allEvents} />
+                <Suspense fallback={<div className="h-64 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 animate-pulse" />}>
+                  <ClassSkillsCard allEvents={allEvents} />
+                </Suspense>
               </div>
             </div>
           )
@@ -439,10 +444,12 @@ export default function TeacherDashboard() {
       </div>
 
       {selected && (
-        <StudentDetailDrawer
-          student={selected}
-          onClose={() => setSelected(null)}
-        />
+        <Suspense fallback={null}>
+          <StudentDetailDrawer
+            student={selected}
+            onClose={() => setSelected(null)}
+          />
+        </Suspense>
       )}
     </div>
   );

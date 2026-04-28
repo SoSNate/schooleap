@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Info, Plus, Moon, Sun, ShieldAlert } from 'lucide-react';
 import Swal from 'sweetalert2';
@@ -12,7 +12,8 @@ import MagicLinkCard      from '../dashboard/MagicLinkCard';
 import TrialCard          from '../dashboard/TrialCard';
 import NotificationsCard  from '../dashboard/NotificationsCard';
 import PushSettingsCard   from '../dashboard/PushSettingsCard';
-import SkillRadarCard     from '../dashboard/SkillRadarCard';
+// SkillRadarCard נטען lazy — תלוי ב-recharts (~330kB). מנתק את ה-bundle הראשי.
+const SkillRadarCard = lazy(() => import('../dashboard/SkillRadarCard'));
 import GoalsSection       from '../dashboard/GoalsSection';
 import GoalModal          from '../dashboard/GoalModal';
 import PricingView           from '../dashboard/PricingView';
@@ -243,8 +244,14 @@ export default function ParentDashboard() {
 
       setChildExists(true);
       setChild(data);
-      // events + goals כבר במקביל
-      await Promise.all([fetchEvents(data.magic_token), fetchGoals(u.id)]);
+      // events + goals — fire-and-forget ברקע. אין צורך לחסום את הרינדור הראשון
+      // של ה-child header — הם יתעדכנו לכשיגיעו (500-1500ms חיסכון בטעינה).
+      fetchEvents(data.magic_token).catch((err) =>
+        console.error('[ParentDashboard] fetchEvents:', err)
+      );
+      fetchGoals(u.id).catch((err) =>
+        console.error('[ParentDashboard] fetchGoals:', err)
+      );
     } catch (e) {
       setError('שגיאה בטעינת הנתונים. נסה לרענן את הדף.');
       console.error('[ParentDashboard] loadChild:', e);
@@ -704,7 +711,9 @@ export default function ParentDashboard() {
             </div>
 
             {events.length > 0 && (
-              <SkillRadarCard radarData={radarData} />
+              <Suspense fallback={<div className="h-64 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 animate-pulse" />}>
+                <SkillRadarCard radarData={radarData} />
+              </Suspense>
             )}
 
             <GoalsSection

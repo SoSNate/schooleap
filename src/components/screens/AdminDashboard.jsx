@@ -717,8 +717,25 @@ function DevToolsTab() {
     alert('✅ ההתקדמות אופסה — שלב 1 בכל המשחקים');
   };
 
+  // DevTools קורא מ-localStorage של token הילד — רלוונטי רק אחרי "משחק אדמין".
+  const hasAdminPlay = typeof window !== 'undefined' &&
+    localStorage.getItem('hasbaonautica_admin_play') === '1';
+
   return (
     <div className="space-y-6 max-w-lg">
+
+      {!hasAdminPlay && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-2xl p-4 flex items-start gap-3">
+          <span className="text-2xl">⚠️</span>
+          <div>
+            <p className="font-black text-amber-800 dark:text-amber-300 text-sm">כלי הפיתוח פעילים רק אחרי "משחק אדמין"</p>
+            <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+              עבור ל-<strong>קישורים מהירים</strong> → לחץ <strong>משחק אדמין</strong> → שחק כמה שלבים → חזור לכאן
+            </p>
+          </div>
+        </div>
+      )}
+
       <Section title="התקדמות ילד">
         <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
           <table className="w-full text-sm">

@@ -63,9 +63,11 @@ export default function TeacherDashboard() {
   } = useTeacherModes(user?.id);
 
   // ─── Tutor trial (private mode only) ────────────────────────────────────────
-  const { isReadOnly, trialExpired, hoursRemaining } = useTutorTrial(
+  const { isReadOnly: _isReadOnly, trialExpired, hoursRemaining } = useTutorTrial(
     isPrivateMode ? user?.id : null
   );
+  // אדמין לא נחסם לעולם — גישה מלאה ללא הגבלת ניסיון
+  const isReadOnly = _isReadOnly && !profile?.is_admin;
 
   // ─── Get classroom code from selected classroom or URL param ──────────────
   const classroomCode = selectedClassroom?.classroom_code;
@@ -121,13 +123,13 @@ export default function TeacherDashboard() {
     }
 
     // Fast path: getSession reads from localStorage — no network, near-instant.
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    // setLoading(false) מיד — DB נטען ברקע, spinner מצטמצם לאפס.
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
       const u = session?.user ?? null;
       setUser(u);
-      try { if (u) await loadData(u); }
-      catch (e) { console.error('[TeacherDashboard] loadData:', e); }
-      finally { if (mounted) setLoading(false); }
+      if (mounted) setLoading(false);
+      if (u) loadData(u).catch(e => console.error('[TeacherDashboard] loadData:', e));
     });
 
     // Handle auth events AFTER init (login, logout). Skip INITIAL_SESSION.
@@ -309,8 +311,8 @@ export default function TeacherDashboard() {
           </div>
         )}
 
-        {/* Tutor trial / read-only banner */}
-        {isPrivateMode && (trialExpired || hoursRemaining < 12) && (
+        {/* Tutor trial / read-only banner — אדמין עוקף */}
+        {isPrivateMode && !profile?.is_admin && (trialExpired || hoursRemaining < 12) && (
           <TutorReadOnlyBanner hoursRemaining={hoursRemaining} />
         )}
 

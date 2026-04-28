@@ -319,13 +319,14 @@ export default function ParentDashboard() {
     }
 
     // Fast path: getSession reads from localStorage — no network, near-instant.
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    // setLoading(false) מיד אחרי session (לא ממתינים ל-DB) — מצמצם spinner ל-0.
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
       const u = session?.user ?? null;
       setUser(u);
-      try { if (u) await loadChild(u); }
-      catch (e) { console.error('[ParentDashboard] loadChild:', e); }
-      finally { if (mounted) setLoading(false); }
+      if (mounted) setLoading(false);
+      // DB נטען ברקע — childExists=null עד שיחזור
+      if (u) loadChild(u).catch(e => console.error('[ParentDashboard] loadChild:', e));
     });
 
     // Handle auth events that happen AFTER init (login, logout).
@@ -617,6 +618,20 @@ export default function ParentDashboard() {
         userId={user?.id}
         isActive={subStatus.isActive}
       />
+    );
+  }
+
+  // ─── Render: skeleton while DB loads (user logged in but data not yet fetched) ──
+  if (user && childExists === null) {
+    return (
+      <div dir="rtl" className="min-h-[100dvh] bg-[#FDFDFF] dark:bg-slate-900">
+        <div className="h-16 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-700 animate-pulse" />
+        <div className="max-w-5xl mx-auto p-4 md:p-8 space-y-6 pt-8">
+          <div className="h-8 w-48 bg-slate-200 dark:bg-slate-700 rounded-xl animate-pulse" />
+          <div className="h-32 bg-slate-100 dark:bg-slate-800 rounded-3xl animate-pulse" />
+          <div className="h-48 bg-slate-100 dark:bg-slate-800 rounded-3xl animate-pulse" />
+        </div>
+      </div>
     );
   }
 

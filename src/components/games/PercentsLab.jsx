@@ -56,12 +56,20 @@ function SwipeRoller({ value, onChange, min = 2, max = 25 }) {
 // Drawn in fixed virtual coordinates (420×460). Outer wrapper scales to fit.
 function DynamicArc({ position, operation, factor, isInteractive, onUpdate, scaffoldHint, rollerMax }) {
   let d = '';
-  // Horizontal arcs (top/bottom): center→center, curve INWARD through the empty middle gap.
-  // Vertical arcs (left/right): inner-corner anchors, curve outward at the side.
-  if (position === 'top')    d = operation === 'multiply' ? 'M 65,50 Q 150,120 235,50'      : 'M 235,50 Q 150,120 65,50';
-  if (position === 'bottom') d = operation === 'multiply' ? 'M 65,330 Q 150,260 235,330'    : 'M 235,330 Q 150,260 65,330';
-  if (position === 'left')   d = operation === 'divide'   ? 'M 0,100 Q -55,190 0,280'      : 'M 0,280 Q -55,190 0,100';
-  if (position === 'right')  d = operation === 'divide'   ? 'M 300,100 Q 355,190 300,280'  : 'M 300,280 Q 355,190 300,100';
+  // ── Arrow direction convention ─────────────────────────────────────────
+  // Arrow pointing FROM whole (שלם) TO part (חלק)  → ÷ (you shrink)
+  // Arrow pointing FROM part (חלק) TO whole (שלם) → × (you grow)
+  // Top row = חלק (partValue/partPercent), Bottom row = שלם (totalValue/totalPercent).
+  // For LEFT/RIGHT arcs (vertical, between part and whole): direct rule.
+  // For TOP/BOTTOM arcs (horizontal, between value and percent within same row):
+  //   value→percent (left→right in an LTR canvas) follows the same multiply/divide
+  //   convention so the arrow visually "leads" toward the result.
+  if (position === 'top')    d = operation === 'multiply' ? 'M 235,50 Q 150,120 65,50'      : 'M 65,50 Q 150,120 235,50';
+  if (position === 'bottom') d = operation === 'multiply' ? 'M 235,330 Q 150,260 65,330'    : 'M 65,330 Q 150,260 235,330';
+  // LEFT/RIGHT: y=100 is top (חלק), y=280 is bottom (שלם).
+  // multiply = arrow from חלק (top) → שלם (bottom).  divide = arrow from שלם (bottom) → חלק (top).
+  if (position === 'left')   d = operation === 'multiply' ? 'M 0,100 Q -55,190 0,280'      : 'M 0,280 Q -55,190 0,100';
+  if (position === 'right')  d = operation === 'multiply' ? 'M 300,100 Q 355,190 300,280'  : 'M 300,280 Q 355,190 300,100';
 
   const color = scaffoldHint ? '#f59e0b' : (isInteractive ? '#0ea5e9' : '#cbd5e1');
   const markerId = `arrow-${position}-${isInteractive ? 'a' : 'p'}-${scaffoldHint ? 'h' : 'n'}`;

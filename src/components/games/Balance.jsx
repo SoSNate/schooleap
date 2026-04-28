@@ -7,12 +7,12 @@ import HintButton from '../shared/HintButton';
 import HintBubble from '../shared/HintBubble';
 import useHint from '../../hooks/useHint';
 import { vibe } from '../../utils/math';
-import Swal from 'sweetalert2'; // נשאר רק ל-fail dialog (Balance שומר lives כ-anti-cheat)
+import Swal from 'sweetalert2';
+import { generatePuzzle, validate, getHint as engineGetHint } from './balanceEngine';
+import { STEP_CONFIG } from '../../store/useGameStore';
 
 /* Render pan expression with styled blocks for numbers and variables */
 function PanContent({ text }) {
-  // Split on 🟦 and operators to render styled blocks
-  // Tokenize: split into [numbers, operators, variables]
   const tokens = [];
   const raw = Array.from(text.matchAll(/(🟦|🟡|🔴|\d+(?:\.\d+)?|[^🟦🟡🔴\d]+)/gu));
   raw.forEach((m, i) => {
@@ -35,21 +35,11 @@ function PanContent({ text }) {
   return (
     <span className="flex items-center justify-center flex-nowrap gap-0.5" dir="ltr">
       {tokens.map((t) => {
-        if (t.type === 'var-blue') return (
-          <span key={t.key} className="weight-var">{t.val}</span>
-        );
-        if (t.type === 'var-yellow') return (
-          <span key={t.key} className="weight-var">{t.val}</span>
-        );
-        if (t.type === 'var-red') return (
-          <span key={t.key} className="weight-var-red">{t.val}</span>
-        );
-        if (t.type === 'num') return (
-          <span key={t.key} className="weight-num">{t.val}</span>
-        );
-        return (
-          <span key={t.key} className="weight-op">{t.val}</span>
-        );
+        if (t.type === 'var-blue')   return <span key={t.key} className="weight-var">{t.val}</span>;
+        if (t.type === 'var-yellow') return <span key={t.key} className="weight-var">{t.val}</span>;
+        if (t.type === 'var-red')    return <span key={t.key} className="weight-var-red">{t.val}</span>;
+        if (t.type === 'num')        return <span key={t.key} className="weight-num">{t.val}</span>;
+        return <span key={t.key} className="weight-op">{t.val}</span>;
       })}
     </span>
   );
@@ -58,191 +48,79 @@ function PanContent({ text }) {
 export default function Balance() {
   const gameState    = useGameStore((s) => s.balance);
   const practiceLvl  = useGameStore((s) => s.practiceLevels.balance || 0);
-  const handleWin = useGameStore((s) => s.handleWin);
+  const handleWin    = useGameStore((s) => s.handleWin);
   const handleGameFail = useGameStore((s) => s.handleGameFail);
-  const setScreen = useGameStore((s) => s.setScreen);
+  const setScreen    = useGameStore((s) => s.setScreen);
 
-  const [sliderVal, setSliderVal] = useState(1);
-  const [beamAngle, setBeamAngle] = useState(0);
-  const [lives, setLives] = useState(3);
-  const [justLost, setJustLost] = useState(false);
-  const [leftText, setLeftText] = useState('?');
-  const [rightText, setRightText] = useState('?');
-  const [rulesHtml, setRulesHtml] = useState('');
-  const [feedback, setFeedback] = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
+  const [puzzle,     setPuzzle]     = useState(null);
+  const [sliderVal,  setSliderVal]  = useState(1);
+  const [beamAngle,  setBeamAngle]  = useState(0);
+  const [lives,      setLives]      = useState(3);
+  const [justLost,   setJustLost]   = useState(false);
+  const [feedback,   setFeedback]   = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
   const [errorFlash, setErrorFlash] = useState(false);
   const [consecutiveErrors, setConsecutiveErrors] = useState(0);
-  const [checking, setChecking] = useState(false);
+  const [checking,   setChecking]   = useState(false);
+  // Heavy hint: tooltip table
+  const [heavyTooltip, setHeavyTooltip] = useState(null);
 
-  const ansRef = useRef(0);
-  const lFnRef = useRef((v) => v);
-  const rFnRef = useRef(() => 0);
   const timersRef = useRef([]);
 
   useEffect(() => {
-    return () => timersRef.current.forEach(clearTimeout);
+    return () => {
+      timersRef.current.forEach(clearTimeout);
+      clearTimeout(holdRef.current);
+      clearInterval(holdRef.current);
+    };
   }, []);
 
-  // ─── Hint (HintBubble) ────────────────────────────────────────────────────
-  const BALANCE_HINTS = [
-    'תחשוב: מה לשים ב-🟡 כדי ששני הצדדים יהיו שווים? התחל ממספרים קטנים ונסה להרגיש איך הכף זזה!',
-    'כפל או חילוק? אם הצד השני גדול — נסה להכפיל. אם קטן — נסה לחלק. התחל מ-2, 3, 4...',
-    '🟡 נמצא בשני הצדדים! הציב אותו מספר בשני הצדדים — 1, 2, 3... מי מאזן? ⚖️',
-    'ביטוי מורכב? הציב 🟡 = 1, 2, 3... ראה את הכף זזה וגלה מי מאזן!',
-    'שני שלבים: 1) מצא את 🟡 עם הכלל. 2) חשב את 🔴. שים בכל פעם מספר אחר ב-🟡.',
-  ];
-  const getBalanceHint = useCallback((_, level) => ({
-    kind: 'text',
-    text: BALANCE_HINTS[Math.min((level ?? gameState.lvl) - 1, BALANCE_HINTS.length - 1)],
-  }), [gameState.lvl]);
+  // ── Effective step ───────────────────────────────────────────────────────
+  const effectiveStep = practiceLvl || gameState.step || gameState.lvl;
+
+  // ── Hint system ──────────────────────────────────────────────────────────
+  const getBalanceHint = useCallback((_, level, opts) => {
+    if (!puzzle) return null;
+    const tier = opts?.halfMode ? 'strategy' : 'observation';
+    return { kind: 'text', ...engineGetHint(puzzle, tier) };
+  }, [puzzle]);
 
   const { cooldown: hintCooldown, bubble: hintBubble, requestHint, resetRound: resetHintRound } = useHint({
-    level: gameState.lvl,
+    level: effectiveStep,
     getHint: getBalanceHint,
-    puzzle: true,   // Balance לא צריך puzzle object — תמיד truthy
+    puzzle: puzzle ?? true,
     cooldownSec: 8,
     bubbleMs: 4500,
+    halfHintEnabled: true,
   });
 
   const initGame = useCallback(() => {
-    const lvl = practiceLvl || gameState.lvl;
+    const step = practiceLvl || gameState.step || gameState.lvl;
     setLives(3);
     setJustLost(false);
-    setSliderVal(1);
     setBeamAngle(0);
-    setRulesHtml('');
     setConsecutiveErrors(0);
+    setHeavyTooltip(null);
     resetHintRound();
 
-    const x = Math.floor(Math.random() * 11) + 3; // 3–13
-    ansRef.current = x;
-
-    if (lvl === 1) {
-      const shape1 = Math.random() < 0.5 ? 'add' : 'sub';
-      if (shape1 === 'add') {
-        const b = Math.floor(Math.random() * 15) + 2;
-        setLeftText(`🟦 + ${b}`);
-        setRightText(`${x + b}`);
-        lFnRef.current = (v) => v + b;
-        rFnRef.current = () => x + b;
-      } else {
-        const b = Math.floor(Math.random() * 10) + 1;
-        ansRef.current = x + b;
-        setLeftText(`🟦 - ${b}`);
-        setRightText(`${x}`);
-        lFnRef.current = (v) => v - b;
-        rFnRef.current = () => x;
-      }
-    } else if (lvl === 2) {
-      const aPool = [2, 3, 4, 5];
-      const a = aPool[Math.floor(Math.random() * aPool.length)];
-      const shape2 = Math.random() < 0.5 ? 'mul' : 'div';
-      if (shape2 === 'mul') {
-        setLeftText(`🟦 × ${a}`);
-        setRightText(`${x * a}`);
-        lFnRef.current = (v) => v * a;
-        rFnRef.current = () => x * a;
-      } else {
-        const q = Math.floor(Math.random() * 8) + 2;
-        const divAns = q * a;
-        ansRef.current = divAns;
-        setLeftText(`🟦 ÷ ${a}`);
-        setRightText(`${q}`);
-        lFnRef.current = (v) => v / a;
-        rFnRef.current = () => q;
-      }
-    } else if (lvl === 3) {
-      const evenPool = [2, 4, 6, 8, 10, 12];
-      const a = evenPool[Math.floor(Math.random() * evenPool.length)];
-      setLeftText(`🟦 + ${a}`);
-      setRightText(`20 - 🟦`);
-      ansRef.current = (20 - a) / 2;
-      lFnRef.current = (v) => v + a;
-      rFnRef.current = (v) => 20 - v;
-    } else if (lvl === 4) {
-      const shape4 = Math.random() < 0.5 ? 'a' : 'b';
-      if (shape4 === 'a') {
-        setLeftText(`(🟦 - 2) × (🟦 + 4)`);
-        const t = (x - 2) * (x + 4);
-        setRightText(`${t}`);
-        lFnRef.current = (v) => (v - 2) * (v + 4);
-        rFnRef.current = () => t;
-      } else {
-        setLeftText(`(🟦 + 1) × (🟦 - 1)`);
-        const t = (x + 1) * (x - 1);
-        setRightText(`${t}`);
-        lFnRef.current = (v) => (v + 1) * (v - 1);
-        rFnRef.current = () => t;
-      }
-    } else {
-      // L5 — substitution (kept gentle): 🔴 defined as a SIMPLE expression of 🟡.
-      // Use small x to keep mental math easy.
-      const xs = Math.floor(Math.random() * 6) + 2; // 2-7
-      ansRef.current = xs;
-      const shapes5 = ['add', 'pair', 'addEq', 'mulSimple'];
-      const pick = shapes5[Math.floor(Math.random() * shapes5.length)];
-
-      if (pick === 'add') {
-        // 🔴 = 🟡 + b   ;   🔴  =  🟡 + b    →  trivial; use:  🔴 + 🟡 = N
-        const b = Math.floor(Math.random() * 3) + 1; // 1-3
-        const N = 2 * xs + b;
-        setRulesHtml(`🔴 = 🟡 + ${b}`);
-        setLeftText(`🔴 + 🟡`);
-        setRightText(`${N}`);
-        lFnRef.current = (v) => (v + b) + v;
-        rFnRef.current = () => N;
-      } else if (pick === 'pair') {
-        // 🔴 = 🟡 + b ;  🔴 = 🟡 + b — trivial again; use:  🔴 = N (constant)
-        const b = Math.floor(Math.random() * 3) + 1; // 1-3
-        const N = xs + b;
-        setRulesHtml(`🔴 = 🟡 + ${b}`);
-        setLeftText(`🔴`);
-        setRightText(`${N}`);
-        lFnRef.current = (v) => v + b;
-        rFnRef.current = () => N;
-      } else if (pick === 'addEq') {
-        // 🔴 = 🟡 + b ;  🔴 + c  =  🟡 + N      (N = b + c + 0... → solve trivially)
-        // make it a real substitution: 🔴 × 2 = 🟡 + N  with small 2×
-        const b = Math.floor(Math.random() * 3) + 1; // 1-3
-        const N = xs + 2 * b;
-        setRulesHtml(`🔴 = 🟡 + ${b}`);
-        setLeftText(`🔴 × 2`);
-        setRightText(`🟡 + ${N}`);
-        lFnRef.current = (v) => (v + b) * 2;
-        rFnRef.current = () => xs + N;
-      } else {
-        // mulSimple:  🔴 = 🟡 × 2 ;   🔴 = 🟡 + N      (N = x)
-        const N = xs;
-        setRulesHtml(`🔴 = 🟡 × 2`);
-        setLeftText(`🔴`);
-        setRightText(`🟡 + ${N}`);
-        lFnRef.current = (v) => v * 2;
-        rFnRef.current = () => xs + N;
-      }
-    }
-  }, [gameState.lvl, practiceLvl]);
+    const p = generatePuzzle(step);
+    setPuzzle(p);
+    setSliderVal(p.startVal);
+  }, [gameState.step, gameState.lvl, practiceLvl, resetHintRound]);
 
   useEffect(() => {
     initGame();
   }, [initGame]);
 
-
-
   const checkAnswer = () => {
-    // Debounce: prevent rapid-fire clicks from deducting multiple lives at once.
-    if (checking) return;
+    if (checking || !puzzle) return;
     setChecking(true);
     timersRef.current.push(setTimeout(() => setChecking(false), 700));
 
-    const v = sliderVal;
-    const l = lFnRef.current(v);
-    const r = rFnRef.current(v);
-
-    const diff = r - l;
+    const { correct, diff } = validate(puzzle, sliderVal);
     const angle = Math.max(-22, Math.min(22, diff * 3.5));
     setBeamAngle(angle);
 
-    if (Math.abs(l - r) < 0.1) {
+    if (correct) {
       vibe([30, 50, 30]);
       const result = handleWin('balance');
       setFeedback({ visible: true, isLevelUp: result.isLevelUp, unlocked: result.unlocked, pts: result.pts });
@@ -259,104 +137,168 @@ export default function Balance() {
       if (newLives <= 0) {
         handleGameFail('balance');
         Swal.fire({
-          title: 'הרמה ננעלה 🔒',
-          text: 'השג 5 ניצחונות ברצף כדי להתקדם לרמה הבאה!',
-          icon: 'warning',
-          confirmButtonText: 'הבנתי 💪',
+          title: 'הצעד נעצר ⏸️',
+          text: 'נסה שוב — תוכל לנצח!',
+          icon: 'info',
+          confirmButtonText: 'נסה שוב 💪',
           confirmButtonColor: '#10b981',
           customClass: { popup: 'rounded-3xl' },
-        }).then(() => setScreen('menu'));
+        }).then(() => {
+          setLives(3);
+          initGame();
+        });
       }
     }
   };
 
   const adjust = (delta) => {
-    setSliderVal((v) => Math.max(1, Math.min(50, v + delta)));
+    if (!puzzle) return;
+    const [min, max] = puzzle.range;
+    setSliderVal((v) => Math.max(min, Math.min(max, v + delta)));
     vibe(8);
   };
 
+  // Press-and-hold: start interval after 400ms initial delay
+  const holdRef = useRef(null);
+  const startHold = (delta) => {
+    adjust(delta);
+    holdRef.current = setTimeout(() => {
+      holdRef.current = setInterval(() => adjust(delta), 80);
+    }, 380);
+  };
+  const stopHold = () => {
+    clearTimeout(holdRef.current);
+    clearInterval(holdRef.current);
+    holdRef.current = null;
+  };
+
+  // Heavy hint handler
+  const handleHeavyHint = () => {
+    if (!puzzle?.hint?.heavy) return;
+    const h = engineGetHint(puzzle, 'heavy');
+    if (h.kind === 'table' && h.payload) {
+      setHeavyTooltip(h.payload);
+      timersRef.current.push(setTimeout(() => setHeavyTooltip(null), 5000));
+    } else {
+      setHeavyTooltip(null);
+    }
+  };
+
+  if (!puzzle) return null;
+
+  const totalSteps = STEP_CONFIG['balance'];
+  const progressPct = Math.round((effectiveStep / totalSteps) * 100);
+
   return (
     <div className={`screen-enter flex flex-col items-center p-2 sm:p-4 flex-1 min-h-[calc(100dvh-80px)] ${errorFlash ? 'error-flash' : ''}`}>
-      <GameTutorial gameName="balance" level={gameState.lvl} />
+      <GameTutorial gameName="balance" level={effectiveStep} />
       <div className="bg-white dark:bg-slate-800 rounded-2xl sm:rounded-[2.5rem] px-3 sm:px-4 pt-4 sm:pt-5 pb-5 sm:pb-6 w-full max-w-xs sm:max-w-md shadow-xl flex flex-col items-center gap-3 sm:gap-4 border-2 border-green-200 dark:border-green-800/40 border-b-4 border-b-green-400 dark:border-b-green-700 transition-colors" style={{ overflow: 'visible' }}>
 
-        {/* Lives */}
-        <div className="flex gap-2 justify-center w-full mb-2">
-          <Hearts lives={lives} maxLives={3} justLost={justLost} />
+        {/* Progress bar + lives row */}
+        <div className="w-full flex flex-col gap-1.5">
+          <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 dark:text-slate-500">
+            <span>שלב {effectiveStep} מתוך {totalSteps}</span>
+            <Hearts lives={lives} maxLives={3} justLost={justLost} />
+          </div>
+          <div className="w-full h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full bg-green-400 dark:bg-green-500 transition-all duration-500"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
         </div>
 
-        {/* Rules (level 5) */}
-        {rulesHtml && (
+        {/* Rules card — single rule (step 7) or double (step 8) */}
+        {puzzle.rule && (
           <div className="w-full flex justify-center -mb-1 sm:-mb-2">
-            <div className="bg-rose-100 dark:bg-rose-900/30 font-bold px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm border border-rose-200">
-              <span dir="rtl">{rulesHtml}</span>
+            <div className="bg-rose-100 dark:bg-rose-900/30 font-bold px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm border border-rose-200 dark:border-rose-700 w-full max-w-xs">
+              {puzzle.rule2 ? (
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2 text-xs text-rose-500 dark:text-rose-400 font-black">
+                    <span>🧩</span><span>שני הכללים נכונים בו-זמנית</span>
+                  </div>
+                  <div className="border-t border-rose-200 dark:border-rose-700 pt-1 mt-0.5 flex flex-col gap-0.5">
+                    <span dir="ltr" className="text-rose-700 dark:text-rose-300">{puzzle.rule.expr}</span>
+                    <span dir="ltr" className="text-rose-700 dark:text-rose-300">{puzzle.rule2.expr}</span>
+                  </div>
+                </div>
+              ) : (
+                <span dir="ltr" className="text-rose-700 dark:text-rose-300">{puzzle.rule.expr}</span>
+              )}
             </div>
           </div>
         )}
 
-        {/* ─── Physical Scale ─── */}
+        {/* Physical Scale */}
         <div className="scale-scene w-full sm:w-auto">
-
-          {/* Beam — rotates, holds everything */}
-          <div
-            className="scale-beam"
-            style={{ transform: `rotate(${beamAngle}deg)` }}
-          >
-            {/* Left pan arm */}
+          <div className="scale-beam" style={{ transform: `rotate(${beamAngle}deg)` }}>
+            {/* Left pan */}
             <div style={{ position: 'absolute', left: 6, top: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              {/* String */}
               <div className="pan-string" />
-              {/* Pan — counter-rotates to stay level */}
-              <div
-                className="pan-tray bg-emerald-50 dark:bg-slate-700 border-emerald-300 dark:border-slate-500"
-                style={{ transform: `translateX(-50%) rotate(${-beamAngle}deg)` }}
-              >
-                <PanContent text={leftText} />
+              <div className="pan-tray bg-emerald-50 dark:bg-slate-700 border-emerald-300 dark:border-slate-500"
+                style={{ transform: `translateX(-50%) rotate(${-beamAngle}deg)` }}>
+                <PanContent text={puzzle.leftDisplay} />
               </div>
             </div>
-
-            {/* Right pan arm */}
+            {/* Right pan */}
             <div style={{ position: 'absolute', right: 6, top: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              {/* String */}
               <div className="pan-string" />
-              {/* Pan — counter-rotates */}
-              <div
-                className="pan-tray bg-emerald-50 dark:bg-slate-700 border-emerald-300 dark:border-slate-500"
-                style={{ transform: `translateX(-50%) rotate(${-beamAngle}deg)` }}
-              >
-                <PanContent text={rightText} />
+              <div className="pan-tray bg-emerald-50 dark:bg-slate-700 border-emerald-300 dark:border-slate-500"
+                style={{ transform: `translateX(-50%) rotate(${-beamAngle}deg)` }}>
+                <PanContent text={puzzle.rightDisplay} />
               </div>
             </div>
           </div>
-
-          {/* Fixed elements: pivot on top, pole + base below */}
           <div className="scale-pivot" />
           <div className="scale-pole" />
           <div className="scale-base" />
-          {/* Spacer so pans have room below base */}
           <div style={{ height: 90 }} />
         </div>
 
-        {/* ─── Input Area ─── */}
+        {/* Input Area */}
         <div className="flex flex-col items-center gap-2 sm:gap-4 w-full pb-1 sm:pb-2">
 
           {/* Variable display */}
           <div className="flex justify-center items-center gap-3" dir="ltr">
-            <span className="weight-var" style={{ minWidth: 44, height: 44, paddingInline: 8, fontSize: '1.1rem', width: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>?</span>
+            <span className="weight-var" style={{ fontSize: '1.1rem' }}>?</span>
             <span className="text-3xl font-bold text-slate-400 dark:text-slate-500 leading-none self-center">＝</span>
             <span className="text-4xl font-black text-green-500 leading-none min-w-[48px] text-center self-center">{sliderVal}</span>
           </div>
 
-          {/* +/- control */}
+          {/* +/- control — press-and-hold supported */}
           <div className="val-control select-none scale-90 sm:scale-100 origin-center">
-            <button className="val-btn" onClick={() => adjust(-1)} aria-label="פחות">−</button>
+            <button
+              className="val-btn"
+              onPointerDown={() => startHold(-1)}
+              onPointerUp={stopHold}
+              onPointerLeave={stopHold}
+              onPointerCancel={stopHold}
+              aria-label="פחות"
+            >−</button>
             <div className="val-display">{sliderVal}</div>
-            <button className="val-btn" onClick={() => adjust(1)} aria-label="יותר">+</button>
+            <button
+              className="val-btn"
+              onPointerDown={() => startHold(1)}
+              onPointerUp={stopHold}
+              onPointerLeave={stopHold}
+              onPointerCancel={stopHold}
+              aria-label="יותר"
+            >+</button>
           </div>
 
           {consecutiveErrors >= 2 && (
             <div className="text-xs sm:text-sm text-amber-600 dark:text-amber-400 font-bold animate-pulse text-center px-2">
               💡 קשה? לחץ על הרמז ותחשוב בשלבים!
+            </div>
+          )}
+
+          {/* Heavy hint tooltip (step 9) */}
+          {heavyTooltip && (
+            <div className="w-full bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-xl p-3 text-xs font-bold text-amber-800 dark:text-amber-200" dir="ltr">
+              <div className="font-black mb-1 text-center">📊 ניסוי וטעייה:</div>
+              {heavyTooltip.map((row, i) => (
+                <div key={i}>{row.label}</div>
+              ))}
             </div>
           )}
 
@@ -372,6 +314,15 @@ export default function Balance() {
               title="רמז"
               className="self-stretch"
             />
+            {/* Heavy hint button for step 9 */}
+            {effectiveStep === 9 && (
+              <button
+                onClick={handleHeavyHint}
+                className="px-3 py-2 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-2xl font-bold text-sm border border-amber-200 active:scale-95 transition-all"
+              >
+                📊
+              </button>
+            )}
             <button
               onClick={checkAnswer}
               disabled={checking}

@@ -187,20 +187,21 @@ const useGameStore = create(
         });
 
         if (s.locks[game] > 0) {
-          // Locked mode: count consecutive wins toward unlock
+          // Locked mode: count consecutive wins toward unlock (5 wins = unlock + step-up)
           newConsecutiveWins++;
           if (newConsecutiveWins >= 5) {
             unlocked = true;
-            const candidateLvl = Math.min(newLvl + 1, 5);
-            isLevelUp = candidateLvl > newLvl;
-            newLvl = candidateLvl;
+            const candidateStep = Math.min(newStep + 1, maxSteps);
+            isLevelUp = candidateStep > newStep;
+            newStep = candidateStep;
+            newLvl = Math.ceil((newStep / maxSteps) * 5);
             newCount = 0;
             newConsecutiveWins = 0;
             set({
               isAnimating: true,
               totalStars: newTotalStars,
               locks: { ...s.locks, [game]: 0 },
-              [game]: { ...s[game], stars: newStars, lvl: newLvl, count: newCount, consecutiveWins: 0 },
+              [game]: { ...s[game], stars: newStars, step: newStep, lvl: newLvl, count: newCount, consecutiveWins: 0 },
               weeklyStats: newWeekly,
             });
           } else {
@@ -212,46 +213,44 @@ const useGameStore = create(
             });
           }
         } else {
-          // Normal mode: level-up when ("3 ברצף") OR ("4 מתוך 5 אחרונים").
-          // Fast-track: multChamp עולה בכל ניצחון.
-          // equations ברמות 3-4: עולה אחרי 2 ניצחונות ברצף ללא כישלון.
-          const eqFastTrack = game === 'equations' && (newLvl === 3 || newLvl === 4);
-          const fastTrack = game === 'multChamp';
+          // Normal mode: step-up when ("3 ברצף") OR ("4 מתוך 5 אחרונים").
+          // equations צעדים 4-5 (mixed): עולה אחרי 2 ברצף.
+          const eqFastTrack = game === 'equations' && (newStep === 4 || newStep === 5);
           const prevRecent = Array.isArray(s[game].recentResults) ? s[game].recentResults : [];
           const recent = [...prevRecent, true].slice(-5);
 
-          // Assignment sub-level cap: אם הילד ברמה >= assignment.target_level, לא מעלים רמה.
+          // Assignment cap: אם ה-step >= assignment.target_level, לא מעלים.
           const assignmentCap = (s.assignments || []).find(a => a.game_name === game)?.target_level;
-          const capped = (typeof assignmentCap === 'number') && newLvl >= assignmentCap;
+          const capped = (typeof assignmentCap === 'number') && newStep >= assignmentCap;
 
           const last3 = recent.slice(-3);
           const threeInARow = last3.length === 3 && last3.every(Boolean);
           const fourOfFive  = recent.length === 5 && recent.filter(Boolean).length >= 4;
-          // equations L3-4: 2 ניצחונות ברצף (ללא כישלון באמצע) = עלייה
           const last2 = recent.slice(-2);
           const twoInARow = eqFastTrack && last2.length === 2 && last2.every(Boolean);
-          const shouldLevelUp = fastTrack || twoInARow || threeInARow || fourOfFive;
+          const shouldStepUp = twoInARow || threeInARow || fourOfFive;
 
           newCount = s[game].count + 1;
           let newRecent = recent;
-          if (shouldLevelUp && newLvl < 5 && !capped) {
-            newLvl++;
+          if (shouldStepUp && newStep < maxSteps && !capped) {
+            newStep++;
+            newLvl = Math.ceil((newStep / maxSteps) * 5);
             newCount = 0;
             isLevelUp = true;
-            newRecent = []; // reset window on level-up
-          } else if (shouldLevelUp && capped) {
-            isCapped = true; // would level up but assignment cap prevents it
+            newRecent = [];
+          } else if (shouldStepUp && capped) {
+            isCapped = true;
           }
           set({
             isAnimating: true,
             totalStars: newTotalStars,
-            [game]: { ...s[game], stars: newStars, lvl: newLvl, count: newCount, consecutiveWins: 0, recentResults: newRecent },
+            [game]: { ...s[game], stars: newStars, step: newStep, lvl: newLvl, count: newCount, consecutiveWins: 0, recentResults: newRecent },
             weeklyStats: newWeekly,
           });
         }
 
-        // שלח אירוע ל-Supabase אוטומטית
-        get().reportGameEvent(game, get()[game].lvl, true);
+        // שלח אירוע ל-Supabase
+        get().reportGameEvent(game, get()[game].step || get()[game].lvl, true);
 
         // Safety: if FeedbackOverlay unmounts without firing finishAnimation
         // (e.g. parent navigates away mid-animation), clear the flag after 3s
@@ -263,7 +262,7 @@ const useGameStore = create(
           }, 3000);
         }
 
-        return { isLevelUp, unlocked, pts, isCapped };
+        return { isStepUp: isLevelUp, isLevelUp, unlocked, pts, isCapped };
       },
 
       finishAnimation: () => {
@@ -305,6 +304,8 @@ const useGameStore = create(
         }
       },
 
+      // handleGameFail — Hard Lives games: records fail, does NOT lock the step.
+      // View is responsible for resetting lives to 3 and showing "הצעד נעצר ⏸️".
       handleGameFail: (game) => {
         const s = get();
         const practiceLevel = s.practiceLevels[game] || 0;
@@ -312,12 +313,9 @@ const useGameStore = create(
         const recent = [...prevRecent, false].slice(-5);
 
         if (practiceLevel > 0) {
-          // Practice mode — no lock. Just record fail and track alert if child drills below real level.
           set({ [game]: { ...s[game], count: 0, consecutiveWins: 0, recentResults: recent } });
           get().reportGameEvent(game, practiceLevel, false);
-
-          // Track how many times child practiced below their real level (for parent alert)
-          if (practiceLevel < s[game].lvl) {
+          if (practiceLevel < (s[game].step || s[game].lvl)) {
             const key = game;
             const prev = s.practiceAlerts[key] || 0;
             set({ practiceAlerts: { ...s.practiceAlerts, [key]: prev + 1 } });
@@ -325,26 +323,22 @@ const useGameStore = create(
           return 'practice';
         }
 
-        // Normal mode — lock as before
+        // Record fail in recentResults but do NOT lock (new behavior per plan)
         set({
-          locks: { ...s.locks, [game]: s[game].lvl },
           [game]: { ...s[game], count: 0, consecutiveWins: 0, recentResults: recent }
         });
-        // שלח אירוע כישלון ל-Supabase
-        get().reportGameEvent(game, s[game].lvl, false);
-        return 'locked';
+        get().reportGameEvent(game, s[game].step || s[game].lvl, false);
+        return 'stopped';
       },
 
-      // handleLightFail — למשחקים ללא lives (ניסוי-וטעייה):
-      // רושם כישלון ב-recentResults בלי להפעיל lock.
+      // handleLightFail — Light Fail games (Equations, AreaLab, MagicPatterns 1-5, MultiChamp):
+      // records fail in recentResults, no lock, no lives deducted.
       handleLightFail: (game) => {
         const s = get();
         const prevRecent = Array.isArray(s[game].recentResults) ? s[game].recentResults : [];
         const recent = [...prevRecent, false].slice(-5);
-        set({
-          [game]: { ...s[game], recentResults: recent }
-        });
-        get().reportGameEvent(game, s[game].lvl, false);
+        set({ [game]: { ...s[game], recentResults: recent } });
+        get().reportGameEvent(game, s[game].step || s[game].lvl, false);
       },
 
       // setPracticeLevel — child picks a drill level (0 = exit practice mode)
@@ -380,7 +374,7 @@ const useGameStore = create(
       })),
 
       resetProgress: () => {
-        const fresh = { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] };
+        const fresh = { stars: 0, step: 1, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] };
         set({
           totalStars: 0,
           equations: { ...fresh },
@@ -400,10 +394,11 @@ const useGameStore = create(
     }),
     {
       name: 'nat-game-store',
-      version: 4,
+      version: 5,
       // v2: added percentages game + lock key.
       // v3: added recentResults[] per-game for the 3-in-a-row OR 4-of-5 rule.
       // v4: added practiceLevels + practiceAlerts (child-chosen drill level).
+      // v5: added step field per-game (step 1-N replaces lvl 1-5 as primary progress field).
       migrate: (persisted, fromVersion) => {
         if (!persisted) return persisted;
         if (fromVersion < 2) {
@@ -429,6 +424,18 @@ const useGameStore = create(
             magicPatterns: 0, grid: 0, word: 0, multChamp: 0, percentages: 0,
           };
           persisted.practiceAlerts = persisted.practiceAlerts || {};
+        }
+        if (fromVersion < 5) {
+          // Migrate lvl (1-5) → step (1-N) for each game
+          const GAMES = ['equations','balance','tank','decimal','fractionLab','magicPatterns','grid','word','multChamp','percentages'];
+          for (const g of GAMES) {
+            if (persisted[g] && persisted[g].step === undefined) {
+              const oldLvl = persisted[g].lvl || 1;
+              const maxSteps = STEP_CONFIG[g] || 5;
+              persisted[g].step = Math.max(1, Math.round(oldLvl * maxSteps / 5));
+              persisted[g].legacyLvl = oldLvl;
+            }
+          }
         }
         return persisted;
       },

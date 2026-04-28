@@ -236,9 +236,10 @@ body {
 }
 .dark .pan-tray { background-color: #1e293b; /* solid slate-800 fallback */ }
 /* Variable box style — coin/circle feel — נעלם ? */
+/* width = height, no padding-inline, so it stays circular */
 .weight-var {
   display: inline-flex; align-items: center; justify-content: center;
-  min-width: 28px; height: 28px; padding-inline: 6px; flex-shrink: 0;
+  width: 36px; height: 36px; padding: 0; flex-shrink: 0;
   background: linear-gradient(135deg, #ca8a04, #eab308, #a16207);
   color: #fefce8; font-size: 0.85rem; font-weight: 900;
   border-radius: 50%; border: 2px solid #a16207;

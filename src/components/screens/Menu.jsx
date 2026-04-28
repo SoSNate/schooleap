@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import useGameStore from '../../store/useGameStore';
+import { STEP_CONFIG } from '../../store/useGameStore';
 import { vibe } from '../../utils/math';
 import { GAMES, GAME_BY_ID, getGameColorClasses } from '../../utils/games';
 import { getVisibleRank } from '../../utils/ranks';
@@ -133,11 +134,14 @@ export default function Menu({ goals = [] }) {
       )}
 
       {GAMES.map((g) => {
-        const colors  = getGameColorClasses(g.colorToken);
-        const locked  = isLocked(g.id);
-        const badge   = getBadgeContent(g.id);
+        const colors    = getGameColorClasses(g.colorToken);
+        const locked    = isLocked(g.id);
+        const badge     = getBadgeContent(g.id);
         const isPicking = pickerFor === g.id;
         const realLvl   = gameStates[g.id].lvl;
+        const realStep  = gameStates[g.id].step || realLvl;
+        const totalSteps = STEP_CONFIG[g.id] || 5;
+        const progressPct = Math.round((realStep / totalSteps) * 100);
 
         return (
           <div key={g.id} className="w-full max-w-sm">
@@ -147,10 +151,17 @@ export default function Menu({ goals = [] }) {
               className={`menu-btn ${colors.bg} ${colors.border} border-e-slate-200 border-s-slate-200 border-t-slate-200 dark:border-e-slate-700 dark:border-s-slate-700 dark:border-t-slate-700 group relative w-full ${locked ? 'opacity-40 cursor-not-allowed' : ''}`}
             >
               <span className="text-3xl drop-shadow-sm">{g.emoji}</span>
-              <div className="text-right flex-1 px-4">
+              <div className="text-right flex-1 px-4 min-w-0">
                 <h3 className="font-black">{g.label}</h3>
-                <div className="flex items-center gap-2 mt-1">
-                  {/* Level badge — tap to open practice picker */}
+                {/* Progress bar */}
+                <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden mt-1.5 mb-1">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${colors.progressBg || 'bg-green-400'}`}
+                    style={{ width: `${progressPct}%` }}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* Step badge — tap to open practice picker */}
                   <p
                     className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block lvl-badge whitespace-nowrap transition-colors ${
                       badge.practicing
@@ -159,7 +170,7 @@ export default function Menu({ goals = [] }) {
                     }`}
                     onClick={(e) => handleBadgeTap(e, g.id)}
                   >
-                    {badge.text}
+                    {badge.practicing ? badge.text : `שלב ${realStep}/${totalSteps}`}
                   </p>
                   <p className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block ${colors.text} ${colors.bg}`}>
                     ⭐ {gameStates[g.id].stars}
@@ -182,26 +193,30 @@ export default function Menu({ goals = [] }) {
               >
                 <style>{`@keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}`}</style>
                 <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 mb-2 text-center">
-                  🎯 בחר רמה לתרגול — ההתקדמות שלך לא תשתנה
+                  🎯 בחר שלב לתרגול — ההתקדמות שלך לא תשתנה
                 </p>
-                <div className="flex justify-center gap-2">
-                  {[1, 2, 3, 4, 5].map((lvl) => {
-                    const isReal     = lvl === realLvl;
-                    const isPractice = practiceLevels[g.id] === lvl;
+                <div className="flex flex-wrap justify-center gap-1.5 max-w-[280px]">
+                  {Array.from({ length: totalSteps }, (_, i) => i + 1).map((step) => {
+                    const isReal     = step === realStep;
+                    const isPractice = practiceLevels[g.id] === step;
+                    const isPast     = step < realStep;
                     return (
                       <button
-                        key={lvl}
-                        onClick={(e) => handlePickLevel(e, g.id, lvl)}
-                        className={`w-10 h-10 rounded-xl font-black text-sm transition-all active:scale-90 ${
+                        key={step}
+                        onClick={(e) => handlePickLevel(e, g.id, step)}
+                        className={`w-9 h-9 rounded-xl font-black text-xs transition-all active:scale-90 ${
                           isPractice
                             ? 'bg-teal-500 text-white shadow-md ring-2 ring-teal-300'
                             : isReal
                             ? `${colors.bg} ${colors.text} ring-2 ${colors.border}`
-                            : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200'
+                            : isPast
+                            ? 'bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-400'
+                            : 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-default'
                         }`}
+                        disabled={step > realStep && !isPractice}
                       >
-                        {lvl}
-                        {isReal && !isPractice && <span className="block text-[8px] leading-none">★</span>}
+                        {step}
+                        {isReal && !isPractice && <span className="block text-[7px] leading-none">★</span>}
                       </button>
                     );
                   })}

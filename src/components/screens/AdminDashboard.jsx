@@ -19,6 +19,7 @@ const TABS = [
   { id: 'activity', label: '📊 פעילות' },
   { id: 'payments', label: '💳 תשלומים' },
   { id: 'links',    label: '🔗 קישורים מהירים' },
+  { id: 'devtools', label: '🛠 כלי פיתוח' },
 ];
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -665,6 +666,103 @@ function Section({ title, children }) {
   );
 }
 
+// ─── Dev Tools Tab ────────────────────────────────────────────────────────────
+
+const GAME_STEP_CONFIG = {
+  balance:9, fractionLab:8, tank:7, decimal:7, equations:7,
+  percentages:7, magicPatterns:9, grid:6, word:10, multChamp:9,
+};
+
+function DevToolsTab() {
+  const resetProgress  = useGameStore(s => s.resetProgress);
+  const gameStates     = useGameStore(s => ({
+    balance: s.balance, fractionLab: s.fractionLab, tank: s.tank,
+    decimal: s.decimal, equations: s.equations, percentages: s.percentages,
+    magicPatterns: s.magicPatterns, grid: s.grid, word: s.word, multChamp: s.multChamp,
+  }));
+
+  const [confirmed, setConfirmed] = useState(false);
+
+  const GAME_NAMES = {
+    balance: 'מאזן', fractionLab: 'שברים', tank: 'כוס', decimal: 'עשרוני',
+    equations: 'משוואות', percentages: 'אחוזים', magicPatterns: 'דפוסים',
+    grid: 'שטחים', word: 'בעיות', multChamp: 'כפל',
+  };
+
+  const handleReset = () => {
+    if (!confirmed) { setConfirmed(true); return; }
+    resetProgress();
+    setConfirmed(false);
+    alert('✅ ההתקדמות אופסה — שלב 1 בכל המשחקים');
+  };
+
+  return (
+    <div className="space-y-6 max-w-lg">
+      <Section title="התקדמות ילד">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 dark:bg-slate-700/50">
+              <tr>
+                <th className="text-right px-4 py-2 font-bold text-slate-500 dark:text-slate-400 text-xs">משחק</th>
+                <th className="text-center px-4 py-2 font-bold text-slate-500 dark:text-slate-400 text-xs">שלב</th>
+                <th className="px-4 py-2 font-bold text-slate-500 dark:text-slate-400 text-xs">התקדמות</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(GAME_NAMES).map(([id, name]) => {
+                const gs = gameStates[id];
+                const step = gs?.step || gs?.lvl || 1;
+                const total = GAME_STEP_CONFIG[id] || 5;
+                const pct = Math.round((step / total) * 100);
+                return (
+                  <tr key={id} className="border-t border-slate-100 dark:border-slate-700/50">
+                    <td className="px-4 py-2 font-bold text-slate-700 dark:text-slate-200">{name}</td>
+                    <td className="px-4 py-2 text-center font-black text-indigo-600 dark:text-indigo-400">{step}/{total}</td>
+                    <td className="px-4 py-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                          <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-xs text-slate-400 w-8 text-right">{pct}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Section>
+
+      <Section title="איפוס התקדמות">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 space-y-3">
+          <p className="text-sm text-red-700 dark:text-red-300 font-bold">
+            ⚠️ איפוס יחזיר את כל המשחקים לשלב 1 ויאפס כוכבים ולבבות. פעולה זו לא ניתנת לביטול.
+          </p>
+          <button
+            onClick={handleReset}
+            className={`w-full py-3 rounded-xl font-black text-sm transition-all active:scale-95 ${
+              confirmed
+                ? 'bg-red-600 hover:bg-red-700 text-white animate-pulse'
+                : 'bg-red-100 dark:bg-red-800/40 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800/60'
+            }`}
+          >
+            {confirmed ? '⚠️ לחץ שוב לאישור סופי' : '🔄 איפוס כל ההתקדמות'}
+          </button>
+          {confirmed && (
+            <button
+              onClick={() => setConfirmed(false)}
+              className="w-full py-2 rounded-xl text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+            >
+              ביטול
+            </button>
+          )}
+        </div>
+      </Section>
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
@@ -868,6 +966,7 @@ export default function AdminDashboard() {
         {tab === 'activity' && <ActivityTab />}
         {tab === 'payments' && <PaymentsTab />}
         {tab === 'links'    && <LinksTab />}
+        {tab === 'devtools' && <DevToolsTab />}
       </div>
     </div>
   );

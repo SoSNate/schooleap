@@ -16,11 +16,134 @@ function wasAssignmentCompletedToday() {
   }
 }
 
+// ── StepPickerSheet — bottom-sheet that slides up when tapping a game card ──
+function StepPickerSheet({ game, gameState, onPlay, onClose }) {
+  const colors     = getGameColorClasses(game.colorToken);
+  const totalSteps = STEP_CONFIG[game.id] || 5;
+  const realStep   = gameState.step || gameState.lvl || 1;
+  const setPracticeLevel = useGameStore(s => s.setPracticeLevel);
+  const practiceLvl      = useGameStore(s => s.practiceLevels[game.id] || 0);
+
+  const handlePick = (step) => {
+    vibe(20);
+    if (step === realStep) {
+      // Play the real current step directly — clear any practice override
+      setPracticeLevel(game.id, 0);
+      onPlay();
+    } else {
+      // Set as practice step and play
+      setPracticeLevel(game.id, step);
+      onPlay();
+    }
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      {/* Sheet */}
+      <div
+        dir="rtl"
+        className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-slate-800 rounded-t-3xl shadow-2xl animate-[slideUp_0.22s_ease-out]"
+        style={{ maxHeight: '80dvh', overflowY: 'auto' }}
+      >
+        <style>{`@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}`}</style>
+
+        {/* Handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-slate-200 dark:bg-slate-600" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 pt-2 pb-4 border-b border-slate-100 dark:border-slate-700">
+          <span className="text-3xl">{game.emoji}</span>
+          <div className="flex-1">
+            <h2 className="font-black text-slate-800 dark:text-slate-100">{game.label}</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-bold mt-0.5">
+              שלב נוכחי: {realStep} מתוך {totalSteps}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl p-1">✕</button>
+        </div>
+
+        {/* Progress bar */}
+        <div className="px-5 pt-3">
+          <div className="w-full h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-700 ${colors.text?.replace('text-', 'bg-') || 'bg-green-400'}`}
+              style={{ width: `${Math.round((realStep / totalSteps) * 100)}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Step grid */}
+        <div className="px-5 pt-4 pb-6">
+          <p className="text-[11px] font-black text-slate-400 dark:text-slate-500 mb-3 text-center">
+            בחר שלב לשחק — כל השלבים שעברת פתוחים לתרגול
+          </p>
+          <div className="grid grid-cols-5 gap-2">
+            {Array.from({ length: totalSteps }, (_, i) => i + 1).map((step) => {
+              const isDone    = step < realStep;
+              const isCurrent = step === realStep;
+              const isFuture  = step > realStep;
+              const isPractice = practiceLvl === step && step !== realStep;
+
+              return (
+                <button
+                  key={step}
+                  onClick={() => handlePick(step)}
+                  disabled={isFuture}
+                  className={`
+                    aspect-square rounded-2xl flex flex-col items-center justify-center
+                    font-black text-sm transition-all active:scale-90
+                    ${isFuture
+                      ? 'bg-slate-100 dark:bg-slate-700/50 text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                      : isCurrent
+                      ? `${colors.bg} ${colors.text} ring-2 ${colors.border} shadow-md`
+                      : isPractice
+                      ? 'bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 ring-2 ring-teal-400'
+                      : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                    }
+                  `}
+                >
+                  {isFuture ? (
+                    <span className="text-base">🔒</span>
+                  ) : isDone ? (
+                    <>
+                      <span className="text-base leading-none">✓</span>
+                      <span className="text-[9px] leading-none mt-0.5 opacity-70">{step}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{step}</span>
+                      {isCurrent && <span className="text-[8px] leading-none mt-0.5">★ עכשיו</span>}
+                    </>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Play current step CTA */}
+          <button
+            onClick={() => { setPracticeLevel(game.id, 0); onPlay(); }}
+            className={`mt-5 w-full py-4 rounded-2xl font-black text-lg text-white shadow-xl transition-all active:scale-95 ${colors.text?.replace('text-', 'bg-') || 'bg-green-500'}`}
+          >
+            המשך מאיפה שעצרת — שלב {realStep} ▶
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Main Menu ──────────────────────────────────────────────────────────────────
 export default function Menu({ goals = [] }) {
   const setScreen        = useGameStore((s) => s.setScreen);
   const locks            = useGameStore((s) => s.locks);
-  const practiceLevels   = useGameStore((s) => s.practiceLevels);
-  const setPracticeLevel = useGameStore((s) => s.setPracticeLevel);
   const assignments      = useGameStore((s) => s.assignments);
   const equations        = useGameStore((s) => s.equations);
   const balance          = useGameStore((s) => s.balance);
@@ -35,8 +158,8 @@ export default function Menu({ goals = [] }) {
 
   const gameStates = { equations, balance, tank, decimal, fractionLab, magicPatterns, grid, word, multChamp, percentages };
 
-  // Which game's picker is currently open (null = none)
-  const [pickerFor, setPickerFor] = useState(null);
+  // Which game's sheet is open (null = none)
+  const [sheetFor, setSheetFor] = useState(null);
 
   // Assignment Wall state
   const completedToday    = wasAssignmentCompletedToday();
@@ -50,39 +173,20 @@ export default function Menu({ goals = [] }) {
     return currentAssignment.game_name !== gameId;
   };
 
-  const startGame = (gameId) => {
+  const openSheet = (gameId) => {
     if (isLocked(gameId)) { vibe(30); return; }
-    if (pickerFor) { setPickerFor(null); return; } // close picker on card tap
     vibe(10);
+    setSheetFor(gameId);
+  };
+
+  const playGame = (gameId) => {
+    setSheetFor(null);
     setScreen(gameId);
   };
 
-  const handleBadgeTap = (e, gameId) => {
-    if (isLocked(gameId)) return;
-    e.stopPropagation();
-    vibe(20);
-    setPickerFor(pickerFor === gameId ? null : gameId);
-  };
-
-  const handlePickLevel = (e, gameId, lvl) => {
-    e.stopPropagation();
-    vibe(30);
-    // Same level tapped again → cancel practice mode
-    if (practiceLevels[gameId] === lvl) {
-      setPracticeLevel(gameId, 0);
-    } else {
-      setPracticeLevel(gameId, lvl);
-    }
-    setPickerFor(null);
-  };
-
-  const getBadgeContent = (gameId) => {
-    const pl = practiceLevels[gameId];
-    const locked = locks[gameId] > 0;
-    if (pl > 0) return { text: `🎯 רמה ${pl}`, practicing: true };
-    const rank = getVisibleRank(gameStates[gameId].lvl);
-    return { text: (locked ? '🔒 ' : '') + rank.emoji + ' ' + rank.name, practicing: false };
-  };
+  // Active sheet data
+  const sheetGame = sheetFor ? GAMES.find(g => g.id === sheetFor) : null;
+  const sheetState = sheetFor ? gameStates[sheetFor] : null;
 
   return (
     <div className="screen-enter flex flex-col items-center p-6 flex-1 min-h-[calc(100dvh-80px)]">
@@ -133,20 +237,19 @@ export default function Menu({ goals = [] }) {
         </div>
       )}
 
+      {/* Game cards */}
       {GAMES.map((g) => {
-        const colors    = getGameColorClasses(g.colorToken);
-        const locked    = isLocked(g.id);
-        const badge     = getBadgeContent(g.id);
-        const isPicking = pickerFor === g.id;
-        const realLvl   = gameStates[g.id].lvl;
-        const realStep  = gameStates[g.id].step || realLvl;
+        const colors     = getGameColorClasses(g.colorToken);
+        const locked     = isLocked(g.id);
+        const realLvl    = gameStates[g.id].lvl;
+        const realStep   = gameStates[g.id].step || realLvl;
         const totalSteps = STEP_CONFIG[g.id] || 5;
         const progressPct = Math.round((realStep / totalSteps) * 100);
 
         return (
           <div key={g.id} className="w-full max-w-sm">
             <button
-              onClick={() => startGame(g.id)}
+              onClick={() => openSheet(g.id)}
               disabled={locked}
               className={`menu-btn ${colors.bg} ${colors.border} border-e-slate-200 border-s-slate-200 border-t-slate-200 dark:border-e-slate-700 dark:border-s-slate-700 dark:border-t-slate-700 group relative w-full ${locked ? 'opacity-40 cursor-not-allowed' : ''}`}
             >
@@ -156,25 +259,17 @@ export default function Menu({ goals = [] }) {
                 {/* Progress bar */}
                 <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden mt-1.5 mb-1">
                   <div
-                    className={`h-full rounded-full transition-all duration-700 ${colors.progressBg || 'bg-green-400'}`}
+                    className={`h-full rounded-full transition-all duration-700 ${colors.text?.replace('text-', 'bg-') || 'bg-green-400'}`}
                     style={{ width: `${progressPct}%` }}
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  {/* Step badge — tap to open practice picker */}
-                  <p
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block lvl-badge whitespace-nowrap transition-colors ${
-                      badge.practicing
-                        ? 'bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 ring-1 ring-teal-400'
-                        : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
-                    }`}
-                    onClick={(e) => handleBadgeTap(e, g.id)}
-                  >
-                    {badge.practicing ? badge.text : `שלב ${realStep}/${totalSteps}`}
-                  </p>
-                  <p className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block ${colors.text} ${colors.bg}`}>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                    שלב {realStep}/{totalSteps}
+                  </span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block ${colors.text} ${colors.bg}`}>
                     ⭐ {gameStates[g.id].stars}
-                  </p>
+                  </span>
                 </div>
               </div>
               {locked ? (
@@ -183,58 +278,19 @@ export default function Menu({ goals = [] }) {
                 <span className="text-slate-300 dark:text-slate-600 group-hover:-translate-x-1 transition-transform">◀</span>
               )}
             </button>
-
-            {/* Practice level picker — inline below card */}
-            {isPicking && !locked && (
-              <div
-                dir="rtl"
-                className="mx-1 mb-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-3 py-3 shadow-lg animate-[slideDown_0.18s_ease-out]"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <style>{`@keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}`}</style>
-                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 mb-2 text-center">
-                  🎯 בחר שלב לתרגול — ההתקדמות שלך לא תשתנה
-                </p>
-                <div className="flex flex-wrap justify-center gap-1.5 max-w-[280px]">
-                  {Array.from({ length: totalSteps }, (_, i) => i + 1).map((step) => {
-                    const isReal     = step === realStep;
-                    const isPractice = practiceLevels[g.id] === step;
-                    const isPast     = step < realStep;
-                    return (
-                      <button
-                        key={step}
-                        onClick={(e) => handlePickLevel(e, g.id, step)}
-                        className={`w-9 h-9 rounded-xl font-black text-xs transition-all active:scale-90 ${
-                          isPractice
-                            ? 'bg-teal-500 text-white shadow-md ring-2 ring-teal-300'
-                            : isReal
-                            ? `${colors.bg} ${colors.text} ring-2 ${colors.border}`
-                            : isPast
-                            ? 'bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-400'
-                            : 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-default'
-                        }`}
-                        disabled={step > realStep && !isPractice}
-                      >
-                        {step}
-                        {isReal && !isPractice && <span className="block text-[7px] leading-none">★</span>}
-                      </button>
-                    );
-                  })}
-                  {/* Cancel button */}
-                  {practiceLevels[g.id] > 0 && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setPracticeLevel(g.id, 0); setPickerFor(null); vibe(20); }}
-                      className="w-10 h-10 rounded-xl font-black text-sm bg-red-50 dark:bg-red-900/20 text-red-400 hover:bg-red-100 transition-all active:scale-90"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         );
       })}
+
+      {/* Step picker sheet */}
+      {sheetFor && sheetGame && sheetState && (
+        <StepPickerSheet
+          game={sheetGame}
+          gameState={sheetState}
+          onPlay={() => playGame(sheetFor)}
+          onClose={() => setSheetFor(null)}
+        />
+      )}
     </div>
   );
 }

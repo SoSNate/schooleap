@@ -695,12 +695,19 @@ const GAME_STEP_CONFIG = {
 };
 
 function DevToolsTab() {
-  const resetProgress  = useGameStore(s => s.resetProgress);
-  const gameStates     = useGameStore(s => ({
-    balance: s.balance, fractionLab: s.fractionLab, tank: s.tank,
-    decimal: s.decimal, equations: s.equations, percentages: s.percentages,
-    magicPatterns: s.magicPatterns, grid: s.grid, word: s.word, multChamp: s.multChamp,
-  }));
+  const resetProgress   = useGameStore(s => s.resetProgress);
+  const balance         = useGameStore(s => s.balance);
+  const fractionLab     = useGameStore(s => s.fractionLab);
+  const tank            = useGameStore(s => s.tank);
+  const decimal         = useGameStore(s => s.decimal);
+  const equations       = useGameStore(s => s.equations);
+  const percentages     = useGameStore(s => s.percentages);
+  const magicPatterns   = useGameStore(s => s.magicPatterns);
+  const grid            = useGameStore(s => s.grid);
+  const word            = useGameStore(s => s.word);
+  const multChamp       = useGameStore(s => s.multChamp);
+
+  const gameStates = { balance, fractionLab, tank, decimal, equations, percentages, magicPatterns, grid, word, multChamp };
 
   const [confirmed, setConfirmed] = useState(false);
 

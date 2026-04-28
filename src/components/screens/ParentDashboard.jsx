@@ -172,7 +172,8 @@ export default function ParentDashboard() {
 
   const [user,           setUser]           = useState(null);
   const [profile,        setProfile]        = useState(null);
-  const [child,          setChild]          = useState(null);
+  const [children,       setChildren]       = useState([]);
+  const [selectedChildIdx, setSelectedChildIdx] = useState(0);
   const [childExists,    setChildExists]    = useState(null);
   const [events,         setEvents]         = useState([]);
   const [goals,          setGoals]          = useState([]);
@@ -188,6 +189,9 @@ export default function ParentDashboard() {
   const [goalForm,       setGoalForm]       = useState({ title: '', reward: '', target_hours: '' });
   const [goalSaving,     setGoalSaving]     = useState(false);
   const [goalError,      setGoalError]      = useState('');
+
+  // ילד נבחר — derived מ-children + selectedChildIdx
+  const child = children[selectedChildIdx] ?? null;
 
   // ─── Fetch events ────────────────────────────────────────────────────────
   const fetchEvents = useCallback(async (childToken) => {
@@ -220,10 +224,10 @@ export default function ParentDashboard() {
     }
   }, []);
 
-  // ─── Load child + profile ────────────────────────────────────────────────
+  // ─── Load children + profile ─────────────────────────────────────────────
   const loadChild = useCallback(async (u) => {
     try {
-      // ── profile + children במקביל (חוסך round-trip אחד) ─────────────────
+      // ── profile + all children במקביל (חוסך round-trip אחד) ──────────────
       const [{ data: prof }, { data, error: err }] = await Promise.all([
         supabase
           .from('profiles')
@@ -234,23 +238,23 @@ export default function ParentDashboard() {
           .from('children')
           .select('*')
           .eq('parent_id', u.id)
-          .maybeSingle(),
+          .order('created_at', { ascending: true }),
       ]);
 
       if (prof) setProfile(prof);
       if (err) throw err;
 
-      if (!data) { setChildExists(false); setChild(null); return; }
+      const kids = data || [];
+      if (kids.length === 0) { setChildExists(false); setChildren([]); return; }
 
       setChildExists(true);
-      setChild(data);
-      // events + goals — fire-and-forget ברקע. אין צורך לחסום את הרינדור הראשון
-      // של ה-child header — הם יתעדכנו לכשיגיעו (500-1500ms חיסכון בטעינה).
-      fetchEvents(data.magic_token).catch((err) =>
-        console.error('[ParentDashboard] fetchEvents:', err)
+      setChildren(kids);
+      // events + goals עבור הילד הנבחר (ראשון) — fire-and-forget ברקע
+      fetchEvents(kids[0].magic_token).catch((e) =>
+        console.error('[ParentDashboard] fetchEvents:', e)
       );
-      fetchGoals(u.id).catch((err) =>
-        console.error('[ParentDashboard] fetchGoals:', err)
+      fetchGoals(u.id).catch((e) =>
+        console.error('[ParentDashboard] fetchGoals:', e)
       );
     } catch (e) {
       setError('שגיאה בטעינת הנתונים. נסה לרענן את הדף.');
@@ -258,6 +262,13 @@ export default function ParentDashboard() {
       setChildExists(false);
     }
   }, [fetchEvents, fetchGoals]);
+
+  // ─── Switch events when selected child changes ───────────────────────────
+  useEffect(() => {
+    if (!child?.magic_token) return;
+    setEvents([]);
+    fetchEvents(child.magic_token).catch(console.error);
+  }, [child?.magic_token, fetchEvents]);
 
   // ─── Realtime: live event updates when child plays ───────────────────────
   useEffect(() => {
@@ -379,8 +390,10 @@ export default function ParentDashboard() {
         await supabase.from('game_events').delete().eq('child_id', child.id);
         await supabase.from('children').delete().eq('id', child.id);
       }
-      setChild(null);
-      setChildExists(false);
+      const remaining = children.filter(c => c.id !== child.id);
+      setChildren(remaining);
+      setSelectedChildIdx(0);
+      if (remaining.length === 0) setChildExists(false);
       await Swal.fire({ icon: 'success', title: 'נמחק', text: 'כל נתוני הילד הוסרו.' });
     } catch (e) {
       console.error('[ParentDashboard] deleteChildData:', e);
@@ -422,7 +435,9 @@ export default function ParentDashboard() {
         .select()
         .single();
       if (err) throw err;
-      setChild(data);
+      const updated = [...children, data];
+      setChildren(updated);
+      setSelectedChildIdx(updated.length - 1);
       setChildExists(true);
       await fetchGoals(user.id);
     } catch (e) {
@@ -587,7 +602,8 @@ export default function ParentDashboard() {
   if (!profile?.is_admin && profile?.role === 'teacher') return <Navigate to="/teacher" replace />;
 
   // ─── Render: paywall (trial expired) ────────────────────────────────────
-  if (!trialActive) {
+  // אדמין (is_admin=true) עוקף את ה-paywall — גישה מלאה ללא הגבלת מנוי
+  if (!trialActive && !profile?.is_admin) {
     return (
       <SubscriptionPaywall
         onBack={() => {
@@ -614,6 +630,19 @@ export default function ParentDashboard() {
     return <PricingView onBack={() => setView('dashboard')} />;
   }
 
+  // ─── Render: add second child ────────────────────────────────────────────
+  if (view === 'addChild') {
+    return (
+      <EmptyState
+        onAdd={async (name) => {
+          await handleAddChild(name);
+          setView('dashboard');
+        }}
+        loading={addingChild}
+      />
+    );
+  }
+
   // ─── Render: main dashboard ──────────────────────────────────────────────
   return (
     <div dir="rtl" className="min-h-[100dvh] bg-[#FDFDFF] dark:bg-slate-900 text-slate-900 dark:text-slate-100">
@@ -627,14 +656,44 @@ export default function ParentDashboard() {
 
       <div className="max-w-5xl mx-auto p-4 md:p-8 space-y-8 pb-16">
 
-        {/* Greeting */}
-        <div>
-          <h2 className="text-2xl font-black tracking-tight mb-1">
-            שלום, <span className="text-indigo-600">{user.email?.split('@')[0]}</span>
-          </h2>
-          <p className="text-slate-400 text-sm">
-            {child?.name ? `הנה תמונת המצב של ${child.name}` : 'הנה תמונת המצב של הילד שלך'}
-          </p>
+        {/* Greeting + child selector */}
+        <div className="flex flex-col gap-3">
+          <div>
+            <h2 className="text-2xl font-black tracking-tight mb-1">
+              שלום, <span className="text-indigo-600">{user.email?.split('@')[0]}</span>
+            </h2>
+            <p className="text-slate-400 text-sm">
+              {child?.name ? `הנה תמונת המצב של ${child.name}` : 'הנה תמונת המצב של הילד שלך'}
+            </p>
+          </div>
+
+          {/* Child tabs — מוצג רק אם יש יותר מילד אחד או אפשר להוסיף */}
+          {(children.length > 1 || children.length < 2) && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {children.map((c, i) => (
+                <button
+                  key={c.id}
+                  onClick={() => setSelectedChildIdx(i)}
+                  className={`px-4 py-2 rounded-2xl text-sm font-black transition-all active:scale-95 ${
+                    i === selectedChildIdx
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 dark:shadow-indigo-900'
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-indigo-300'
+                  }`}
+                >
+                  🚀 {c.name}
+                </button>
+              ))}
+              {children.length < 2 && (
+                <button
+                  onClick={() => setView('addChild')}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-black border-2 border-dashed border-indigo-300 dark:border-indigo-600 text-indigo-500 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all active:scale-95"
+                >
+                  <Plus size={15} />
+                  הוסף אסטרונאוט
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {error && (

@@ -610,11 +610,32 @@ function PaymentsTab() {
 function LinksTab() {
   // פותח בטאב חדש — כך האדמין לא ינותב חזרה ל-/admin מ-ParentDashboard
   const open = (path) => window.open(window.location.origin + path, '_blank');
+
+  const playAsAdmin = () => {
+    try {
+      localStorage.setItem('hasbaonautica_child_token', 'admin-play-bypass');
+      localStorage.setItem('hasbaonautica_admin_play', '1');
+      // נקה onboarding כדי שאדמין יראה את הטיול האינטראקטיבי
+      localStorage.removeItem('seen_onboarding_v1');
+      sessionStorage.removeItem('seen_interactive_tour_v1');
+    } catch { /* storage blocked */ }
+    open('/play');
+  };
+
   return (
     <div className="space-y-4">
       <p className="text-xs text-slate-400 font-bold">
         נפתחים בטאב חדש — כדי למנוע ניתוב חזרה לאדמין
       </p>
+      <button onClick={playAsAdmin}
+        className="w-full flex items-center gap-3 bg-gradient-to-l from-fuchsia-50 to-pink-50 dark:from-fuchsia-900/20 dark:to-pink-900/20 border border-fuchsia-200 dark:border-fuchsia-700 hover:border-fuchsia-400 text-fuchsia-800 dark:text-fuchsia-200 font-black py-4 px-5 rounded-2xl transition-all text-right shadow-sm hover:shadow-md">
+        <span className="text-2xl">🛸</span>
+        <div className="flex-1">
+          <p className="font-black">משחק אדמין ↗</p>
+          <p className="text-xs font-normal text-fuchsia-600 dark:text-fuchsia-400">כניסה ישירה למשחקים — ללא קישור קסם או קוד כיתה</p>
+        </div>
+        <span className="text-[10px] font-black bg-fuchsia-500 text-white px-2 py-0.5 rounded-full">BYPASS</span>
+      </button>
       <button onClick={() => open('/teacher')}
         className="w-full flex items-center gap-3 bg-emerald-50 border border-emerald-200 hover:border-emerald-400 text-emerald-800 font-black py-4 px-5 rounded-2xl transition-all text-right">
         <span className="text-2xl">🎓</span>
@@ -757,6 +778,29 @@ function DevToolsTab() {
               ביטול
             </button>
           )}
+        </div>
+      </Section>
+
+      <Section title="טיול ראשון (Onboarding)">
+        <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-2xl p-4 space-y-3">
+          <p className="text-xs text-indigo-700 dark:text-indigo-300 leading-relaxed">
+            כפתורים אלו מאפסים את סימוני "ראיתי" של מסכי ה-onboarding והטיול האינטראקטיבי במשחק כדי לבדוק אותם מחדש.
+          </p>
+          <button
+            onClick={() => {
+              try {
+                localStorage.removeItem('seen_onboarding_v1');
+                sessionStorage.removeItem('seen_interactive_tour_v1');
+                Object.keys(sessionStorage).forEach((k) => {
+                  if (k.startsWith('seen_tutorial_')) sessionStorage.removeItem(k);
+                });
+              } catch { /* storage blocked */ }
+              alert('✅ אופס — הטיול הראשון יופיע שוב בכניסה הבאה למשחק');
+            }}
+            className="w-full py-2.5 rounded-xl font-bold text-sm bg-indigo-100 dark:bg-indigo-800/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800/60 transition-all active:scale-95"
+          >
+            🔄 איפוס טיול ראשון + טיוטוריאלים של משחקים
+          </button>
         </div>
       </Section>
     </div>
@@ -943,7 +987,7 @@ export default function AdminDashboard() {
 
       {/* Tabs */}
       <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-700 overflow-x-auto">
-        <div className="max-w-5xl mx-auto px-4 flex gap-1 py-2">
+        <div className="max-w-5xl mx-auto px-4 flex gap-1 py-2 min-w-max sm:min-w-0">
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`whitespace-nowrap text-sm font-bold px-4 py-2 rounded-xl transition-all ${

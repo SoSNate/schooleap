@@ -8,6 +8,7 @@ import useTeacherClassrooms from '../../hooks/useTeacherClassrooms';
 import useTeacherModes from '../../hooks/useTeacherModes';
 import useTutorTrial from '../../hooks/useTutorTrial';
 import TeacherSalesPage from './TeacherSalesPage';
+import AddStudentForm from '../teacher/AddStudentForm';
 import ClassEngagementTable from '../teacher/ClassEngagementTable';
 // recharts-heavy — נטען lazy כדי לא לחסום את הרינדור הראשון של הדשבורד
 const ClassSkillsCard      = lazy(() => import('../teacher/ClassSkillsCard'));
@@ -169,6 +170,24 @@ export default function TeacherDashboard() {
 
   async function handleLogout() {
     try { await supabase.auth.signOut(); } catch (e) { console.error(e); }
+  }
+
+  // ─── הוספת תלמיד פרטי ──────────────────────────────────────────────────
+  async function handleAddStudent(name) {
+    if (!user?.id || !name) return null;
+    try {
+      const { data, error: err } = await supabase
+        .from('children')
+        .insert({ name, teacher_id: user.id })
+        .select('id, name, magic_token, access_code')
+        .single();
+      if (err) throw err;
+      setStudents(prev => [...prev, data]);
+      return data;
+    } catch (e) {
+      console.error('[TeacherDashboard] addStudent:', e);
+      throw e;
+    }
   }
 
   // ─── Render states ───────────────────────────────────────────────────────
@@ -364,14 +383,17 @@ export default function TeacherDashboard() {
 
         {isPrivateMode ? (
           students.length === 0 ? (
-            <div className="grid grid-cols-1 gap-6">
-              <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl p-10 flex flex-col items-center text-center gap-5 shadow-sm">
+            <div className="grid grid-cols-1 gap-6 max-w-md">
+              <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl p-8 flex flex-col items-center text-center gap-5 shadow-sm">
                 <div className="text-6xl">👤</div>
                 <div className="space-y-2">
                   <h3 className="text-xl font-black text-slate-800 dark:text-slate-100">עדיין אין תלמידים</h3>
                   <p className="text-slate-400 text-sm leading-relaxed max-w-xs">
-                    הוסף תלמידים פרטיים כדי להתחיל לעקוב אחרי ההתקדמות שלהם
+                    הוסף תלמידים פרטיים — כל תלמיד מקבל קוד כניסה ייחודי
                   </p>
+                </div>
+                <div className="w-full">
+                  <AddStudentForm onAdd={handleAddStudent} disabled={false} />
                 </div>
               </div>
             </div>
@@ -379,6 +401,7 @@ export default function TeacherDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div className="lg:col-span-8 space-y-6">
                 <ClassEngagementTable students={students} onSelect={setSelected} />
+                <AddStudentForm onAdd={handleAddStudent} disabled={false} />
               </div>
               <div className="lg:col-span-4 space-y-6">
                 <Suspense fallback={<div className="h-64 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 animate-pulse" />}>

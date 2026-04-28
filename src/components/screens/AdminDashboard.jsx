@@ -615,11 +615,11 @@ function LinksTab() {
     try {
       localStorage.setItem('hasbaonautica_child_token', 'admin-play-bypass');
       localStorage.setItem('hasbaonautica_admin_play', '1');
-      // נקה onboarding כדי שאדמין יראה את הטיול האינטראקטיבי
       localStorage.removeItem('seen_onboarding_v1');
       sessionStorage.removeItem('seen_interactive_tour_v1');
     } catch { /* storage blocked */ }
-    open('/play');
+    // ניווט באותו טאב — localStorage מובטח לפני הניווט
+    window.location.href = window.location.origin + '/play';
   };
 
   return (

@@ -18,6 +18,7 @@ import PercentsLab from './components/games/PercentsLab';
 import { supabase } from './lib/supabase';
 import InstallPrompt, { captureInstallEvent, shouldAutoShowInstallPrompt } from './components/shared/InstallPrompt';
 import FlyingPlanesBackground from './components/shared/FlyingPlanesBackground';
+import InteractiveTour, { shouldShowTour } from './components/shared/InteractiveTour';
 
 const screens = {
   menu: Menu,
@@ -36,6 +37,45 @@ const screens = {
 
 const TOKEN_KEY    = 'hasbaonautica_child_token';
 const ONBOARD_KEY  = 'seen_onboarding_v1';
+const TOUR_KEY     = 'seen_interactive_tour_v1';
+
+// ─── Interactive tour steps for the main menu ────────────────────────────────
+const MENU_TOUR_STEPS = [
+  {
+    emoji: '👋',
+    title: 'היי אסטרונאוט!',
+    text: 'בוא אכיר לך את הספינה. רק 4 צעדים קצרים — מבטיח שיהיה כיף!',
+    position: 'center',
+  },
+  {
+    selector: '[data-tour="first-game"]',
+    emoji: '🎮',
+    title: 'כרטיסיית משחק',
+    text: 'כל כרטיסיה כזאת היא משחק אחר. לחיצה תפתח את בורר השלבים.',
+    position: 'auto',
+  },
+  {
+    selector: '[data-tour="progress-pill"]',
+    emoji: '🚀',
+    title: 'השלב שלך',
+    text: 'כאן רואים באיזה שלב אתה נמצא. כל הצלחה מעלה אותך הלאה!',
+    position: 'auto',
+  },
+  {
+    selector: '[data-tour="stars"]',
+    emoji: '⭐',
+    title: 'הכוכבים שלך',
+    text: 'אוסף כוכבים על כל פעולה נכונה — ההורים שלך רואים את ההתקדמות!',
+    position: 'bottom',
+  },
+  {
+    selector: '[data-tour="settings-btn"]',
+    emoji: '⚙️',
+    title: 'הגדרות וכלים',
+    text: 'מצב לילה, איפוס משחק ועוד — הכל פה. יאללה, צא להרפתקה!',
+    position: 'bottom',
+  },
+];
 
 // ─── Onboarding screen (first time ever) ─────────────────────────────────────
 
@@ -208,6 +248,7 @@ export default function GameApp() {
 
   const [showOnboarding,    setShowOnboarding]    = useState(false);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [showTour,          setShowTour]          = useState(false);
   const [goals,             setGoals]             = useState([]);
 
   // ── Realtime: re-check subscription when parent pays (removes SoftLock) ──
@@ -242,10 +283,11 @@ export default function GameApp() {
     captureInstallEvent();
     let mounted = true;
 
-    // Dev mode: skip onboarding on localhost
+    // Dev mode: skip onboarding on localhost (admin-play also skips intro modal — goes straight to tour)
     const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    const isAdminPlay = typeof window !== 'undefined' && localStorage.getItem('hasbaonautica_admin_play') === '1';
     try {
-      if (!isLocalhost && !localStorage.getItem(ONBOARD_KEY)) setShowOnboarding(true);
+      if (!isLocalhost && !isAdminPlay && !localStorage.getItem(ONBOARD_KEY)) setShowOnboarding(true);
       if (isLocalhost) localStorage.setItem(ONBOARD_KEY, '1'); // Mark onboarding as seen
     } catch { /* storage blocked */ }
 
@@ -256,12 +298,32 @@ export default function GameApp() {
     return () => { mounted = false; clearTimeout(installTimer); };
   }, []); // eslint-disable-line
 
+  // ── Show interactive tour after onboarding closes (or immediately if skipped) ──
+  // Only on menu screen, only if not seen before in this session.
+  useEffect(() => {
+    if (showOnboarding) return;
+    if (currentScreen !== 'menu') return;
+    if (!shouldShowTour(TOUR_KEY)) return;
+    // Small delay so the menu has time to paint and elements have layout.
+    const t = setTimeout(() => setShowTour(true), 450);
+    return () => clearTimeout(t);
+  }, [showOnboarding, currentScreen]);
+
   // ── Bootstrap: runs when subscription hasn't been checked yet ────────────
   // Covers two cases:
   //   1. Normal entry via ChildEntry → subscription.checked = true already → skip
   //   2. Refresh at /play → subscription.checked = false → run full bootstrap here
   useEffect(() => {
     if (subscription.checked) return;          // ChildEntry already did this
+
+    // Admin play bypass — מעקף מלא ללא בדיקות backend (חייב לרוץ לפני בדיקת token)
+    const isAdminPlay = localStorage.getItem('hasbaonautica_admin_play') === '1';
+    if (isAdminPlay) {
+      localStorage.setItem(TOKEN_KEY, 'admin-play-bypass');
+      setSubscription({ status: 'vip', expiresAt: null, checked: true });
+      return;
+    }
+
     const token = localStorage.getItem(TOKEN_KEY);
 
     // Dev mode: localhost bypass
@@ -325,9 +387,10 @@ export default function GameApp() {
   }, [subscription.checked]); // eslint-disable-line
 
   // ── No token: accessed /play directly without a magic link ──────────────
-  // Skip auth check on localhost for development
+  // Skip auth check on localhost or admin-play bypass for development
   const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-  if (!isLocalhost && !localStorage.getItem(TOKEN_KEY)) {
+  const isAdminPlay = typeof window !== 'undefined' && localStorage.getItem('hasbaonautica_admin_play') === '1';
+  if (!isLocalhost && !isAdminPlay && !localStorage.getItem(TOKEN_KEY)) {
     return (
       <div dir="rtl" className="min-h-[100dvh] flex items-center justify-center bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 p-8 text-center">
         <div className="max-w-sm space-y-4">
@@ -399,6 +462,13 @@ export default function GameApp() {
       )}
       {showInstallPrompt && !showOnboarding && (
         <InstallPrompt onClose={() => setShowInstallPrompt(false)} />
+      )}
+      {showTour && currentScreen === 'menu' && !showOnboarding && (
+        <InteractiveTour
+          steps={MENU_TOUR_STEPS}
+          storageKey={TOUR_KEY}
+          onDone={() => setShowTour(false)}
+        />
       )}
       <Header />
 

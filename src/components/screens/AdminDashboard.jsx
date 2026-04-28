@@ -160,33 +160,40 @@ function LeadsTab() {
 
 function LeadRow({ lead, onHandled, onApprove }) {
   const editMode = useAdminStore(s => s.editMode);
+  const isSelfPaid = lead.notes?.includes('נרשם אוטומטית דרך תשלום');
   return (
-    <div className={`bg-white rounded-2xl border p-4 space-y-2 ${lead.handled ? 'border-slate-100 opacity-60' : 'border-indigo-100 shadow-sm'}`}>
+    <div className={`bg-white dark:bg-slate-800 rounded-2xl border p-4 space-y-2 ${lead.handled ? 'border-slate-100 dark:border-slate-700 opacity-60' : isSelfPaid ? 'border-emerald-200 dark:border-emerald-700 shadow-sm' : 'border-indigo-100 dark:border-indigo-800 shadow-sm'}`}>
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="font-black text-slate-800">{lead.full_name}</p>
+          <p className="font-black text-slate-800 dark:text-slate-100">{lead.full_name}</p>
           {lead.school && <p className="text-xs text-slate-500">{lead.school}</p>}
         </div>
-        <Badge text={lead.handled ? 'טופל' : 'ממתין'} color={lead.handled ? 'slate' : 'amber'} />
+        <div className="flex gap-1.5 flex-wrap justify-end">
+          {isSelfPaid && <Badge text="💳 שילם" color="green" />}
+          <Badge text={lead.handled ? 'טופל' : 'ממתין'} color={lead.handled ? 'slate' : 'amber'} />
+        </div>
       </div>
-      <div className="flex flex-wrap gap-3 text-xs text-slate-600">
+      <div className="flex flex-wrap gap-3 text-xs text-slate-600 dark:text-slate-400">
         {lead.phone && <span>📞 {lead.phone}</span>}
         {lead.email && <span>✉️ {lead.email}</span>}
         <span>📅 {fmt(lead.created_at)}</span>
       </div>
-      {lead.notes && <p className="text-xs text-slate-500 bg-slate-50 rounded-xl px-3 py-2">{lead.notes}</p>}
+      {lead.notes && <p className="text-xs text-slate-500 bg-slate-50 dark:bg-slate-700/50 rounded-xl px-3 py-2">{lead.notes}</p>}
       {!lead.handled && (
         <div className="flex gap-2 pt-1">
           <button
             onClick={() => onHandled(lead.id)}
             disabled={!editMode}
-            className="flex-1 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-100"
+            className="flex-1 text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 py-2 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >סמן כטופל</button>
-          <button
-            onClick={() => onApprove(lead.email)}
-            disabled={!editMode}
-            className="flex-1 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-indigo-600"
-          >✅ אשר כמורה</button>
+          {/* מורה שכבר שילם — כבר מאושר אוטומטית, כפתור האישור מיותר */}
+          {!isSelfPaid && (
+            <button
+              onClick={() => onApprove(lead.email)}
+              disabled={!editMode}
+              className="flex-1 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >✅ אשר כמורה</button>
+          )}
         </div>
       )}
     </div>

@@ -117,8 +117,14 @@ CREATE POLICY "teacher updates own enrollment"
 
 -- ────────────────────────────────────────────────────────────
 -- 7. RPCs — get_teacher_mode_status / request_teacher_mode_change
---    / set_teacher_primary_mode (CREATE OR REPLACE — בטוח)
+--    / set_teacher_primary_mode
+--
+-- DROP מקדים: postgres חוסם שינוי return type ב-CREATE OR REPLACE.
 -- ────────────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.get_teacher_mode_status(UUID)              CASCADE;
+DROP FUNCTION IF EXISTS public.request_teacher_mode_change(UUID,TEXT,TEXT) CASCADE;
+DROP FUNCTION IF EXISTS public.set_teacher_primary_mode(UUID,TEXT)        CASCADE;
+
 CREATE OR REPLACE FUNCTION public.get_teacher_mode_status(p_teacher_id UUID)
 RETURNS TABLE(
   teacher_modes    TEXT[],

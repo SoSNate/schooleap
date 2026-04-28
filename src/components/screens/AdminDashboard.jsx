@@ -66,10 +66,8 @@ function LeadsTab() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('teacher_leads')
-      .select('*')
-      .order('created_at', { ascending: false });
+    // RPC עם SECURITY DEFINER — עוקף RLS, מחזיר תוצאות לאדמין בלבד
+    const { data, error } = await supabase.rpc('get_teacher_leads');
     if (error) console.error('[LeadsTab] load error:', error);
     setLeads(data || []);
     setLoading(false);

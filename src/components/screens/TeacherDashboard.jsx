@@ -242,19 +242,38 @@ export default function TeacherDashboard() {
   // מחובר אבל לא מורה/אדמין → דף pending אם נרשם lead, אחרת sales page.
   if (profile && !profile.is_admin && profile.role !== 'teacher' && profile.role !== 'admin') {
     if (profile.teacher_status === 'pending') {
+      const TEACHER_PAY_URL = import.meta.env.VITE_PAYMENT_URL_TEACHER || 'https://mrng.to/5MeNM9EHv5';
       return (
         <div dir="rtl" className="min-h-[100dvh] flex items-center justify-center p-6"
           style={{ background: 'radial-gradient(ellipse at 50% 60%, #0f172a 0%, #020617 100%)' }}>
-          <div className="max-w-md w-full bg-white/5 border border-white/10 rounded-3xl p-8 text-center space-y-4">
+          <div className="max-w-md w-full bg-white/5 border border-white/10 rounded-3xl p-8 text-center space-y-5">
             <div className="text-6xl">⏳</div>
             <h2 className="text-2xl font-black text-white">בקשתך בבדיקה</h2>
             <p className="text-slate-400 text-sm leading-relaxed">
               קיבלנו את הבקשה שלך להצטרף כמורה.<br />
               נעדכן אותך במייל ({user?.email}) ברגע שתאושר — בדרך כלל תוך 24 שעות.
             </p>
+
+            {/* CTA — גישה מיידית דרך תשלום */}
+            <div className="bg-indigo-500/10 border border-indigo-400/30 rounded-2xl p-4 space-y-3">
+              <p className="text-indigo-300 text-sm font-black">לא רוצה לחכות?</p>
+              <p className="text-slate-400 text-xs leading-relaxed">
+                שלם עכשיו וקבל גישה מיידית לדשבורד — ללא צורך באישור ידני.
+              </p>
+              <a
+                href={TEACHER_PAY_URL}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => window.location.reload()}
+                className="flex items-center justify-center gap-2 w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-3 rounded-xl transition-all active:scale-95 text-sm"
+              >
+                💳 תשלום — גישה מיידית · 99₪
+              </a>
+            </div>
+
             <button
               onClick={handleLogout}
-              className="text-slate-500 hover:text-slate-300 text-xs font-bold transition-colors mt-4"
+              className="text-slate-600 hover:text-slate-400 text-xs font-bold transition-colors"
             >
               יציאה מהחשבון
             </button>

@@ -63,11 +63,13 @@ export default function TeacherDashboard() {
   } = useTeacherModes(user?.id);
 
   // ─── Tutor trial (private mode only) ────────────────────────────────────────
+  // אדמין (profile?.is_admin) לא נחסם לעולם. ממתינים ל-profile לפני שמפעילים trial.
+  // כל עוד profile=null (נטען ברקע) — לא מפעילים את ה-hook (null מושתק).
+  const isAdminUser = profile?.is_admin === true;
   const { isReadOnly: _isReadOnly, trialExpired, hoursRemaining } = useTutorTrial(
-    isPrivateMode ? user?.id : null
+    isPrivateMode && !isAdminUser && profile !== null ? user?.id : null
   );
-  // אדמין לא נחסם לעולם — גישה מלאה ללא הגבלת ניסיון
-  const isReadOnly = _isReadOnly && !profile?.is_admin;
+  const isReadOnly = _isReadOnly && !isAdminUser;
 
   // ─── Get classroom code from selected classroom or URL param ──────────────
   const classroomCode = selectedClassroom?.classroom_code;

@@ -66,10 +66,11 @@ function LeadsTab() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('teacher_leads')
       .select('*')
       .order('created_at', { ascending: false });
+    if (error) console.error('[LeadsTab] load error:', error);
     setLeads(data || []);
     setLoading(false);
   }, []);

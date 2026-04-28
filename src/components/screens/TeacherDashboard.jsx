@@ -230,6 +230,15 @@ export default function TeacherDashboard() {
     );
   }
 
+  // profile עדיין נטען ברקע — skeleton קצר במקום מסך ריק
+  if (user && profile === null) {
+    return (
+      <div dir="rtl" className="min-h-[100dvh] flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   // מחובר אבל לא מורה/אדמין → דף pending אם נרשם lead, אחרת sales page.
   if (profile && !profile.is_admin && profile.role !== 'teacher' && profile.role !== 'admin') {
     if (profile.teacher_status === 'pending') {

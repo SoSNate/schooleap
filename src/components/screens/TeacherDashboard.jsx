@@ -34,14 +34,15 @@ export default function TeacherDashboard() {
   useEffect(() => { initDarkMode(); }, []); // eslint-disable-line
   useEdgeSwipe({ onSwipeRight: () => navigate(-1) });
 
-  const [user,      setUser]      = useState(null);
-  const [profile,   setProfile]   = useState(null);
-  const [loginErr,  setLoginErr]  = useState(null);
-  const [students,  setStudents]  = useState([]);
-  const [allEvents, setAllEvents] = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState(null);
-  const [selected,  setSelected]  = useState(null);
+  const [user,          setUser]          = useState(null);
+  const [profile,       setProfile]       = useState(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [loginErr,      setLoginErr]      = useState(null);
+  const [students,      setStudents]      = useState([]);
+  const [allEvents,     setAllEvents]     = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState(null);
+  const [selected,      setSelected]      = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
   // ─── Classroom management hook ────────────────────────────────────────────
@@ -88,6 +89,7 @@ export default function TeacherDashboard() {
       ]);
 
       setProfile(prof || null);
+      setProfileLoaded(true);
       if (!prof || (!prof.is_admin && prof.role !== 'teacher' && prof.role !== 'admin')) return;
       if (rpcErr) throw rpcErr;
 
@@ -230,14 +232,15 @@ export default function TeacherDashboard() {
     );
   }
 
-  // profile עדיין נטען ברקע — skeleton קצר במקום מסך ריק
-  if (user && profile === null) {
+  // skeleton רק כשה-DB עדיין לא חזר — profileLoaded מונע spinner אינסופי
+  if (user && !profileLoaded) {
     return (
       <div dir="rtl" className="min-h-[100dvh] flex items-center justify-center bg-slate-50 dark:bg-slate-900">
         <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
+
 
   // מחובר אבל לא מורה/אדמין → דף pending אם נרשם lead, אחרת sales page.
   if (profile && !profile.is_admin && profile.role !== 'teacher' && profile.role !== 'admin') {

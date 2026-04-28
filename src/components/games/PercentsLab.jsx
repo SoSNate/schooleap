@@ -3,7 +3,6 @@ import confetti from 'canvas-confetti';
 import useGameStore from '../../store/useGameStore';
 import GameTutorial from '../shared/GameTutorial';
 import FeedbackOverlay from '../shared/FeedbackOverlay';
-import Hearts from '../shared/Hearts';
 import HintButton from '../shared/HintButton';
 import HintBubble from '../shared/HintBubble';
 import useHint from '../../hooks/useHint';
@@ -128,16 +127,14 @@ function DynamicArc({ position, operation, factor, isInteractive, onUpdate, scaf
 export default function PercentsLab() {
   const gameState      = useGameStore((s) => s.percentages);
   const practiceLvl    = useGameStore((s) => s.practiceLevels.percentages || 0);
-  const handleWin      = useGameStore((s) => s.handleWin);
-  const handleGameFail = useGameStore((s) => s.handleGameFail);
+  const handleWin       = useGameStore((s) => s.handleWin);
+  const handleLightFail = useGameStore((s) => s.handleLightFail);
 
   const effectiveLvl = practiceLvl || gameState.lvl;
   const scaffold     = getScaffolding(effectiveLvl);
 
   const [puzzle, setPuzzle]       = useState(null);
   const [userLogic, setUserLogic] = useState({ operation: 'multiply', factor: 2 });
-  const [lives, setLives]         = useState(3);
-  const [justLost, setJustLost]   = useState(false);
   const [feedback, setFeedback]   = useState({ visible: false, isLevelUp: false, unlocked: false, pts: 0 });
   const [errorMsg, setErrorMsg]   = useState('');
   const [scaffoldGlow, setScaffoldGlow] = useState(false);
@@ -202,17 +199,8 @@ export default function PercentsLab() {
     } else {
       vibe([60, 60, 60]);
       setErrorMsg('❌ לא בדיוק. נסו לשנות את הפעולה או את המספר 💪');
-      const next = Math.max(0, lives - 1);
-      setLives(next);
-      setJustLost(true);
-      timersRef.current.push(setTimeout(() => setJustLost(false), 600));
-      if (next <= 0) {
-        handleGameFail('percentages');
-        timersRef.current.push(setTimeout(() => {
-          setLives(3);
-          newPuzzle();
-        }, 1200));
-      }
+      // אין lives — ניסוי-וטעייה הוא חלק מהלמידה ב-PercentsLab.
+      try { handleLightFail('percentages'); } catch { /* noop */ }
     }
   };
 
@@ -239,7 +227,7 @@ export default function PercentsLab() {
         {/* Top bar */}
         <div className="w-full flex justify-between items-center">
           <span className="text-sm font-black text-sky-600 dark:text-sky-400">מעבדת אחוזים 📊</span>
-          <Hearts lives={lives} maxLives={3} justLost={justLost} />
+          <span className="text-xs font-bold text-sky-600 dark:text-sky-400">🧪 ניסוי-וטעייה</span>
         </div>
 
         {/* Instruction */}

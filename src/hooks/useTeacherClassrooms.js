@@ -66,50 +66,50 @@ export default function useTeacherClassrooms(teacherId, searchParams, setSearchP
     })();
   }, [teacherId]);
 
-  // ─── Set up real-time subscription ─────────────────────────────────────────
+  // ─── Set up real-time subscription (supabase-js v2 API) ───────────────────
   useEffect(() => {
     if (!teacherId) return;
 
-    console.log('[useTeacherClassrooms] Setting up real-time subscription');
-
-    const subscription = supabase
-      .from('classrooms')
-      .on('INSERT', (payload) => {
-        console.log('[useTeacherClassrooms] Real-time INSERT:', payload.new);
-        setClassrooms((prev) => [payload.new, ...prev]);
-      })
-      .on('UPDATE', (payload) => {
-        console.log('[useTeacherClassrooms] Real-time UPDATE:', payload.new);
-        setClassrooms((prev) =>
-          prev.map((c) => (c.id === payload.new.id ? payload.new : c))
-        );
-        // Update selected if it's the one being edited
-        if (selectedClassroom?.id === payload.new.id) {
-          setSelectedClassroom(payload.new);
+    const channel = supabase
+      .channel(`teacher-classrooms-${teacherId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'classrooms', filter: `teacher_id=eq.${teacherId}` },
+        (payload) => {
+          setClassrooms((prev) => [payload.new, ...prev]);
         }
-      })
-      .on('DELETE', (payload) => {
-        console.log('[useTeacherClassrooms] Real-time DELETE:', payload.old.id);
-        setClassrooms((prev) => prev.filter((c) => c.id !== payload.old.id));
-        // If deleted classroom was selected, select first remaining
-        if (selectedClassroom?.id === payload.old.id) {
-          setClassrooms((prev) => {
-            if (prev.length > 0) {
-              setSelectedClassroom(prev[0]);
-            } else {
-              setSelectedClassroom(null);
-            }
-            return prev;
-          });
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'classrooms', filter: `teacher_id=eq.${teacherId}` },
+        (payload) => {
+          setClassrooms((prev) =>
+            prev.map((c) => (c.id === payload.new.id ? payload.new : c))
+          );
+          if (selectedClassroom?.id === payload.new.id) {
+            setSelectedClassroom(payload.new);
+          }
         }
-      })
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'classrooms', filter: `teacher_id=eq.${teacherId}` },
+        (payload) => {
+          setClassrooms((prev) => prev.filter((c) => c.id !== payload.old.id));
+          if (selectedClassroom?.id === payload.old.id) {
+            setClassrooms((prev) => {
+              setSelectedClassroom(prev.length > 0 ? prev[0] : null);
+              return prev;
+            });
+          }
+        }
+      )
       .subscribe();
 
-    subscriptionRef.current = subscription;
+    subscriptionRef.current = channel;
 
     return () => {
-      console.log('[useTeacherClassrooms] Cleaning up subscription');
-      subscription.unsubscribe();
+      try { supabase.removeChannel(channel); } catch { /* noop */ }
     };
   }, [teacherId, selectedClassroom?.id]);
 

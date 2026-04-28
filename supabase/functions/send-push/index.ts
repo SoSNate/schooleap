@@ -8,11 +8,23 @@ const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY');
 const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY');
 const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') || 'mailto:support@schooleap.com';
 
-// Set VAPID details once at module scope
-try {
-  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
-} catch (err) {
-  console.error('[send-push] VAPID setup failed:', err);
+// Set VAPID details once at module scope.
+// CRITICAL: missing VAPID keys causes silent push failures (push-service rejects
+// every notification). Track init state so the handler can return a clear 500.
+let vapidReady = false;
+let vapidErrorMessage: string | null = null;
+if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+  vapidErrorMessage =
+    'VAPID keys missing — set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY via `supabase secrets set ...`';
+  console.error('[send-push]', vapidErrorMessage);
+} else {
+  try {
+    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+    vapidReady = true;
+  } catch (err) {
+    vapidErrorMessage = `VAPID setup failed: ${(err as Error)?.message || err}`;
+    console.error('[send-push]', vapidErrorMessage);
+  }
 }
 
 // Initialize Supabase client with service role key (full permissions)
@@ -57,6 +69,26 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({ error: 'Method not allowed' }),
       {
         status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      }
+    );
+  }
+
+  // Fail fast if VAPID isn't configured — surfaces a clear error to the UI
+  // instead of returning {sent:0, failed:N} which masks the real cause.
+  if (!vapidReady) {
+    return new Response(
+      JSON.stringify({
+        sent: 0,
+        failed: 0,
+        total: 0,
+        error: vapidErrorMessage || 'Push not configured on server',
+      }),
+      {
+        status: 500,
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',

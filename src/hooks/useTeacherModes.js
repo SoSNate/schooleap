@@ -58,29 +58,33 @@ export default function useTeacherModes(teacherId) {
     })();
   }, [teacherId]);
 
-  // ─── Set up real-time subscription to mode changes ────────────────────────
+  // ─── Set up real-time subscription to mode changes (supabase-js v2 API) ───
   useEffect(() => {
     if (!teacherId) return;
 
-    console.log('[useTeacherModes] Setting up real-time subscription');
-
-    const subscription = supabase
-      .from('profiles')
-      .on('UPDATE', (payload) => {
-        if (payload.new.id === teacherId) {
-          console.log('[useTeacherModes] Real-time UPDATE:', payload.new);
+    const channel = supabase
+      .channel(`teacher-modes-${teacherId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${teacherId}`,
+        },
+        (payload) => {
+          if (payload.new?.id !== teacherId) return;
           setModes(payload.new.teacher_modes || ['private']);
           setPrimaryMode(payload.new.primary_teacher_mode || 'private');
           setModeStatus(payload.new.teacher_mode_status || {});
         }
-      })
+      )
       .subscribe();
 
-    subscriptionRef.current = subscription;
+    subscriptionRef.current = channel;
 
     return () => {
-      console.log('[useTeacherModes] Cleaning up subscription');
-      subscription.unsubscribe();
+      try { supabase.removeChannel(channel); } catch { /* noop */ }
     };
   }, [teacherId]);
 

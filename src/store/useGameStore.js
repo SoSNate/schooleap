@@ -5,6 +5,28 @@ import { supabase } from '../lib/supabase';
 
 const CHILD_TOKEN_KEY = 'hasbaonautica_child_token';
 
+// maxSteps per game (used for migration lvl→step and RankBadge calculation)
+export const STEP_CONFIG = {
+  balance:      9,
+  fractionLab:  8,
+  tank:         7,
+  decimal:      7,
+  equations:    7,
+  percentages:  7,
+  magicPatterns:9,
+  grid:         6,
+  word:         10,
+  multChamp:    9,  // arcade: effectiveStep 1-9
+};
+
+// Returns the RankBadge tier for a given step in a game
+export function getRankTier(game, step) {
+  const n = STEP_CONFIG[game] || 5;
+  if (step <= Math.floor(n / 3))      return 'green';
+  if (step <= Math.floor((2 * n) / 3)) return 'yellow';
+  return 'red';
+}
+
 const useGameStore = create(
   persist(
     (set, get) => ({
@@ -27,18 +49,19 @@ const useGameStore = create(
       assignments: [],
 
       // Per-game state
-      // recentResults = חלון נע של אחרוני 5 סיבובים (true=נצחון, false=כשלון),
-      // משמש לחישוב "3 ברצף או 4 מתוך 5" בלייבל-אפ.
-      equations: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
-      balance: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
-      tank: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
-      decimal: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
-      fractionLab: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
-      magicPatterns: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
-      grid: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
-      word: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
-      multChamp: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
-      percentages: { stars: 0, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
+      // step = current step in the learning path (1-N per game, per STEP_CONFIG)
+      // lvl = legacy field kept for backward-compat with old DB events (= rough equiv to step/2)
+      // recentResults = rolling window of last 5 rounds (true=win, false=fail)
+      equations:    { stars: 0, step: 1, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
+      balance:      { stars: 0, step: 1, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
+      tank:         { stars: 0, step: 1, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
+      decimal:      { stars: 0, step: 1, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
+      fractionLab:  { stars: 0, step: 1, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
+      magicPatterns:{ stars: 0, step: 1, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
+      grid:         { stars: 0, step: 1, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
+      word:         { stars: 0, step: 1, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
+      multChamp:    { stars: 0, step: 1, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
+      percentages:  { stars: 0, step: 1, lvl: 1, count: 0, consecutiveWins: 0, recentResults: [] },
 
       // Locks
       locks: { equations: 0, balance: 0, tank: 0, decimal: 0, fractionLab: 0, magicPatterns: 0, grid: 0, word: 0, multChamp: 0, percentages: 0 },
@@ -114,14 +137,16 @@ const useGameStore = create(
         const s = get();
         if (s.isAnimating) return { isLevelUp: false, unlocked: false, pts: 0 };
 
-        // In practice mode: award stars for the practice level, but don't advance real level
+        // In practice mode: award stars for the practice step, but don't advance real step
         const practiceLevel = s.practiceLevels[game] || 0;
-        const effectiveLvl = practiceLevel || s[game].lvl;
+        const effectiveStep = practiceLevel || s[game].step || s[game].lvl;
+        const maxSteps = STEP_CONFIG[game] || 5;
 
-        const pts = effectiveLvl + 1;
+        const pts = effectiveStep + 1;
         const newStars = s[game].stars + pts;
         const newTotalStars = s.totalStars + pts;
         let newCount = s[game].count;
+        let newStep = s[game].step || s[game].lvl;
         let newLvl = s[game].lvl;
         let isLevelUp = false;
         let unlocked = false;
@@ -143,7 +168,7 @@ const useGameStore = create(
             if (window.__animGuardId) clearTimeout(window.__animGuardId);
             window.__animGuardId = setTimeout(() => { if (get().isAnimating) set({ isAnimating: false }); }, 3000);
           }
-          return { isLevelUp: false, unlocked: false, pts, isPractice: true };
+          return { isStepUp: false, isLevelUp: false, unlocked: false, pts, isPractice: true };
         }
 
         // Update weekly stats

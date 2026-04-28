@@ -9,19 +9,6 @@ import { supabase } from '../../lib/supabase';
 
 const ONBOARD_KEY = 'seen_onboarding_v1';
 
-const gameOptions = [
-  { value: 'equations', label: 'כאן בונים בכיף' },
-  { value: 'balance', label: 'שומרים על איזון' },
-  { value: 'tank', label: 'חצי הכוס המלאה' },
-  { value: 'decimal', label: 'תפוס את הנקודה' },
-  { value: 'fractionLab', label: 'מעבדת השברים' },
-  { value: 'magicPatterns', label: 'תבניות הקסם' },
-  { value: 'grid', label: 'מעבדת השטחים' },
-  { value: 'word', label: 'המעבדה המילולית' },
-  { value: 'multChamp', label: 'אלוף הכפל' },
-  { value: 'percentages', label: 'מעבדת אחוזים' },
-];
-
 const GAME_LEGEND = [
   { key: 'eq',   color: GAME_COLORS.equations.bar,     label: 'כאן בונים' },
   { key: 'bal',  color: GAME_COLORS.balance.bar,       label: 'איזון' },
@@ -56,13 +43,9 @@ const getGameBarClass = (shortKey) => {
 
 export default function Settings() {
   const weeklyStats = useGameStore((s) => s.weeklyStats);
-  const applyLock = useGameStore((s) => s.applyLock);
-  const removeLock = useGameStore((s) => s.removeLock);
   const resetProgress = useGameStore((s) => s.resetProgress);
   const setScreen = useGameStore((s) => s.setScreen);
 
-  const [lockGame, setLockGame] = useState('equations');
-  const [lockLvl, setLockLvl] = useState(1);
   const [showInstall, setShowInstall] = useState(false);
 
   // Push notifications hook
@@ -71,32 +54,6 @@ export default function Settings() {
 
   const todayIdx = new Date().getDay();
   const maxPts = Math.max(...weeklyStats.days.map((d) => d.pts), 10);
-
-  const handleApplyLock = () => {
-    applyLock(lockGame, lockLvl);
-    Swal.fire({
-      title: 'ננעל 🔒',
-      text: 'המשחק ננעל ברמה ' + lockLvl,
-      icon: 'success',
-      toast: true,
-      position: 'top-start',
-      timer: 2000,
-      showConfirmButton: false,
-    });
-  };
-
-  const handleRemoveLock = () => {
-    removeLock(lockGame);
-    Swal.fire({
-      title: 'שוחרר 🔓',
-      text: 'הנעילה שוחררה בהצלחה',
-      icon: 'success',
-      toast: true,
-      position: 'top-start',
-      timer: 2000,
-      showConfirmButton: false,
-    });
-  };
 
   const handleReplayTutorials = () => {
     clearAllTutorials();
@@ -244,49 +201,6 @@ export default function Settings() {
               <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">{g.label}</span>
             </div>
           ))}
-        </div>
-      </div>
-
-      {/* Lock Controls */}
-      <div className="w-full max-w-md bg-white dark:bg-slate-800 p-6 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-700">
-        <h3 className="font-bold text-lg mb-4 text-slate-700 dark:text-slate-200 border-b border-slate-100 dark:border-slate-700 pb-2">
-          נעילת שלבים 🔒
-        </h3>
-        <div className="flex flex-col gap-3">
-          <div className="flex gap-2">
-            <select
-              value={lockGame}
-              onChange={(e) => setLockGame(e.target.value)}
-              className="flex-1 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2 text-sm outline-none"
-            >
-              {gameOptions.map((g) => (
-                <option key={g.value} value={g.value}>{g.label}</option>
-              ))}
-            </select>
-            <select
-              value={lockLvl}
-              onChange={(e) => setLockLvl(parseInt(e.target.value))}
-              className="w-24 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2 text-sm outline-none"
-            >
-              {[1, 2, 3, 4, 5].map((l) => (
-                <option key={l} value={l}>רמה {l}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={handleApplyLock}
-              className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-xl transition-colors active:scale-95"
-            >
-              הפעל נעילה 🔒
-            </button>
-            <button
-              onClick={handleRemoveLock}
-              className="flex-1 bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-700 dark:text-slate-200 font-bold py-2 rounded-xl transition-colors active:scale-95"
-            >
-              שחרר 🔓
-            </button>
-          </div>
         </div>
       </div>
 

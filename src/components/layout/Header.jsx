@@ -55,6 +55,13 @@ export default function Header() {
 
       {/* ── Right: actions — flex-shrink-0 so buttons never get clipped ── */}
       <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
+        {/* Rank badge — shows current game rank (טירון/מתקדם/אלוף/רמטכ״ל) */}
+        {rank && (
+          <div className={`px-2 sm:px-3 py-1 rounded-full text-xs font-bold border whitespace-nowrap transition-colors ${rank.cls}`}>
+            {rank.label}
+          </div>
+        )}
+
         {/* Stars counter */}
         <div className="bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 px-2 sm:px-3 py-1 rounded-full text-xs font-bold border border-amber-100 dark:border-amber-800/50 whitespace-nowrap flex items-center gap-1 transition-colors">
           ⭐ <span>{totalStars}</span>

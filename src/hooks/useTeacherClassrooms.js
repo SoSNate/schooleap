@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { readCache, writeCache } from '../lib/swrCache';
 
 const STORAGE_KEY = 'hasbaonautica_teacher_selected_classroom';
 
@@ -26,40 +27,45 @@ export default function useTeacherClassrooms(teacherId, searchParams, setSearchP
     return `${timestamp}-${random}`;
   }, []);
 
-  // ─── Fetch classrooms on mount ─────────────────────────────────────────────
+  // ─── Fetch classrooms on mount (SWR pattern) ──────────────────────────────
   useEffect(() => {
     if (!teacherId) {
       setLoading(false);
       return;
     }
 
+    // SWR: הצג cache מיד (0ms)
+    const cached = readCache(`classrooms:${teacherId}`);
+    if (cached?.value) {
+      setClassrooms(cached.value);
+      setLoading(false);
+      if (!selectedClassroom && cached.value.length > 0) {
+        setSelectedClassroom(cached.value[0]);
+      }
+    }
+
     (async () => {
       try {
         setError(null);
-        console.log('[useTeacherClassrooms] Fetching classrooms for teacher:', teacherId);
-
-        // Fetch teacher's classrooms from RPC
         const { data, error: err } = await supabase.rpc('get_teacher_classrooms', {
           p_teacher_id: teacherId,
         });
 
-        if (err) {
-          console.error('[useTeacherClassrooms] RPC error:', err);
-          throw err;
-        }
+        if (err) throw err;
 
-        console.log('[useTeacherClassrooms] Loaded classrooms:', data?.length || 0);
-        setClassrooms(data || []);
+        const list = data || [];
+        writeCache(`classrooms:${teacherId}`, list);
+        setClassrooms(list);
 
-        // Auto-select first classroom if none selected
-        if (!selectedClassroom && data?.length > 0) {
-          console.log('[useTeacherClassrooms] Auto-selecting first classroom');
-          setSelectedClassroom(data[0]);
+        if (!selectedClassroom && list.length > 0) {
+          setSelectedClassroom(list[0]);
         }
       } catch (e) {
         console.error('[useTeacherClassrooms] fetch error:', e);
-        setError(`שגיאה בטעינת הכיתות: ${e.message}`);
-        setClassrooms([]);
+        if (!cached?.value) {
+          setError(`שגיאה בטעינת הכיתות: ${e.message}`);
+          setClassrooms([]);
+        }
       } finally {
         setLoading(false);
       }
@@ -118,17 +124,14 @@ export default function useTeacherClassrooms(teacherId, searchParams, setSearchP
     if (!searchParams || !setSearchParams) return;
 
     const classroomCode = searchParams.get('classroom');
-    console.log('[useTeacherClassrooms] URL param classroom:', classroomCode);
 
     if (classroomCode && classrooms.length > 0) {
       const classroom = classrooms.find((c) => c.classroom_code === classroomCode);
       if (classroom && classroom.id !== selectedClassroom?.id) {
-        console.log('[useTeacherClassrooms] Selecting classroom from URL:', classroomCode);
         setSelectedClassroom(classroom);
       }
     } else if (!classroomCode && classrooms.length > 0 && !selectedClassroom) {
       // No URL param and no selection - select first
-      console.log('[useTeacherClassrooms] No URL param - selecting first classroom');
       setSelectedClassroom(classrooms[0]);
     }
   }, [searchParams, classrooms, selectedClassroom?.id, setSearchParams]);
@@ -140,7 +143,6 @@ export default function useTeacherClassrooms(teacherId, searchParams, setSearchP
       if (saved && classrooms.length > 0 && !selectedClassroom) {
         const classroom = classrooms.find((c) => c.classroom_code === saved);
         if (classroom) {
-          console.log('[useTeacherClassrooms] Restoring from localStorage:', saved);
           setSelectedClassroom(classroom);
           // Update URL if needed
           if (setSearchParams) {
@@ -171,7 +173,6 @@ export default function useTeacherClassrooms(teacherId, searchParams, setSearchP
   // ─── Select classroom and update URL ───────────────────────────────────────
   const selectClassroom = useCallback(
     (classroom) => {
-      console.log('[useTeacherClassrooms] selectClassroom:', classroom.classroom_code);
       setSelectedClassroom(classroom);
       if (setSearchParams) {
         setSearchParams((prev) => {
@@ -200,7 +201,6 @@ export default function useTeacherClassrooms(teacherId, searchParams, setSearchP
 
       try {
         setError(null);
-        console.log('[useTeacherClassrooms] Creating classroom:', classroomName);
 
         // Try to create with retry logic for duplicate codes
         let classroomCode;
@@ -210,7 +210,6 @@ export default function useTeacherClassrooms(teacherId, searchParams, setSearchP
 
         while (attempts < maxAttempts) {
           classroomCode = generateUniqueCode();
-          console.log(`[useTeacherClassrooms] Attempt ${attempts + 1}: ${classroomCode}`);
 
           const { data, error: err } = await supabase.rpc('create_teacher_classroom', {
             p_teacher_id: teacherId,
@@ -235,7 +234,6 @@ export default function useTeacherClassrooms(teacherId, searchParams, setSearchP
           }
 
           const newClassroom = data[0];
-          console.log('[useTeacherClassrooms] Classroom created successfully:', newClassroom);
 
           // Update local state
           setClassrooms((prev) => [newClassroom, ...prev]);
@@ -277,7 +275,6 @@ export default function useTeacherClassrooms(teacherId, searchParams, setSearchP
 
       try {
         setError(null);
-        console.log('[useTeacherClassrooms] Updating classroom name:', classroomId, newName);
 
         const { error: err } = await supabase.rpc('update_classroom_name', {
           p_classroom_id: classroomId,
@@ -305,7 +302,6 @@ export default function useTeacherClassrooms(teacherId, searchParams, setSearchP
 
       try {
         setError(null);
-        console.log('[useTeacherClassrooms] Deleting classroom:', classroomId);
 
         const { error: err } = await supabase.rpc('delete_classroom', {
           p_classroom_id: classroomId,

@@ -19,6 +19,7 @@ import { supabase } from './lib/supabase';
 import InstallPrompt, { captureInstallEvent, shouldAutoShowInstallPrompt } from './components/shared/InstallPrompt';
 import FlyingPlanesBackground from './components/shared/FlyingPlanesBackground';
 import InteractiveTour, { shouldShowTour } from './components/shared/InteractiveTour';
+import LevelUnlockedToast from './components/shared/LevelUnlockedToast';
 
 const screens = {
   menu: Menu,
@@ -470,6 +471,7 @@ export default function GameApp() {
           onDone={() => setShowTour(false)}
         />
       )}
+      <LevelUnlockedToast />
       <Header />
 
       {/* ── Reward agreement progress banner ── */}

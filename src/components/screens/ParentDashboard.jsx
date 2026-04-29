@@ -20,6 +20,7 @@ import PricingView           from '../dashboard/PricingView';
 import UpgradeNudge          from '../dashboard/UpgradeNudge';
 import SubscriptionPaywall   from '../dashboard/SubscriptionPaywall';
 import useSubscriptionStatus from '../../hooks/useSubscriptionStatus';
+import { readCache, writeCache } from '../../lib/swrCache';
 
 // ─── EmptyState (shown before a child exists) ─────────────────────────────────
 
@@ -226,6 +227,16 @@ export default function ParentDashboard() {
 
   // ─── Load children + profile ─────────────────────────────────────────────
   const loadChild = useCallback(async (u) => {
+    // SWR: הצג מיד מה-cache (0ms), refresh ברקע
+    const cachedProfile = readCache(`profile:${u.id}`);
+    const cachedChildren = readCache(`children:${u.id}`);
+    if (cachedProfile?.value) setProfile(cachedProfile.value);
+    if (cachedChildren?.value) {
+      const kids = cachedChildren.value;
+      setChildren(kids);
+      setChildExists(kids.length > 0);
+    }
+
     try {
       // ── profile + all children במקביל (חוסך round-trip אחד) ──────────────
       const [{ data: prof }, { data, error: err }] = await Promise.all([
@@ -241,10 +252,14 @@ export default function ParentDashboard() {
           .order('created_at', { ascending: true }),
       ]);
 
-      if (prof) setProfile(prof);
+      if (prof) {
+        setProfile(prof);
+        writeCache(`profile:${u.id}`, prof);
+      }
       if (err) throw err;
 
       const kids = data || [];
+      writeCache(`children:${u.id}`, kids);
       if (kids.length === 0) { setChildExists(false); setChildren([]); return; }
 
       setChildExists(true);
@@ -257,9 +272,12 @@ export default function ParentDashboard() {
         console.error('[ParentDashboard] fetchGoals:', e)
       );
     } catch (e) {
-      setError('שגיאה בטעינת הנתונים. נסה לרענן את הדף.');
+      // אם יש cache, אל תציג שגיאה — המשתמש כבר רואה את הdata הישן
+      if (!cachedChildren?.value) {
+        setError('שגיאה בטעינת הנתונים. נסה לרענן את הדף.');
+        setChildExists(false);
+      }
       console.error('[ParentDashboard] loadChild:', e);
-      setChildExists(false);
     }
   }, [fetchEvents, fetchGoals]);
 

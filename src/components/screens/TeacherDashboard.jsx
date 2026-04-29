@@ -9,6 +9,7 @@ import useTeacherModes from '../../hooks/useTeacherModes';
 import useTutorTrial from '../../hooks/useTutorTrial';
 import TeacherSalesPage from './TeacherSalesPage';
 import AddStudentForm from '../teacher/AddStudentForm';
+import { readCache, writeCache } from '../../lib/swrCache';
 import ClassEngagementTable from '../teacher/ClassEngagementTable';
 // recharts-heavy — נטען lazy כדי לא לחסום את הרינדור הראשון של הדשבורד
 const ClassSkillsCard      = lazy(() => import('../teacher/ClassSkillsCard'));
@@ -77,6 +78,15 @@ export default function TeacherDashboard() {
   const classroomCode = selectedClassroom?.classroom_code;
 
   const loadData = useCallback(async (u) => {
+    // SWR: הצג cache מיד (0ms)
+    const cachedProfile = readCache(`teacher_profile:${u.id}`);
+    const cachedStudents = readCache(`teacher_students:${u.id}`);
+    if (cachedProfile?.value) {
+      setProfile(cachedProfile.value);
+      setProfileLoaded(true);
+    }
+    if (cachedStudents?.value) setStudents(cachedStudents.value);
+
     try {
       // ── 1. profile + overview במקביל (חוסך round-trip אחד) ──────────────
       const [{ data: prof }, { data: list, error: rpcErr }] = await Promise.all([
@@ -90,8 +100,10 @@ export default function TeacherDashboard() {
 
       setProfile(prof || null);
       setProfileLoaded(true);
+      if (prof) writeCache(`teacher_profile:${u.id}`, prof);
       if (!prof || (!prof.is_admin && prof.role !== 'teacher' && prof.role !== 'admin')) return;
       if (rpcErr) throw rpcErr;
+      writeCache(`teacher_students:${u.id}`, list || []);
 
       // ── 2. הצג תלמידים מיד — ללא המתנה ל-events ────────────────────────
       setStudents(list || []);
